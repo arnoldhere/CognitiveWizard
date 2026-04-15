@@ -1,0 +1,7 @@
+.codex
+node_modules/
+*__pycache__/
+.env
+client/public/
+/cogwiz
+demo.py
