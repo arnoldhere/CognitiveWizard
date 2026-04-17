@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { getQuizResults } from "../services/api";
+import { getQuizResults, deleteProfile } from "../services/api";
 import QuizResultsHistory from "../components/quiz/QuizResultsHistory";
 import {
     Container,
@@ -11,11 +12,18 @@ import {
     Avatar,
     Chip,
     Divider,
+    Button,
     Alert,
     Tab,
     Tabs,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    CircularProgress,
 } from "@mui/material";
-import { Person, Email, AdminPanelSettings, History } from "@mui/icons-material";
+import { Person, Email, AdminPanelSettings, History, Delete } from "@mui/icons-material";
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -33,11 +41,18 @@ function TabPanel(props) {
 }
 
 export default function Profile() {
-    const { user } = useAuth();
+    const navigate = useNavigate()
+    const { user, logout } = useAuth();
     const [tabValue, setTabValue] = useState(0);
     const [results, setResults] = useState({ data: [], total: 0, pages: 0 });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // Delete profile modal states
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [deletePassword, setDeletePassword] = useState("");
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deleteError, setDeleteError] = useState(null);
 
     const handleFetchResults = async (params) => {
         try {
@@ -50,6 +65,41 @@ export default function Profile() {
             setError("Failed to fetch quiz results");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteProfile = async () => {
+        if (!deletePassword.trim()) {
+            setDeleteError("Please enter your password");
+            return;
+        }
+
+        try {
+            setDeleteLoading(true);
+            setDeleteError(null);
+
+            await deleteProfile(deletePassword);
+
+            // Close modal and logout
+            setDeleteModalOpen(false);
+            setDeletePassword("");
+
+            // Show success message
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Logout and redirect
+            await logout();
+            navigate("/login", {
+                state: { message: "Your profile has been successfully deleted" }
+            });
+        } catch (err) {
+            console.error("Error deleting profile:", err);
+            setDeleteError(
+                // err.response?.data?.detail ||
+                "Failed to delete profile, Invalid password."
+            );
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -168,6 +218,106 @@ export default function Profile() {
                             </Typography>
                         </Grid>
                     </Grid>
+                    <Divider sx={{ my: 4 }} />
+
+                    {/* Security Section */}
+                    <Box>
+                        <Typography
+                            variant="h6"
+                            sx={{ fontWeight: 600, mb: 2 }}
+                        >
+                            Security
+                        </Typography>
+
+                        <Paper
+                            elevation={1}
+                            sx={{
+                                p: 3,
+                                borderRadius: 3,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                background: "linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)",
+                            }}
+                        >
+                            <Box>
+                                <Typography variant="subtitle1" fontWeight={600}>
+                                    Facial Login
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Secure your account using face recognition for faster login.
+                                </Typography>
+
+                                <Chip
+                                    label="Not Setup"
+                                    color="warning"
+                                    size="small"
+                                    sx={{ mt: 1 }}
+                                />
+                            </Box>
+
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => navigate("/face-register")}
+                                sx={{ borderRadius: 2, textTransform: "none", px: 3 }}
+                            >
+                                Setup Facial Login
+                            </Button>
+                        </Paper>
+                    </Box>
+
+                    {/* Danger Zone - Delete Profile */}
+                    <Box sx={{ mt: 4 }}>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                fontWeight: 600,
+                                mb: 2,
+                                color: "#d32f2f",
+                            }}
+                        >
+                            Danger Zone
+                        </Typography>
+
+                        <Paper
+                            elevation={1}
+                            sx={{
+                                p: 3,
+                                borderRadius: 3,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                background: "linear-gradient(135deg, rgba(211, 47, 47, 0.05) 0%, rgba(244, 67, 54, 0.05) 100%)",
+                                border: "1px solid #ffcdd2",
+                            }}
+                        >
+                            <Box>
+                                <Typography variant="subtitle1" fontWeight={600} sx={{ color: "#d32f2f" }}>
+                                    Delete Profile
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Permanently delete your account and all associated data including facial recognition data.
+                                    This action cannot be undone.
+                                </Typography>
+                            </Box>
+
+                            <Button
+                                variant="outlined"
+                                color="error"
+                                startIcon={<Delete />}
+                                onClick={() => setDeleteModalOpen(true)}
+                                sx={{
+                                    borderRadius: 2,
+                                    textTransform: "none",
+                                    px: 3,
+                                    minWidth: "140px"
+                                }}
+                            >
+                                Delete Profile
+                            </Button>
+                        </Paper>
+                    </Box>
                 </Paper>
             </TabPanel>
 
@@ -184,6 +334,82 @@ export default function Profile() {
                     onFetchResults={handleFetchResults}
                 />
             </TabPanel>
+
+            {/* Delete Profile Confirmation Dialog */}
+            <Dialog
+                open={deleteModalOpen}
+                onClose={() => {
+                    setDeleteModalOpen(false);
+                    setDeletePassword("");
+                    setDeleteError(null);
+                }}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+                    Delete Profile
+                </DialogTitle>
+                <DialogContent sx={{ pt: 2 }}>
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={600}>
+                            ⚠️ This action is irreversible!
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                            Deleting your profile will:
+                        </Typography>
+                        <Typography variant="body2" component="ul" sx={{ mt: 1, pl: 2 }}>
+                            <li>Remove your account permanently</li>
+                            <li>Delete all facial recognition data</li>
+                            <li>Delete all quiz history</li>
+                            <li>Delete all stored files and embeddings</li>
+                        </Typography>
+                    </Alert>
+
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                        To confirm, please enter your password:
+                    </Typography>
+
+                    <TextField
+                        fullWidth
+                        type="password"
+                        label="Password"
+                        placeholder="Enter your password"
+                        value={deletePassword}
+                        onChange={(e) => {
+                            setDeletePassword(e.target.value);
+                            if (deleteError) setDeleteError(null);
+                        }}
+                        error={!!deleteError}
+                        helperText={deleteError}
+                        disabled={deleteLoading}
+                        sx={{ mb: 1 }}
+                    />
+                </DialogContent>
+                <DialogActions sx={{ p: 2, pt: 0 }}>
+                    <Button
+                        onClick={() => {
+                            setDeleteModalOpen(false);
+                            setDeletePassword("");
+                            setDeleteError(null);
+                        }}
+                        disabled={deleteLoading}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleDeleteProfile}
+                        color="error"
+                        variant="contained"
+                        disabled={deleteLoading || !deletePassword.trim()}
+                        sx={{ minWidth: "100px" }}
+                    >
+                        {deleteLoading ? (
+                            <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                        ) : null}
+                        {deleteLoading ? "Deleting..." : "Delete"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Container>
     );
 }

@@ -1,11 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from db import get_db
-from schemas.auth_schema import UserCreate, UserRead, LoginRequest, Token
-from services.auth_service import create_user, authenticate_user, get_user_by_email
+from config.db import get_db
+from schemas.auth_schema import (
+    UserCreate,
+    UserRead,
+    LoginRequest,
+    Token,
+    DeleteProfileRequest,
+)
+from services.auth_service import (
+    create_user,
+    authenticate_user,
+    get_user_by_email,
+    verify_password,
+)
 from utils.security import create_access_token, decode_access_token
 from models.user import User
+from services.facial_service.facial_auth import register as register_face_service
+from services.facial_service.facial_auth import delete_user_face_data
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -74,3 +87,78 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserRead)
 def read_current_user(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+
+# =============
+# Facial login endpoints
+# =============
+@router.post("/face/register")
+async def register_face(
+    userid: str = Form(...),
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    # try:
+    contents = await image.read()
+
+    print(f"Registering face for user {userid} with image size {len(contents)} bytes")
+    res = await register_face_service(db, contents, userid)
+    if not res:
+        return {"error": "Failed to register face.. try again..."}
+    return {"message": "face registered..", "data": res}
+
+
+# except Exception as e:
+#     print(f"Error in register_face endpoint: {(e)}")
+#     raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============
+# Profile deletion endpoint
+# =============
+@router.delete("/profile")
+async def delete_profile(
+    delete_request: DeleteProfileRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Delete user profile completely with password confirmation.
+    This will delete:
+    - User account from MySQL
+    - Face embeddings from MySQL
+    - Face vectors from FAISS
+    - Stored face image files
+
+    Requires password confirmation for security.
+    """
+    try:
+        # 1. Verify password
+        if not verify_password(delete_request.password, current_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Invalid password"
+            )
+
+        # 2. Delete facial recognition data
+        face_deletion_result = await delete_user_face_data(db, current_user.id)
+
+        # 3. Delete user record from database
+        db.delete(current_user)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "Profile deleted successfully",
+            "face_data_deleted": face_deletion_result.get("status") == "success",
+            "face_details": face_deletion_result,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting profile for user {current_user.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete profile: {str(e)}",
+        )

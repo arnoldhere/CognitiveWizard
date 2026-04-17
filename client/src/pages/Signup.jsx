@@ -11,8 +11,7 @@ import {
     Alert,
     Link as MuiLink,
 } from "@mui/material";
-import { Email, Lock, Person } from "@mui/icons-material";
-
+import { Email, Lock, Person, Face2Outlined, SettingsEthernet } from "@mui/icons-material";
 export default function Signup() {
     const { signup } = useAuth();
     const navigate = useNavigate();
@@ -20,6 +19,7 @@ export default function Signup() {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    // on form submit
     const handleSubmit = async (event) => {
         event.preventDefault();
         setLoading(true);
@@ -121,23 +121,25 @@ export default function Signup() {
                             {error}
                         </Alert>
                     )}
+                    <Box sx={{ textAlign: 'center', mt: 2 }}>
+                        <Button
+                            type="submit"
+                            fullWidth
+                            variant="contained"
+                            size="large"
+                            disabled={loading}
+                            sx={{
+                                mt: 2,
+                                py: 1.5,
+                                fontSize: '1.1rem',
+                                fontWeight: 600,
+                            }}
+                        >
+                            {loading ? 'Creating account...' : 'Sign Up'}
+                        </Button>
 
-                    <Button
-                        type="submit"
-                        fullWidth
-                        variant="contained"
-                        size="large"
-                        disabled={loading}
-                        sx={{
-                            mt: 2,
-                            py: 1.5,
-                            fontSize: '1.1rem',
-                            fontWeight: 600,
-                        }}
-                    >
-                        {loading ? 'Creating account...' : 'Sign Up'}
-                    </Button>
 
+                    </Box>
                     <Box sx={{ textAlign: 'center', mt: 2 }}>
                         <Typography variant="body2" color="text.secondary">
                             Already have an account?{' '}
@@ -159,6 +161,6 @@ export default function Signup() {
                     </Box>
                 </Box>
             </Paper>
-        </Container>
+        </Container >
     );
 }

@@ -14,6 +14,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import "./App.css";
 import SummarizerPage from "./pages/Summarize";
+import FaceRegister from "./pages/FaceRegister";
 
 function App() {
   return (
@@ -49,6 +50,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/face-register"
+                element={
+                  <ProtectedRoute>
+                    <FaceRegister />
                   </ProtectedRoute>
                 }
               />

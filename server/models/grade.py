@@ -1,13 +1,16 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON
 from sqlalchemy.sql import func
-from db import Base
+from config.db import Base
+from sqlalchemy.orm import relationship
 
 
 class Grade(Base):
     __tablename__ = "grades"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     quiz_topic = Column(String(255), nullable=False, index=True)
     difficulty = Column(String(50), nullable=False)
     total_questions = Column(Integer, nullable=False)
@@ -24,3 +27,5 @@ class Grade(Base):
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # relationships keys
+    user = relationship("User", back_populates="grades")

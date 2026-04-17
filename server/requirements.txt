@@ -21,3 +21,5 @@ beautifulsoup4
 youtube-transcript-api
 PyMuPDF
 pydantic
+faiss-cpu
+faiss-gpu

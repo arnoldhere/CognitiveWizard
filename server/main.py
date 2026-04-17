@@ -3,9 +3,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.quiz_api import router as quiz_router
 from api.auth_api import router as auth_router
 from api.summarization_api import router as summarization_router
-from db import engine, Base
+from config.db import engine, Base
 from models import *
 from config.settings import settings
+import os
+
+import tensorflow as tf
+
+gpus = tf.config.list_physical_devices("GPU")
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
 
 Base.metadata.create_all(bind=engine)
 
@@ -13,6 +24,10 @@ app = FastAPI(
     title="Cognitive Wizard Backend",
     description="Backend platform for Cognitive Wizard application",
 )
+
+# Ensure a temporary directory exists for testing the basic "store" functionality
+# UPLOAD_DIR = "media/temp_faces"
+# os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,

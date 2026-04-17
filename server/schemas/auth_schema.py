@@ -34,3 +34,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: str
     role: str
+
+
+class DeleteProfileRequest(BaseModel):
+    password: str

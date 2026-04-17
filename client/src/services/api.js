@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Form } from "react-router-dom";
 
 const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || import.meta.env.BACKEND_BASE_URL || "http://localhost:8000";
 
@@ -49,6 +50,18 @@ export const uploadSummaryFile = async (file, mode = "brief", model_mode = "api"
   return res.data;
 };
 
+export const sendFaceData = async (user_id, imageData) => {
+  const data = new FormData();
+  data.append("user_id", user_id);
+  data.append("image", imageData);
+  const res = await API.post("/auth/face/register", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    }
+  })
+  return res.data;
+}
+
 export const getQuizResults = async ({
   skip = 0,
   limit = 10,
@@ -68,5 +81,14 @@ export const getQuizResults = async ({
   if (topic_search) params.append("topic_search", topic_search);
 
   const res = await API.get(`/quiz/results?${params.toString()}`);
+  return res.data;
+};
+
+export const deleteProfile = async (password) => {
+  const res = await API.delete("/auth/profile", {
+    data: {
+      password,
+    },
+  });
   return res.data;
 };

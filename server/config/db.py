@@ -14,6 +14,8 @@ Base = declarative_base()
 
 def get_db():
     db = SessionLocal()
+    if db is None:
+        raise Exception("Failed to create database session")
     try:
         yield db
     finally:

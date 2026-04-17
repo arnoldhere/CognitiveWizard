@@ -8,6 +8,12 @@ load_dotenv()
 @dataclass
 class Settings:
     # ===========
+    # FAISS setup
+    # ===========
+    FAISS_INDEX_PATH: str = "vectorDB/faiss.index"
+    EMBEDDING_DIM: int = 512
+
+    # ===========
     # HF configurations
     # ===========
     HF_API_KEY: str = os.getenv("HF_API_KEY", "")

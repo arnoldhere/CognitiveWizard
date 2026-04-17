@@ -131,6 +131,22 @@ export default function Login() {
                         {loading ? 'Signing in...' : 'Sign In'}
                     </Button>
 
+                    <Button
+                        type="button"
+                        fullWidth
+                        variant="contained"
+                        size="large"
+                        disabled={loading}
+                        sx={{
+                            mt: 2,
+                            py: 1.5,
+                            fontSize: '1.1rem',
+                            fontWeight: 600,
+                        }}
+                    >
+                        {loading ? 'Please wait...' : 'Face Login'}
+                    </Button>
+
                     <Box sx={{ textAlign: 'center', mt: 2 }}>
                         <Typography variant="body2" color="text.secondary">
                             New here?{' '}
