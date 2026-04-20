@@ -1,6 +1,6 @@
 from sqlalchemy import Column, ForeignKey, Integer, BigInteger, TIMESTAMP
 from sqlalchemy.sql import func
-from config.db import Base
+from config.base import Base
 
 
 class FaceEmbedding(Base):

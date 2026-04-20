@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import "./App.css";
 import SummarizerPage from "./pages/Summarize";
 import FaceRegister from "./pages/FaceRegister";
+import FaceLogin from "./pages/FaceLogin";
 
 function App() {
   return (
@@ -59,6 +60,14 @@ function App() {
                   <ProtectedRoute>
                     <FaceRegister />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/face-login"
+                element={
+                  <PublicRoute>
+                    <FaceLogin />
+                  </PublicRoute>
                 }
               />
 

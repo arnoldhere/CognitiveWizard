@@ -134,14 +134,16 @@ export default function Login() {
                     <Button
                         type="button"
                         fullWidth
-                        variant="contained"
+                        variant="outlined"
                         size="large"
                         disabled={loading}
+                        onClick={() => navigate('/face-login')}
                         sx={{
                             mt: 2,
                             py: 1.5,
                             fontSize: '1.1rem',
                             fontWeight: 600,
+                            textTransform: 'none',
                         }}
                     >
                         {loading ? 'Please wait...' : 'Face Login'}

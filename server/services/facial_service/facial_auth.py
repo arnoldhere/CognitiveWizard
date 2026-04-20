@@ -1,4 +1,6 @@
+from collections import defaultdict
 from utils.decode_image import decode_image
+from datetime import datetime
 import cv2
 import os
 from services.facial_service.detect_face import detect_face
@@ -7,6 +9,7 @@ from utils.decode_image import normalize
 from config.Faiss_index import faiss_service
 from sqlalchemy.orm import Session
 from models.face_embeddings import FaceEmbedding
+from services.facial_service.get_user import get_user_by_vector_id
 
 
 async def register(db: Session, image_bytes, userid):
@@ -92,3 +95,77 @@ async def delete_user_face_data(db: Session, user_id: int):
         db.rollback()
         print(f"Error deleting face data for user {user_id}: {e}")
         return {"status": "error", "message": f"Failed to delete face data: {str(e)}"}
+
+
+async def login_with_face(image, db: Session):
+    """
+    Authenticate user for login with face
+    """
+    # ========
+    # decode the image
+    # ========
+    image = decode_image(image)
+
+    # Get embedding using the consolidated service
+    embedding, bbox = embedder.process_image(image)
+
+    if embedding is None:
+        return {"error": "No face detected or embedding failed"}
+    # Optional: Save cropped face if you still need to see it
+    x1, y1, x2, y2 = bbox.astype(int)
+    face_crop = image[y1:y2, x1:x2]
+    os.makedirs("media/faces", exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    cv2.imwrite(f"media/faces/login_at_{timestamp}.jpg", face_crop)
+    # ========
+    # normalize the image
+    # ========
+    embedding = normalize(embedding)
+    # ========
+    # search the FAISS
+    # ========
+    results = faiss_service.search_top_k(embedding, 3)
+    if not results:
+        return {"error": "No matching face found..."}
+    # ========
+    # extract vectorids and map to userid
+    # ========
+    vector_ids = [r["vector_id"] for r in results]
+    mapping = get_user_by_vector_id(vector_ids, db)
+    if not mapping:
+        return {"error": "No users mapped with the face"}
+    # ========
+    # aggregate scores per user
+    # ========
+    user_scores = defaultdict(list)
+
+    for r in results:
+        vid = r["vector_id"]
+        score = r["score"]
+
+        if vid in mapping:
+            user_id = mapping[vid]
+            user_scores[user_id].append(score)
+
+    if not user_scores:
+        return {"error": "No valid user match"}
+    # ============
+    # final decision call
+    # ============
+    best_user = None
+    best_score = 0
+    for user_id, scores in user_scores.items():
+        max_score = max(scores)
+        avg_score = sum(scores) / len(scores)
+        count = len(scores)
+        if max_score > 0.7 and count >= 2:
+            if max_score > best_score:
+                best_score = max_score
+                best_user = user_id
+    if best_user is None:
+        return {"error": "Face not recognized"}
+    return {
+        "message": "Authenticated sucessfully",
+        "user_id": best_user,
+        "confidence": best_score,
+    }

@@ -53,7 +53,34 @@ class FaissService:
             print(f"Error rebuilding FAISS index: {e}")
             return False
 
+    def search_top_k(self, vector, k=3):
+        """
+        Search for top-k similar vectors
+        Args:
+            vector: normalized embedding (1D array)
+            k: number of nearest neighbors
+        Returns:
+            List of (vector_id, similarity_score)
+        """
+        vector = np.array([vector]).astype("float32")
+        # perform search
+        scores, indices = self.index.search(vector, k)
+        results = []
+
+        for i in range(len(indices[0])):
+            vector_id = int(indices[0][i])
+            score = float(scores[0][i])
+            # FAISS returns -1 if no result
+            if vector_id == -1:
+                continue
+            results.append({"vector_id": vector_id, "score": score})
+
+        return results
+
     def _save(self):
+        """
+        persist FAISS index to disk
+        """
         dir_path = os.path.dirname(settings.FAISS_INDEX_PATH)
         os.makedirs(dir_path, exist_ok=True)
         faiss.write_index(self.index, settings.FAISS_INDEX_PATH)

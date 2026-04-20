@@ -7,14 +7,17 @@ from schemas.auth_schema import (
     UserRead,
     LoginRequest,
     Token,
+    FaceLoginResponse,
     DeleteProfileRequest,
 )
 from services.auth_service import (
     create_user,
     authenticate_user,
     get_user_by_email,
+    get_user_by_id,
     verify_password,
 )
+from services.facial_service.facial_auth import login_with_face
 from utils.security import create_access_token, decode_access_token
 from models.user import User
 from services.facial_service.facial_auth import register as register_face_service
@@ -98,7 +101,6 @@ async def register_face(
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    # try:
     contents = await image.read()
 
     print(f"Registering face for user {userid} with image size {len(contents)} bytes")
@@ -106,11 +108,6 @@ async def register_face(
     if not res:
         return {"error": "Failed to register face.. try again..."}
     return {"message": "face registered..", "data": res}
-
-
-# except Exception as e:
-#     print(f"Error in register_face endpoint: {(e)}")
-#     raise HTTPException(status_code=500, detail=str(e))
 
 
 # =============
@@ -162,3 +159,38 @@ async def delete_profile(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete profile: {str(e)}",
         )
+
+
+@router.post("/face/login", response_model=FaceLoginResponse)
+async def face_login(
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """
+    Facial login endpoint.
+    Accepts a camera image and returns a JWT plus user profile data.
+    """
+    contents = await image.read()
+    result = await login_with_face(contents, db)
+
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=result["error"]
+        )
+
+    user = get_user_by_id(db, result["user_id"])
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found for recognized face",
+        )
+
+    token = create_access_token({"sub": user.email, "role": user.role})
+    return {
+        "status": "success",
+        "message": result["message"],
+        "confidence": result["confidence"],
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user,
+    }

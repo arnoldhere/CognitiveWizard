@@ -31,6 +31,18 @@ class Token(BaseModel):
     user: UserRead
 
 
+class FaceLoginResponse(BaseModel):
+    status: str
+    message: str
+    confidence: float
+    access_token: str
+    token_type: str
+    user: UserRead
+
+    class Config:
+        from_attributes = True
+
+
 class TokenData(BaseModel):
     email: str
     role: str

@@ -96,6 +96,13 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const loginWithToken = useCallback((payload) => {
+        if (!payload?.access_token || !payload?.user) {
+            throw new Error("Invalid login payload");
+        }
+        persistSession(payload.access_token, payload.user);
+    }, [persistSession]);
+
     const signup = async (values) => {
         const response = await authSignup(values);
         return response.data;
@@ -117,6 +124,7 @@ export function AuthProvider({ children }) {
         loading,
         initializing,
         login,
+        loginWithToken,
         signup,
         logout,
         updateUser,

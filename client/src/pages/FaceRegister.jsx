@@ -1,13 +1,14 @@
 // FaceRegistration.jsx
 import React, { useRef, useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { sendFaceData } from '../services/api';
-import axios from 'axios';
+
 const FaceRegistration = () => {
+    const { user } = useAuth();
+
     // Refs to access the video and canvas DOM elements directly
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
-    const BASE_URL = import.meta.env.BACKEND_BASE_URL || "http://localhost:8000";
-
     const [status, setStatus] = useState('');
     const [stream, setStream] = useState(null);
 
@@ -78,34 +79,18 @@ const FaceRegistration = () => {
 
             setStatus("Preparing request...");
 
-            const user = JSON.parse(localStorage.getItem("cw_user"));
-
             if (!user || !user.id) {
                 setStatus("User not found. Please login again.");
                 return;
             }
 
-            // Prepare FormData
-            const formData = new FormData();
-            formData.append('image', blob, 'capture.jpg');
-            formData.append('userid', user.id);
-
-            setStatus("Sending to backend...");
-            const response = await axios.post(
-                `${BASE_URL}/auth/face/register`,
-                formData,
-                {
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                }
-            );
-            const data = response.data;
-            if (response.status === 200) {
-                setStatus(`✅ Success: ${data.message || "Face registered"}`);
+            setStatus("Hold Still...Sending to backend...");
+            const data = await sendFaceData(user.id, blob);
+            if (data?.message) {
+                setStatus(`✅ Success: ${data.message}`);
             } else {
                 console.error("Server error:", data);
-                setStatus(` Error: ${data.detail || data.error || "Registration failed"}`);
+                setStatus(`Error: ${data.detail || data.error || "Registration failed"}`);
             }
 
         } catch (err) {
