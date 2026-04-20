@@ -51,7 +51,7 @@ export const uploadSummaryFile = async (file, mode = "brief", model_mode = "api"
 
 export const sendFaceData = async (user_id, imageData) => {
   const data = new FormData();
-  data.append("user_id", user_id);
+  data.append("userid", user_id);
   data.append("image", imageData);
   const res = await API.post("/auth/face/register", data, {
     headers: {

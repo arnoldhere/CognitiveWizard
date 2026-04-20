@@ -354,6 +354,7 @@ export default function SummarizerPage() {
             }
         } catch (err) {
             setError(err.message || "Failed");
+            // console.log(err)
         } finally {
             setLoading(false);
         }

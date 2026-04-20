@@ -104,9 +104,12 @@ async def register_face(
     contents = await image.read()
 
     print(f"Registering face for user {userid} with image size {len(contents)} bytes")
-    res = await register_face_service(db, contents, userid)
-    if not res:
-        return {"error": "Failed to register face.. try again..."}
+    res = await register_face_service(contents, userid, db)
+    if not res or "error" in res:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(res or {}).get("error", "Failed to register face. Please try again."),
+        )
     return {"message": "face registered..", "data": res}
 
 

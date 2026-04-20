@@ -1,6 +1,8 @@
 from collections import defaultdict
 from utils.decode_image import decode_image
 from datetime import datetime
+
+# from fastapi import
 import cv2
 import os
 from services.facial_service.detect_face import detect_face
@@ -12,7 +14,7 @@ from models.face_embeddings import FaceEmbedding
 from services.facial_service.get_user import get_user_by_vector_id
 
 
-async def register(db: Session, image_bytes, userid):
+async def register(image_bytes, userid, db: Session):
     # Decode image
     img = decode_image(image_bytes)
 
@@ -32,13 +34,19 @@ async def register(db: Session, image_bytes, userid):
     embeddings = normalize(embedding)
     vec_id = faiss_service.add_vector(embeddings)
 
-    if not vec_id:
+    if vec_id is None:
         return {"error": "Unable to save face embeddings"}
 
-    # MySQL metadata
-    new_embedding = FaceEmbedding(user_id=userid, vector_id=vec_id)
-    db.add(new_embedding)
-    db.commit()
+    try:
+        # MySQL metadata
+        new_embedding = FaceEmbedding(user_id=int(userid), vector_id=int(vec_id))
+        db.add(new_embedding)
+        db.commit()
+        db.refresh(new_embedding)
+    except Exception as e:
+        db.rollback()
+        faiss_service.delete_vector(int(vec_id))
+        return {"error": f"Unable to save face metadata: {str(e)}"}
 
     return {"message": "Face registered successfully", "vec_id": vec_id}
 
