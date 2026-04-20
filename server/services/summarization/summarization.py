@@ -15,7 +15,7 @@ def _build_chunk_prompt(text: str, mode: str) -> str:
         "concise": "Provide an ultra-brief summary (2-3 sentences) capturing only the essential core concepts.",
         "brief": "Provide a concise summary capturing the main points and key information in 1-2 paragraphs.",
         "summary": "Provide a balanced summary covering the main topics and important details in 2-3 paragraphs.",
-        "detailed": "Provide a comprehensive summary with key details, examples, and necessary context in 3-4 paragraphs.",
+        "detailed": "Provide a comprehensive summary with key details, examples, and necessary context, maintaining the richness of the original content and give a clear understanding of the chunk in 3-4 paragraphs.",
     }
     instruction = mode_instructions.get(mode, mode_instructions["brief"])
     return f"""Please {instruction}
@@ -35,7 +35,7 @@ def _build_final_prompt(partial_summaries: List[str], mode: str) -> str:
         "concise": "Create an ultra-brief overall summary (2-3 sentences) distilling only the absolutely essential information from all partial summaries.",
         "brief": "Create a concise overall summary capturing the most important information from all the partial summaries in 1-2 paragraphs.",
         "summary": "Create a balanced final summary integrating the key topics and important details from all partial summaries in 2-3 paragraphs.",
-        "detailed": "Create a comprehensive final summary that integrates and synthesizes information from all partial summaries, maintaining important details and context in 3-4 paragraphs.",
+        "detailed": "Create a comprehensive final summary that integrates and synthesizes information from all partial summaries, maintaining important details and context, you may provide graphical representations(from the source) if needed",
     }
     instruction = mode_instructions.get(mode, mode_instructions["brief"])
     return f"""{instruction}
@@ -109,7 +109,7 @@ def Summarization(
     text: str,
     mode: str = "brief",
     model_mode: str = DEFAULT_MODEL_MODE,
-    max_chunks: int = 10,
+    max_chunks: int = 20,
 ) -> Tuple[bool, str]:
     """
     Enhanced summarization logic with hierarchical processing and robust error handling.
