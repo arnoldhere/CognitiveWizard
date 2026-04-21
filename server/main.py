@@ -6,7 +6,6 @@ from api.summarization_api import router as summarization_router
 from config.db import engine, Base
 from models import *
 from config.settings import settings
-import os
 
 import tensorflow as tf
 

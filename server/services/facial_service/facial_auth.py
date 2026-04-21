@@ -32,7 +32,7 @@ async def register(image_bytes, userid, db: Session):
 
     # Normalization and FAISS storage
     embeddings = normalize(embedding)
-    vec_id = faiss_service.add_vector(embeddings)
+    vec_id = faiss_service.add_vector(embeddings, src="face")
 
     if vec_id is None:
         return {"error": "Unable to save face embeddings"}

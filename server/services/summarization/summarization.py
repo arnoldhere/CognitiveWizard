@@ -18,7 +18,7 @@ def _build_chunk_prompt(text: str, mode: str) -> str:
         "detailed": "Provide a comprehensive summary with key details, examples, and necessary context, maintaining the richness of the original content and give a clear understanding of the chunk in 3-4 paragraphs.",
     }
     instruction = mode_instructions.get(mode, mode_instructions["brief"])
-    return f"""Please {instruction}
+    return f"""You are a helpfull Summarization engine. {instruction}
 
 Content to summarize:
 {text}

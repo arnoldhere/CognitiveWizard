@@ -10,7 +10,8 @@ class Settings:
     # ===========
     # FAISS setup
     # ===========
-    FAISS_INDEX_PATH: str = "vectorDB/faiss.index"
+    FACE_FAISS_INDEX_PATH: str = "vectorDB/face_faiss.index"
+    RAG_FAISS_INDEX_PATH: str = "vectorDB/rag_faiss.index"
     EMBEDDING_DIM: int = 512
 
     # ===========

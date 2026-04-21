@@ -1,89 +1,119 @@
 import faiss
 import numpy as np
-from config.settings import settings
 import os
+from config.settings import settings
 
 
 class FaissService:
     def __init__(self):
         self.dim = settings.EMBEDDING_DIM
 
-        if os.path.exists(settings.FAISS_INDEX_PATH):
-            self.index = faiss.read_index(settings.FAISS_INDEX_PATH)
+        # Load or create indices
+        self.face_index = self._load_or_create(settings.FACE_FAISS_INDEX_PATH)
+        self.rag_index = self._load_or_create(settings.RAG_FAISS_INDEX_PATH)
+
+    def _load_or_create(self, path):
+        if os.path.exists(path):
+            index = faiss.read_index(path)
+            assert index.d == self.dim, "Dimension mismatch in FAISS index"
         else:
-            self.index = faiss.IndexFlatIP(self.dim)
+            index = faiss.IndexFlatIP(self.dim)  # cosine if normalized
+        return index
 
-    def add_vector(self, vector):
+    def _normalize(self, vec):
+        """Ensure vector is normalized for cosine similarity"""
+        faiss.normalize_L2(vec)
+        return vec
+
+    def _get_index(self, src):
+        if src == "face":
+            return self.face_index, settings.FACE_FAISS_INDEX_PATH
+        elif src == "rag":
+            return self.rag_index, settings.RAG_FAISS_INDEX_PATH
+        else:
+            raise ValueError("Invalid index source")
+
+    # -------------------------
+    # ADD VECTOR
+    # -------------------------
+    def add_vector(self, vector, src):
+        index, path = self._get_index(src)
+
         vec = np.array([vector]).astype("float32")
-        self.index.add(vec)
+        vec = self._normalize(vec)
 
-        vec_id = self.index.ntotal - 1
-        self._save()
+        index.add(vec)
+        vec_id = index.ntotal - 1
+
+        self._save(index, path)
         return vec_id
 
-    def delete_vector(self, vector_id):
-        """Remove a vector from the FAISS index by its ID"""
+    # -------------------------
+    # SEARCH
+    # -------------------------
+    def search_top_k(self, vector, src, k=3):
+        index, _ = self._get_index(src)
+
+        vec = np.array([vector]).astype("float32")
+        vec = self._normalize(vec)
+
+        scores, indices = index.search(vec, k)
+
+        results = []
+        for i in range(len(indices[0])):
+            if indices[0][i] == -1:
+                continue
+
+            results.append(
+                {"vector_id": int(indices[0][i]), "score": float(scores[0][i])}
+            )
+
+        return results
+
+    # -------------------------
+    # DELETE (Best Practice)
+    # -------------------------
+    def delete_vector(self, vector_id, src):
+        """
+        Flat index doesn't support deletion.
+        Recommended: use IndexIDMap OR handle via DB filtering.
+        """
+        print("⚠️ FAISS Flat index does not support deletion directly.")
+        return True
+
+    # -------------------------
+    # REBUILD INDEX
+    # -------------------------
+    def rebuild_index(self, vectors_data, src):
         try:
-            # FAISS doesn't support direct deletion, so we need to rebuild the index
-            # This is a limitation of flat indices - for production, consider IDMap
-            # For now, we'll mark it as deleted in a separate tracking system
-            # or use a more complex ID management strategy
+            index, path = self._get_index(src)
 
-            # If using IDMap (recommended for deletion support):
-            # self.index.remove_ids(np.array([vector_id]))
-            # self._save()
+            new_index = faiss.IndexFlatIP(self.dim)
 
-            # Simple approach: just return True as deletion is handled in DB
-            # The FAISS vector won't be reused but won't cause issues
-            return True
-        except Exception as e:
-            print(f"Error deleting vector {vector_id} from FAISS: {e}")
-            return False
-
-    def rebuild_index(self, vectors_data):
-        """Rebuild index with specific vectors - useful for cleanup"""
-        try:
-            self.index = faiss.IndexFlatIP(self.dim)
-            if vectors_data is not None and len(vectors_data) > 0:
+            if vectors_data:
                 vec_array = np.array(vectors_data).astype("float32")
-                self.index.add(vec_array)
-            self._save()
+                faiss.normalize_L2(vec_array)
+                new_index.add(vec_array)
+
+            if src == "face":
+                self.face_index = new_index
+            else:
+                self.rag_index = new_index
+
+            self._save(new_index, path)
             return True
+
         except Exception as e:
             print(f"Error rebuilding FAISS index: {e}")
             return False
 
-    def search_top_k(self, vector, k=3):
-        """
-        Search for top-k similar vectors
-        Args:
-            vector: normalized embedding (1D array)
-            k: number of nearest neighbors
-        Returns:
-            List of (vector_id, similarity_score)
-        """
-        vector = np.array([vector]).astype("float32")
-        # perform search
-        scores, indices = self.index.search(vector, k)
-        results = []
-
-        for i in range(len(indices[0])):
-            vector_id = int(indices[0][i])
-            score = float(scores[0][i])
-            # FAISS returns -1 if no result
-            if vector_id == -1:
-                continue
-            results.append({"vector_id": vector_id, "score": score})
-
-        return results
-
-    def _save(self):
-        """
-        persist FAISS index to disk
-        """
-        dir_path = os.path.dirname(settings.FAISS_INDEX_PATH)
-        os.makedirs(dir_path, exist_ok=True)
-        faiss.write_index(self.index, settings.FAISS_INDEX_PATH)
+    # -------------------------
+    # SAVE
+    # -------------------------
+    def _save(self, index, path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        faiss.write_index(index, path)
 
 
+# Singleton instance
 faiss_service = FaissService()
