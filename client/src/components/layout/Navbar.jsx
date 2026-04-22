@@ -34,7 +34,9 @@ export default function Navbar() {
                     <NavLink to="/quick-study" className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
                         Quick Study
                     </NavLink>
-
+                    <NavLink to="/chatbot" className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
+                        Quick Chat
+                    </NavLink>
                     <div className="nav-actions">
                         {isAuthenticated ? (
                             <div className="profile-menu">

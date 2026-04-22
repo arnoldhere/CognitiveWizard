@@ -48,11 +48,32 @@ class FaissService:
         self._save(index, path)
         return vec_id
 
+    def add_vectors(self, vectors, src):
+        """
+        Add a batch of vectors to the selected index.
+        Returns list of inserted vector IDs.
+        """
+        index, path = self._get_index(src)
+
+        vecs = np.array(vectors).astype("float32")
+        if vecs.ndim == 1:
+            vecs = np.expand_dims(vecs, axis=0)
+        if vecs.size == 0:
+            return []
+
+        vecs = self._normalize(vecs)
+        start_id = index.ntotal
+        index.add(vecs)
+        self._save(index, path)
+        return list(range(start_id, start_id + vecs.shape[0]))
+
     # -------------------------
     # SEARCH
     # -------------------------
     def search_top_k(self, vector, src, k=3):
         index, _ = self._get_index(src)
+        if index.ntotal == 0:
+            return []
 
         vec = np.array([vector]).astype("float32")
         vec = self._normalize(vec)
@@ -69,6 +90,10 @@ class FaissService:
             )
 
         return results
+
+    def count(self, src):
+        index, _ = self._get_index(src)
+        return int(index.ntotal)
 
     # -------------------------
     # DELETE (Best Practice)

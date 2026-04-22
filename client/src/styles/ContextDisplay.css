@@ -1,0 +1,88 @@
+.context-display {
+  padding: 18px;
+}
+
+.context-stats-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.context-stat-card {
+  border: 1px solid #d9e5f5;
+  border-radius: 12px;
+  padding: 10px;
+  background: #f8fbff;
+}
+
+.context-stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #5f6f86;
+  margin-bottom: 5px;
+}
+
+.context-stat-value {
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.context-stat-value.is-ready {
+  color: #0f7a3c;
+}
+
+.context-stat-value.is-fallback {
+  color: #9a5b00;
+}
+
+.context-actions {
+  margin-top: 12px;
+}
+
+.context-actions button {
+  width: 100%;
+  border: 1px solid #c8d7ea;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #375077;
+  font-weight: 600;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.context-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.context-recent h3 {
+  margin: 14px 0 8px;
+  color: #324a66;
+  font-size: 0.92rem;
+}
+
+.context-recent ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: #3f4f67;
+  font-size: 0.84rem;
+}
+
+.context-placeholder {
+  margin: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f6f9fc;
+  border: 1px dashed #cbdae9;
+  font-size: 0.86rem;
+  color: #516178;
+}
+
+@media (max-width: 980px) {
+  .context-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
