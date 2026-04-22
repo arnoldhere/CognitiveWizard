@@ -64,24 +64,87 @@ export default function ChatWindow({ ragReady }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastFailedQuery, setLastFailedQuery] = useState("");
+  const [isNearBottom, setIsNearBottom] = useState(true);
 
   const chatContainerRef = useRef(null);
   const currentRequestRef = useRef(null);
+  const scrollAnimationRef = useRef(null);
+  const prefersReducedMotionRef = useRef(false);
 
-  // ✅ Smooth auto-scroll
-  useEffect(() => {
+  const smoothScrollToBottom = (duration = 380) => {
     const container = chatContainerRef.current;
     if (!container) return;
+    if (scrollAnimationRef.current) {
+      cancelAnimationFrame(scrollAnimationRef.current);
+      scrollAnimationRef.current = null;
+    }
 
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages, loading]);
+    if (prefersReducedMotionRef.current) {
+      container.scrollTop = container.scrollHeight;
+      return;
+    }
+
+    const startTop = container.scrollTop;
+    const targetTop = container.scrollHeight - container.clientHeight;
+    const distance = targetTop - startTop;
+    if (distance <= 0) return;
+
+    const startTime = performance.now();
+    const easeOutCubic = (value) => 1 - Math.pow(1 - value, 3);
+
+    const step = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      container.scrollTop = startTop + distance * easeOutCubic(progress);
+      if (progress < 1) {
+        scrollAnimationRef.current = requestAnimationFrame(step);
+      } else {
+        scrollAnimationRef.current = null;
+      }
+    };
+
+    scrollAnimationRef.current = requestAnimationFrame(step);
+  };
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    prefersReducedMotionRef.current = media.matches;
+    const handleMotionChange = (event) => {
+      prefersReducedMotionRef.current = event.matches;
+    };
+    media.addEventListener("change", handleMotionChange);
+
+    const container = chatContainerRef.current;
+    if (!container) {
+      return () => media.removeEventListener("change", handleMotionChange);
+    }
+
+    const handleScroll = () => {
+      const distanceToBottom =
+        container.scrollHeight - (container.scrollTop + container.clientHeight);
+      setIsNearBottom(distanceToBottom < 90);
+    };
+
+    handleScroll();
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      media.removeEventListener("change", handleMotionChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isNearBottom) {
+      smoothScrollToBottom();
+    }
+  }, [messages, loading, isNearBottom]);
 
   useEffect(() => {
     return () => {
       currentRequestRef.current?.abort();
+      if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+      }
     };
   }, []);
 
@@ -157,6 +220,15 @@ export default function ChatWindow({ ragReady }) {
           </div>
         )}
       </div>
+      {!isNearBottom ? (
+        <button
+          type="button"
+          className="scroll-to-bottom-btn"
+          onClick={() => smoothScrollToBottom(300)}
+        >
+          Jump to latest
+        </button>
+      ) : null}
 
       {error && (
         <div className="chat-error-wrap">

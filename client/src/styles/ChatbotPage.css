@@ -2,10 +2,11 @@
   position: relative;
   width: min(1200px, calc(100% - 32px));
   margin: 32px auto 56px;
-  padding: 24px;
-  border: 1px solid #dde5ef;
+  padding: 26px;
+  border: 1px solid #d5e1ef;
   border-radius: 28px;
-  background: linear-gradient(145deg, #f8fbff 0%, #eef4f9 100%);
+  background: linear-gradient(155deg, #f9fcff 0%, #eef5fb 60%, #ecf3f9 100%);
+  box-shadow: 0 20px 46px rgba(28, 56, 97, 0.11);
   overflow: hidden;
 }
 
@@ -64,9 +65,15 @@
 
 .rag-panel {
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   border: 1px solid #dce7f5;
   box-shadow: 0 10px 26px rgba(17, 37, 63, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rag-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(17, 37, 63, 0.12);
 }
 
 .rag-panel-header h2 {
