@@ -1,10 +1,14 @@
-"""Singleton Class Service for RAG operations includes preprocessing, retrieval and generation"""
+"""Singleton Class Service/Orchestrator for RAG operations includes preprocessing, retrieval and generation"""
+
+from services.rag_service.preprocess import embedder
+from config.Faiss_index import faiss_service
 
 
 class RAGService:
     def __init__(self):
-        # Initialize any necessary resources or configurations here
-        pass
+        # Initialize any necessary resources or configurations
+        self.embedder = embedder
+        self.vector_store = faiss_service
 
     def preprocess(self, data):
         # Implement preprocessing logic here
