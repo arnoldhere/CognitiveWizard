@@ -10,6 +10,3 @@ class Embedder:
 
     def embed_query(self, q):
         return self.model.encode([q], convert_to_numpy=True)[0]
-
-
-embedder = Embedder()

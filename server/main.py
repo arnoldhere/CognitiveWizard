@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.quiz_api import router as quiz_router
 from api.auth_api import router as auth_router
 from api.summarization_api import router as summarization_router
+from api.rag_api import router as rag_router
 from config.db import engine, Base
 from models import *
 from config.settings import settings
@@ -39,6 +40,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(quiz_router)
 app.include_router(summarization_router)
+app.include_router(rag_router)
 
 
 @app.get("/health")
