@@ -10,7 +10,7 @@ class FaceEmbedder:
             providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
         )
         # ctx_id=0 uses the first GPU
-        self.model.prepare(ctx_id=0, det_size=(640, 640))
+        self.model.prepare(ctx_id=0, det_size=(720, 720))
 
     def process_image(self, image):
         # This one call does detection AND embedding

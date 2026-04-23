@@ -54,7 +54,7 @@ export default function FileUpload({ onUploadSuccess }) {
     try {
       const result = await uploadDocument(file);
       setSuccess(
-        `Uploaded ${result.filename}. ${result.chunks} chunks are now available for retrieval.`,
+        `Uploaded ${result.filename}. ${result.chunks} private chunks are now available only for your retrieval.`,
       );
       setFile(null);
       if (onUploadSuccess) onUploadSuccess(result);
@@ -68,8 +68,8 @@ export default function FileUpload({ onUploadSuccess }) {
   return (
     <section className="rag-panel file-upload-panel">
       <div className="rag-panel-header">
-        <h2>Knowledge Base Upload</h2>
-        <p>Add your PDF or DOCX files to improve answer quality.</p>
+        <h2>Private Knowledge Upload</h2>
+        <p>Add PDF or DOCX files. The uploaded context stays bound to your account.</p>
       </div>
       <form className="file-upload-form" onSubmit={handleUpload}>
         <label htmlFor={fileInputId} className="file-upload-input-label">

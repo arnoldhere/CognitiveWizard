@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 
 from config.Faiss_index import faiss_service
+from config.settings import settings
 from services.rag.generator import Generator
 from services.rag.preprocess.embedder import Embedder
 from services.rag.retriever import Retriever
@@ -22,18 +25,22 @@ class RAGService:
         self.generator = Generator()
         self.retriever = Retriever(self.vector_store, self.embedder)
 
-        # In-memory source map for citation snippets.
-        self._chunk_store: List[Dict[str, Any]] = []
-        self._documents_ingested = 0
+        self._chunk_store: Dict[str, List[Dict[str, Any]]] = {}
+        self._documents_ingested: Dict[str, int] = {}
+        self._user_documents: Dict[str, List[str]] = {}
 
     def preprocess(
-        self, documents: List[str], metadata: Optional[Dict[str, Any]] = None
+        self,
+        documents: List[str],
+        metadata: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
     ):
-        """
-        Convert raw documents into chunks, embed them and store in vector DB.
-        """
+        if not user_id:
+            raise ValueError("user_id is required for document ingestion.")
         if not documents:
             raise ValueError("No documents provided for ingestion.")
+
+        self._ensure_user_loaded(user_id)
 
         chunks = self._chunk_docs(documents)
         if not chunks:
@@ -41,11 +48,14 @@ class RAGService:
 
         embeddings = self.embedder.embed_documents(chunks)
         embeddings = self._align_vector_dim(embeddings)
-        chunk_ids = self.vector_store.add_vectors(embeddings, src="rag")
+        chunk_ids = self.vector_store.add_vectors(
+            embeddings, src="rag", user_id=user_id
+        )
 
         title = (metadata or {}).get("filename", "Uploaded Document")
+
         for idx, chunk_text in zip(chunk_ids, chunks):
-            self._chunk_store.append(
+            self._chunk_store[user_id].append(
                 {
                     "id": int(idx),
                     "title": title,
@@ -54,29 +64,32 @@ class RAGService:
                 }
             )
 
-        self._documents_ingested += len(documents)
+        if title not in self._user_documents[user_id]:
+            self._user_documents[user_id].append(title)
+
+        self._documents_ingested[user_id] += len(documents)
+        self._persist_user_state(user_id)
 
         return {
             "status": "success",
             "documents_ingested": len(documents),
             "chunks": len(chunks),
-            "ready_for_rag": self.has_knowledge_base(),
+            "ready_for_rag": self.has_knowledge_base(user_id),
+            "uploaded_documents": self._user_documents[user_id],
         }
 
-    def retrieve(self, query: str, top_k: int = 5):
-        """
-        Retrieve top-k relevant chunk snippets for a query.
-        """
-        if not self.has_knowledge_base():
+    def retrieve(self, query: str, top_k: int = 5, user_id: Optional[str] = None):
+        self._ensure_user_loaded(user_id)
+        if not self.has_knowledge_base(user_id):
             return []
 
         query_embedding = self.embedder.embed_query(query)
         query_embedding = self._align_vector_dim(query_embedding)
-        results = self.retriever.search(query_embedding, top_k)
+        results = self.retriever.search(query_embedding, top_k, user_id=user_id)
 
         sources = []
         for item in results:
-            chunk = self._find_chunk(item["vector_id"])
+            chunk = self._find_chunk(item["vector_id"], user_id)
             if not chunk:
                 continue
             sources.append(
@@ -91,26 +104,23 @@ class RAGService:
         return sources
 
     def generate(self, query: str, retrieved_docs: Optional[List[str]] = None):
-        """
-        Generate final answer using LLM with optional retrieved context.
-        """
         result = self.generator.generate_response(query, retrieved_docs)
+        # print(
+        #     f"Query: {query}\nRetrieved Docs: {retrieved_docs}\nGenerated Result: {result}"
+        # )
         if isinstance(result, tuple):
             answer, token_usage = result
             return answer, token_usage
-        else:
-            # Backward compatibility for generators that don't return token usage
-            return result, None
+        return result, None
 
-    def query(self, query: str, use_rag: bool = True):
-        """
-        Query pipeline with automatic non-RAG fallback when KB is empty.
-        """
+    def query(self, query: str, use_rag: bool = True, user_id: Optional[str] = None):
+        self._ensure_user_loaded(user_id)
+
         warning = None
         mode_used = "rag"
         sources = []
 
-        should_use_rag = bool(use_rag) and self.has_knowledge_base()
+        should_use_rag = bool(use_rag) and self.has_knowledge_base(user_id)
         if use_rag and not should_use_rag:
             mode_used = "llm"
             warning = (
@@ -120,11 +130,11 @@ class RAGService:
             mode_used = "llm"
 
         if should_use_rag:
-            sources = self.retrieve(query)
+            sources = self.retrieve(query, user_id=user_id)
             if not sources:
                 mode_used = "llm"
                 warning = (
-                    "No relevant context was found in uploaded documents. "
+                    "No relevant context was found in your uploaded documents. "
                     "Answer generated without retrieval."
                 )
                 answer, token_usage = self.generate(query, None)
@@ -151,29 +161,80 @@ class RAGService:
             "token_usage": token_usage,
         }
 
-    def status(self):
-        recent_chunks = [item["snippet"] for item in self._chunk_store[-3:]]
+    def status(self, user_id: Optional[str] = None):
+        self._ensure_user_loaded(user_id)
+
+        if not user_id or user_id not in self._chunk_store:
+            recent_chunks = []
+            docs_ingested = 0
+            uploaded_documents = []
+        else:
+            recent_chunks = [
+                item["snippet"] for item in self._chunk_store[user_id][-3:]
+            ]
+            docs_ingested = self._documents_ingested.get(user_id, 0)
+            uploaded_documents = self._user_documents.get(user_id, [])
+
         return {
-            "ready_for_rag": self.has_knowledge_base(),
-            "documents_ingested": self._documents_ingested,
-            "chunks_ingested": self.vector_store.count("rag"),
+            "ready_for_rag": self.has_knowledge_base(user_id),
+            "documents_ingested": docs_ingested,
+            "chunks_ingested": len(self._chunk_store.get(user_id, [])),
             "recent_chunks": recent_chunks,
+            "uploaded_documents": uploaded_documents,
         }
 
-    def has_knowledge_base(self):
-        return self.vector_store.count("rag") > 0
+    def has_knowledge_base(self, user_id: Optional[str] = None):
+        self._ensure_user_loaded(user_id)
+        if not user_id:
+            return False
+        return len(self._chunk_store.get(user_id, [])) > 0
 
-    def _find_chunk(self, vector_id: int):
-        for item in reversed(self._chunk_store):
+    def _user_metadata_path(self, user_id: str) -> str:
+        os.makedirs(settings.RAG_USER_DATA_DIR, exist_ok=True)
+        return os.path.join(settings.RAG_USER_DATA_DIR, f"{user_id}.json")
+
+    def _ensure_user_loaded(self, user_id: Optional[str]) -> None:
+        if not user_id or user_id in self._chunk_store:
+            return
+
+        metadata_path = self._user_metadata_path(user_id)
+        self._chunk_store[user_id] = []
+        self._documents_ingested[user_id] = 0
+        self._user_documents[user_id] = []
+
+        if not os.path.exists(metadata_path):
+            return
+
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            logger.warning("Failed to load RAG metadata for user %s", user_id)
+            return
+
+        self._chunk_store[user_id] = payload.get("chunks", [])
+        self._documents_ingested[user_id] = int(payload.get("documents_ingested", 0))
+        self._user_documents[user_id] = payload.get("uploaded_documents", [])
+
+    def _persist_user_state(self, user_id: str) -> None:
+        payload = {
+            "documents_ingested": self._documents_ingested.get(user_id, 0),
+            "uploaded_documents": self._user_documents.get(user_id, []),
+            "chunks": self._chunk_store.get(user_id, []),
+        }
+        metadata_path = self._user_metadata_path(user_id)
+        with open(metadata_path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+
+    def _find_chunk(self, vector_id: int, user_id: Optional[str] = None):
+        if not user_id or user_id not in self._chunk_store:
+            return None
+        for item in reversed(self._chunk_store[user_id]):
             if item["id"] == vector_id:
                 return item
         return None
 
     def _align_vector_dim(self, vectors):
-        """
-        Ensure embedding dims match FAISS index dims.
-        Truncates or zero-pads if mismatch is detected.
-        """
         target_dim = int(self.vector_store.dim)
         arr = np.array(vectors, dtype="float32")
         if arr.ndim == 1:
@@ -184,8 +245,7 @@ class RAGService:
             return arr if np.array(vectors).ndim > 1 else arr[0]
 
         logger.warning(
-            "Embedding dimension mismatch detected (embedder=%s, faiss=%s). "
-            "Applying runtime alignment.",
+            "Embedding dimension mismatch detected (embedder=%s, faiss=%s). Applying runtime alignment.",
             current_dim,
             target_dim,
         )
@@ -201,9 +261,6 @@ class RAGService:
     def _chunk_docs(
         self, documents: List[str], chunk_size: int = 500, overlap: int = 80
     ):
-        """
-        Split each document into fixed-size text chunks with overlap.
-        """
         chunks = []
         stride = max(chunk_size - overlap, 1)
         for doc in documents:

@@ -23,7 +23,7 @@ function MessageSources({ sources }) {
         <article key={source.id} className="source-card">
           <header>
             <span>{source.title}</span>
-            <small>Score: {Number(source.score).toFixed(3)}</small>
+            <small>score {Number(source.score).toFixed(3)}</small>
           </header>
           <p>{source.snippet}</p>
         </article>
@@ -44,9 +44,7 @@ function MessageBubble({ message }) {
       {message.warning ? (
         <small className="chat-warning">{message.warning}</small>
       ) : null}
-      {message.sender === "bot" ? (
-        <MessageSources sources={message.sources} />
-      ) : null}
+      {message.sender === "bot" ? <MessageSources sources={message.sources} /> : null}
       <div className="message-footer">
         {message.tokenUsage && (
           <small className="token-usage">
@@ -59,25 +57,66 @@ function MessageBubble({ message }) {
   );
 }
 
-export default function ChatWindow({ ragReady }) {
+function UploadedHistory({ documents }) {
+  if (!documents?.length) {
+    return (
+      <div className="chat-upload-history empty">
+        <span className="history-label">uploaded files</span>
+        <p>No personal RAG documents uploaded yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chat-upload-history">
+      <div className="history-topline">
+        <span className="history-label">uploaded files</span>
+        <span className="history-count">{documents.length}</span>
+      </div>
+      <div className="history-chip-row">
+        {documents.map((doc, index) => (
+          <span key={`${doc}-${index}`} className="history-chip">
+            {doc}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function ChatWindow({ ragReady, status }) {
+  const uploadedDocuments = status?.uploaded_documents ?? [];
+  const initialLimitInfo = status?.chat_limit_info ?? null;
+
   const [messages, setMessages] = useState([
     createMessage(
       "bot",
-      "Hello! Ask anything. Upload a document to enable retrieval-grounded answers.",
-      { modeUsed: "llm", sources: [] }
+      "Private RAG session ready. Upload a document to ground answers in your own knowledge base.",
+      { modeUsed: "llm", sources: [] },
     ),
   ]);
-
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastFailedQuery, setLastFailedQuery] = useState("");
   const [isNearBottom, setIsNearBottom] = useState(true);
+  const [chatLimitInfo, setChatLimitInfo] = useState(initialLimitInfo);
+  const [chatLimitReached, setChatLimitReached] = useState(
+    Boolean(initialLimitInfo?.limit_reached || initialLimitInfo?.can_send === false),
+  );
 
   const chatContainerRef = useRef(null);
   const currentRequestRef = useRef(null);
   const scrollAnimationRef = useRef(null);
   const prefersReducedMotionRef = useRef(false);
+
+  useEffect(() => {
+    const nextLimitInfo = status?.chat_limit_info ?? null;
+    setChatLimitInfo(nextLimitInfo);
+    setChatLimitReached(
+      Boolean(nextLimitInfo?.limit_reached || nextLimitInfo?.can_send === false),
+    );
+  }, [status?.chat_limit_info]);
 
   const smoothScrollToBottom = (duration = 380) => {
     const container = chatContainerRef.current;
@@ -158,7 +197,7 @@ export default function ChatWindow({ ragReady }) {
 
   const sendQuery = async (query) => {
     const trimmed = query.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || chatLimitReached) return;
 
     const userMessage = createMessage("user", trimmed);
     setMessages((prev) => [...prev, userMessage]);
@@ -187,9 +226,26 @@ export default function ChatWindow({ ragReady }) {
         }),
       ]);
 
+      if (data.chat_limit_info) {
+        setChatLimitInfo(data.chat_limit_info);
+        setChatLimitReached(Boolean(data.chat_limit_info.limit_reached));
+      }
+
       setLastFailedQuery("");
     } catch (err) {
       if (err.name === "CanceledError") return;
+
+      if (err.message?.includes("Daily chat limit reached")) {
+        setChatLimitReached(true);
+        setChatLimitInfo((prev) => ({
+          can_send: false,
+          messages_used: prev?.max_per_day ?? 5,
+          messages_remaining: 0,
+          max_per_day: prev?.max_per_day ?? 5,
+          limit_reached: true,
+          reset_time: prev?.reset_time,
+        }));
+      }
 
       setError(err.message);
       setLastFailedQuery(trimmed);
@@ -211,23 +267,34 @@ export default function ChatWindow({ ragReady }) {
   return (
     <section className="rag-panel chat-window">
       <header className="chat-header">
-        <h2>RAG Assistant</h2>
+        <div>
+          <p className="chat-kicker">session</p>
+          <h2>RAG Assistant Console</h2>
+        </div>
         <span className={`chat-mode-chip ${ragReady ? "rag" : "llm"}`}>
-          {ragReady ? "RAG Mode Active" : "LLM Fallback Active"}
+          {ragReady ? "user-scoped rag" : "llm fallback"}
         </span>
       </header>
 
-      {/* Attach ref to container */}
+      <UploadedHistory documents={uploadedDocuments} />
+
+      <div className={`chat-limit-banner ${chatLimitReached ? "is-blocked" : ""}`}>
+        <div>
+          <strong>Daily limit:</strong> 5 chat requests per day.
+        </div>
+        <div>
+          {chatLimitInfo
+            ? `${chatLimitInfo.messages_remaining} remaining today`
+            : "Checking usage..."}
+        </div>
+      </div>
+
       <div className="chat-history" ref={chatContainerRef}>
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} />
         ))}
 
-        {loading && (
-          <div className="typing-indicator">
-            Assistant is thinking...
-          </div>
-        )}
+        {loading && <div className="typing-indicator">assistant thinking</div>}
       </div>
       {!isNearBottom ? (
         <button
@@ -235,22 +302,31 @@ export default function ChatWindow({ ragReady }) {
           className="scroll-to-bottom-btn"
           onClick={() => smoothScrollToBottom(300)}
         >
-          Jump to latest
+          jump to latest
         </button>
       ) : null}
 
       {error && (
         <div className="chat-error-wrap">
           <ErrorMessage message={error} />
-          {lastFailedQuery && (
-            <button
-              type="button"
-              onClick={handleRetry}
-              disabled={loading}
-            >
+          {lastFailedQuery && !chatLimitReached && (
+            <button type="button" onClick={handleRetry} disabled={loading}>
               Retry Last Question
             </button>
           )}
+        </div>
+      )}
+
+      {chatLimitReached && (
+        <div className="chat-limit-alert" role="alert">
+          <div className="limit-alert-content">
+            <h3>Daily chat limit reached</h3>
+            <p>
+              You have used all 5 chat requests for today. Premium purchase flow
+              can be connected here later. For now, chat is disabled until the
+              limit resets.
+            </p>
+          </div>
         </div>
       )}
 
@@ -259,10 +335,10 @@ export default function ChatWindow({ ragReady }) {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question about your uploaded docs or any topic..."
-          disabled={loading}
+          placeholder="Ask about your private uploaded documents..."
+          disabled={loading || chatLimitReached}
         />
-        <button type="submit" disabled={loading || !input.trim()}>
+        <button type="submit" disabled={loading || !input.trim() || chatLimitReached}>
           {loading ? "Sending..." : "Send"}
         </button>
       </form>

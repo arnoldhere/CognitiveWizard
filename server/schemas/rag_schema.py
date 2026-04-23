@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -30,6 +31,9 @@ class RAGResponse(BaseModel):
     token_usage: Optional[Dict[str, int]] = Field(
         default=None, description="Token usage statistics"
     )
+    chat_limit_info: Optional[Dict[str, Any]] = Field(
+        default=None, description="Chat message limit information"
+    )
 
 
 class RAGUploadResponse(BaseModel):
@@ -37,6 +41,7 @@ class RAGUploadResponse(BaseModel):
     filename: str
     chunks: int
     ready_for_rag: bool
+    uploaded_documents: List[str] = Field(default_factory=list)
 
 
 class RAGStatusResponse(BaseModel):
@@ -44,3 +49,9 @@ class RAGStatusResponse(BaseModel):
     documents_ingested: int
     chunks_ingested: int
     recent_chunks: List[str] = Field(default_factory=list)
+    uploaded_documents: List[str] = Field(
+        default_factory=list, description="List of uploaded document titles"
+    )
+    chat_limit_info: Optional[Dict[str, Any]] = Field(
+        default=None, description="Current per-user chat limit status"
+    )

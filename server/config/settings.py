@@ -12,6 +12,9 @@ class Settings:
     # ===========
     FACE_FAISS_INDEX_PATH: str = "vectorDB/face_faiss.index"
     RAG_FAISS_INDEX_PATH: str = "vectorDB/rag_faiss.index"
+    RAG_USER_INDEX_DIR: str = "vectorDB/rag_user_indices"
+    RAG_USER_DATA_DIR: str = "vectorDB/rag_user_data"
+    CHAT_LIMIT_STORAGE_PATH: str = "vectorDB/chat_limit_state.json"
     EMBEDDING_DIM: int = 512
 
     # ===========
@@ -28,10 +31,7 @@ class Settings:
     QUIZ_GENERATOR_MODEL: str = os.getenv(
         "QUIZ_GENERATOR_MODEL", "meta-llama/Llama-3.1-8B-Instruct"
     )
-    # fallback model for local backup
     QUIZ_GENERATOR_MODEL_LOCAL: str = os.getenv("QUIZ_GENERATOR_MODEL_LOCAL")
-    # QUIZ_MODEL_MODE = "api"  # "api" or "local"
-    # LOCAL_MODEL_DEVICE = 0  # -1 for CPU, 0 for GPU
 
     # ===========
     # Database configurations

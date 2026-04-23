@@ -31,11 +31,11 @@ export default function ChatbotPage() {
     <div className="chatbot-page">
       <div className="chatbot-page-overlay" />
       <section className="chatbot-hero">
-        <p className="eyebrow">Knowledge Assistant</p>
-        <h1>RAG-Powered Chatbot</h1>
+        <p className="eyebrow">Private Retrieval Workspace</p>
+        <h1>Console RAG Chat</h1>
         <p>
-          Upload documents and ask grounded questions, or chat directly with fallback LLM mode
-          when no documents are available.
+          Each uploaded document is isolated to your account, visible in your own
+          workspace history, and available only to your retrieval flow.
         </p>
       </section>
 
@@ -50,7 +50,10 @@ export default function ChatbotPage() {
           />
         </aside>
         <div className="chatbot-main">
-          <ChatWindow ragReady={Boolean(status?.ready_for_rag)} />
+          <ChatWindow
+            ragReady={Boolean(status?.ready_for_rag)}
+            status={status}
+          />
         </div>
       </section>
     </div>

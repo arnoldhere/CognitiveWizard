@@ -7,6 +7,7 @@ from api.rag_api import router as rag_router
 from config.db import engine, Base
 from models import *
 from config.settings import settings
+import onnxruntime as ort
 
 import tensorflow as tf
 
@@ -18,8 +19,10 @@ if gpus:
     except RuntimeError as e:
         print(e)
 
-Base.metadata.create_all(bind=engine)
+ort.set_default_logger_severity(3)  # errors only
 
+
+Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Cognitive Wizard Backend",
     description="Backend platform for Cognitive Wizard application",

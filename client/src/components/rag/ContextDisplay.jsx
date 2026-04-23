@@ -4,19 +4,20 @@ import "../../styles/ContextDisplay.css";
 export default function ContextDisplay({ status, loading, error, onRefresh }) {
   const isReady = Boolean(status?.ready_for_rag);
   const recentChunks = status?.recent_chunks ?? [];
+  const uploadedDocuments = status?.uploaded_documents ?? [];
 
   return (
     <section className="rag-panel context-display">
       <div className="rag-panel-header">
-        <h2>RAG Context Status</h2>
-        <p>Monitor ingestion health and currently available context.</p>
+        <h2>Your Retrieval Context</h2>
+        <p>Only your uploaded files are indexed here and used for your own RAG answers.</p>
       </div>
 
       <div className="context-stats-grid">
         <article className="context-stat-card">
           <span className="context-stat-label">Mode</span>
           <span className={`context-stat-value ${isReady ? "is-ready" : "is-fallback"}`}>
-            {isReady ? "RAG Ready" : "Fallback LLM"}
+            {isReady ? "Private RAG" : "LLM Fallback"}
           </span>
         </article>
         <article className="context-stat-card">
@@ -36,6 +37,21 @@ export default function ContextDisplay({ status, loading, error, onRefresh }) {
       </div>
 
       {error ? <ErrorMessage message={error} /> : null}
+
+      <div className="context-uploads">
+        <h3>Upload History</h3>
+        {uploadedDocuments.length ? (
+          <ul className="document-list">
+            {uploadedDocuments.map((doc, index) => (
+              <li key={`${doc}-${index}`} className="document-item">
+                <span className="doc-name">{doc}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="context-placeholder">No documents uploaded yet.</p>
+        )}
+      </div>
 
       <div className="context-recent">
         <h3>Recent Chunks</h3>

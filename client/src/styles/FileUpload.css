@@ -10,17 +10,17 @@
 
 .file-upload-input-label {
   font-size: 0.85rem;
-  color: #44526b;
+  color: #c9d9e6;
   font-weight: 600;
 }
 
 .file-upload-form input[type="file"] {
   width: 100%;
-  border: 1px dashed #9bb2ce;
-  border-radius: 12px;
-  padding: 12px;
-  color: #1f2a44;
-  background: #f5f9ff;
+  border: 1px dashed rgba(102, 217, 239, 0.18);
+  border-radius: 16px;
+  padding: 14px;
+  color: #dce9f5;
+  background: rgba(8, 18, 27, 0.82);
 }
 
 .file-upload-meta {
@@ -28,24 +28,18 @@
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 0.78rem;
-  color: #5f6f86;
+  font-size: 0.79rem;
+  color: #7f97ab;
 }
 
 .file-upload-form button {
-  border: none;
-  border-radius: 12px;
-  padding: 11px 14px;
-  background: linear-gradient(135deg, #2f6fed 0%, #4299e1 100%);
-  color: white;
-  font-weight: 600;
+  border: 1px solid rgba(140, 247, 197, 0.18);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(18, 80, 73, 0.96) 0%, rgba(11, 53, 49, 0.96) 100%);
+  color: #effff9;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-}
-
-.file-upload-form button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(47, 111, 237, 0.24);
 }
 
 .file-upload-form button:disabled {
@@ -55,10 +49,11 @@
 
 .success-msg {
   margin: 12px 0 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid #c9ebd7;
-  background: #f3fff7;
-  color: #0f7a3c;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(140, 247, 197, 0.16);
+  background: rgba(9, 39, 32, 0.72);
+  color: #b9f9dd;
   font-size: 0.88rem;
+  line-height: 1.5;
 }

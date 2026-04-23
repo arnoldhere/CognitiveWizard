@@ -2,8 +2,9 @@ import logging
 import os
 import tempfile
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
-
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from api.auth_api import get_current_active_user
+from models.user import User
 from schemas.rag_schema import (
     RAGIngestRequest,
     RAGQueryRequest,
@@ -11,6 +12,7 @@ from schemas.rag_schema import (
     RAGStatusResponse,
     RAGUploadResponse,
 )
+from services.chat_limit_service import chat_limit_service
 from services.rag.rag_service import rag_service
 from services.summarization.input_handlers import Document_handler
 
@@ -20,17 +22,22 @@ router = APIRouter(prefix="/rag", tags=["RAG"])
 
 
 @router.post("/ingest")
-def ingest_documents(request: RAGIngestRequest):
-    """
-    JSON ingestion endpoint retained for compatibility.
-    """
+def ingest_documents(
+    request: RAGIngestRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    """JSON ingestion endpoint retained for compatibility."""
     try:
         result = rag_service.preprocess(
-            documents=request.documents, metadata=request.metadata
+            documents=request.documents,
+            metadata=request.metadata,
+            user_id=str(current_user.id),
         )
         return result
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
     except Exception as exc:
         logger.exception("RAG ingest failed")
         raise HTTPException(
@@ -40,10 +47,11 @@ def ingest_documents(request: RAGIngestRequest):
 
 
 @router.post("/upload", response_model=RAGUploadResponse)
-async def upload_document(file: UploadFile = File(...)):
-    """
-    Upload a PDF/DOCX file and ingest it into the active RAG knowledge base.
-    """
+async def upload_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Upload a PDF/DOCX file and ingest it into the user's RAG knowledge base."""
     extension = os.path.splitext(file.filename or "")[1].lower()
     if extension not in [".pdf", ".docx"]:
         raise HTTPException(
@@ -62,6 +70,7 @@ async def upload_document(file: UploadFile = File(...)):
         result = rag_service.preprocess(
             documents=[text],
             metadata={"filename": file.filename},
+            user_id=str(current_user.id),
         )
 
         return RAGUploadResponse(
@@ -69,9 +78,12 @@ async def upload_document(file: UploadFile = File(...)):
             filename=file.filename or "uploaded-file",
             chunks=result["chunks"],
             ready_for_rag=result["ready_for_rag"],
+            uploaded_documents=result.get("uploaded_documents", []),
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
     except Exception as exc:
         logger.exception("RAG upload failed")
         raise HTTPException(
@@ -87,17 +99,44 @@ async def upload_document(file: UploadFile = File(...)):
 
 
 @router.get("/status", response_model=RAGStatusResponse)
-def rag_status():
-    return RAGStatusResponse(**rag_service.status())
+def rag_status(current_user: User = Depends(get_current_active_user)):
+    user_id = str(current_user.id)
+    payload = rag_service.status(user_id=user_id)
+    payload["chat_limit_info"] = chat_limit_service.get_user_status(user_id)
+    return RAGStatusResponse(**payload)
 
 
 @router.post("/chat", response_model=RAGResponse)
-def chat(req: RAGQueryRequest):
+def chat(
+    req: RAGQueryRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    user_id = str(current_user.id)
+
+    can_send, messages_used, _messages_remaining = chat_limit_service.check_limit(user_id)
+    if not can_send:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Daily chat limit reached. You have used {messages_used}/5 messages today. "
+                "Please upgrade to premium for unlimited access."
+            ),
+        )
+
     try:
-        result = rag_service.query(query=req.query, use_rag=bool(req.use_rag))
+        result = rag_service.query(
+            query=req.query,
+            use_rag=bool(req.use_rag),
+            user_id=user_id,
+        )
+
+        chat_limit_service.increment_message_count(user_id)
+        result["chat_limit_info"] = chat_limit_service.get_user_status(user_id)
         return RAGResponse(**result)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
     except Exception as exc:
         logger.exception("RAG chat failed")
         raise HTTPException(
