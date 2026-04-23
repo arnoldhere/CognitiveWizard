@@ -9,6 +9,7 @@ function createMessage(sender, text, extra = {}) {
     sender,
     text,
     createdAt: new Date().toISOString(),
+    tokenUsage: extra.tokenUsage || null,
     ...extra,
   };
 }
@@ -46,7 +47,14 @@ function MessageBubble({ message }) {
       {message.sender === "bot" ? (
         <MessageSources sources={message.sources} />
       ) : null}
-      <small>{time}</small>
+      <div className="message-footer">
+        {message.tokenUsage && (
+          <small className="token-usage">
+            {message.tokenUsage.total_tokens} tokens
+          </small>
+        )}
+        <small>{time}</small>
+      </div>
     </div>
   );
 }
@@ -175,6 +183,7 @@ export default function ChatWindow({ ragReady }) {
           modeUsed: data.mode_used,
           sources: data.sources ?? [],
           warning: data.warning ?? "",
+          tokenUsage: data.token_usage ?? null,
         }),
       ]);
 

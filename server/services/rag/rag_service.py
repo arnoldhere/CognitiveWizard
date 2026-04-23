@@ -26,7 +26,9 @@ class RAGService:
         self._chunk_store: List[Dict[str, Any]] = []
         self._documents_ingested = 0
 
-    def preprocess(self, documents: List[str], metadata: Optional[Dict[str, Any]] = None):
+    def preprocess(
+        self, documents: List[str], metadata: Optional[Dict[str, Any]] = None
+    ):
         """
         Convert raw documents into chunks, embed them and store in vector DB.
         """
@@ -92,7 +94,13 @@ class RAGService:
         """
         Generate final answer using LLM with optional retrieved context.
         """
-        return self.generator.generate_response(query, retrieved_docs)
+        result = self.generator.generate_response(query, retrieved_docs)
+        if isinstance(result, tuple):
+            answer, token_usage = result
+            return answer, token_usage
+        else:
+            # Backward compatibility for generators that don't return token usage
+            return result, None
 
     def query(self, query: str, use_rag: bool = True):
         """
@@ -105,7 +113,9 @@ class RAGService:
         should_use_rag = bool(use_rag) and self.has_knowledge_base()
         if use_rag and not should_use_rag:
             mode_used = "llm"
-            warning = "No ingested documents were found. Answer generated without retrieval."
+            warning = (
+                "No ingested documents were found. Answer generated without retrieval."
+            )
         elif not use_rag:
             mode_used = "llm"
 
@@ -117,11 +127,13 @@ class RAGService:
                     "No relevant context was found in uploaded documents. "
                     "Answer generated without retrieval."
                 )
-                answer = self.generate(query, None)
+                answer, token_usage = self.generate(query, None)
             else:
-                answer = self.generate(query, [source["text"] for source in sources])
+                answer, token_usage = self.generate(
+                    query, [source["text"] for source in sources]
+                )
         else:
-            answer = self.generate(query, None)
+            answer, token_usage = self.generate(query, None)
 
         return {
             "answer": answer,
@@ -136,6 +148,7 @@ class RAGService:
                 for source in sources
             ],
             "warning": warning,
+            "token_usage": token_usage,
         }
 
     def status(self):
@@ -185,7 +198,9 @@ class RAGService:
 
         return arr if np.array(vectors).ndim > 1 else arr[0]
 
-    def _chunk_docs(self, documents: List[str], chunk_size: int = 500, overlap: int = 80):
+    def _chunk_docs(
+        self, documents: List[str], chunk_size: int = 500, overlap: int = 80
+    ):
         """
         Split each document into fixed-size text chunks with overlap.
         """

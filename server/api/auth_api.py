@@ -78,9 +78,15 @@ def signup(user_details: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, credentials.email, credentials.password)
+    exists = db.query(User).filter(User.email == credentials.email).first()
+    if not exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
 
     access_token = create_access_token({"sub": user.email, "role": user.role})
@@ -108,7 +114,9 @@ async def register_face(
     if not res or "error" in res:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(res or {}).get("error", "Failed to register face. Please try again."),
+            detail=(res or {}).get(
+                "error", "Failed to register face. Please try again."
+            ),
         )
     return {"message": "face registered..", "data": res}
 

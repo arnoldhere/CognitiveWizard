@@ -75,7 +75,7 @@ async def delete_user_face_data(db: Session, user_id: int):
         # 2. Delete face image files and FAISS vectors
         for embedding in face_embeddings:
             # Delete from FAISS
-            faiss_service.delete_vector(embedding.vector_id)
+            faiss_service.delete_vector(embedding.vector_id, src="face")
             vector_ids_deleted.append(embedding.vector_id)
 
             # Delete face image file
@@ -132,7 +132,7 @@ async def login_with_face(image, db: Session):
     # ========
     # search the FAISS
     # ========
-    results = faiss_service.search_top_k(embedding, 3)
+    results = faiss_service.search_top_k(embedding, src="face", k=3)
     if not results:
         return {"error": "No matching face found..."}
     # ========

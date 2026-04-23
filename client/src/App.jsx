@@ -33,7 +33,11 @@ function App() {
                 <Route path="/contact" element={<Contact />} />
 
                 {/* Chatbot Route - Accessible to all */}
-                <Route path="/chatbot" element={<ChatbotPage />} />
+                <Route path="/chatbot" element={
+                  <ProtectedRoute>
+                    <ChatbotPage />
+                  </ProtectedRoute>
+                } />
                 {/* Protected Routes - Require Authentication */}
                 <Route
                   path="/quiz"

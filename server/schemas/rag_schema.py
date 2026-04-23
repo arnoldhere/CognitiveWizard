@@ -27,6 +27,9 @@ class RAGResponse(BaseModel):
     mode_used: str = Field(description="rag or llm")
     sources: List[RAGSource] = Field(default_factory=list)
     warning: Optional[str] = None
+    token_usage: Optional[Dict[str, int]] = Field(
+        default=None, description="Token usage statistics"
+    )
 
 
 class RAGUploadResponse(BaseModel):

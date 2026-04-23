@@ -34,7 +34,17 @@ class Generator:
                     max_tokens=1024,  # Reduced for efficiency
                     temperature=0.5,  # Lower temperature for more consistent outcome
                 )
-                return response.choices[0].message["content"].strip()
+                answer = response.choices[0].message["content"].strip()
+
+                # Extract token usage
+                token_usage = {
+                    "input_tokens": response.usage.prompt_tokens,
+                    "output_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                }
+
+                return answer, token_usage
+
             # ===========
             # Local model mode
             # ===========
@@ -44,9 +54,27 @@ class Generator:
                     prompt, max_new_tokens=512, temperature=0.5, do_sample=True
                 )
                 if isinstance(response, list) and response:
-                    return response[0]["generated_text"].strip()
+                    answer = response[0]["generated_text"].strip()
                 else:
-                    return str(response).strip()
+                    answer = str(response).strip()
+
+                # Manual token counting for local mode
+                from transformers import AutoTokenizer
+
+                tokenizer = AutoTokenizer.from_pretrained(
+                    "microsoft/DialoGPT-medium"
+                )  # Using a common tokenizer
+
+                input_tokens = len(tokenizer.encode(prompt))
+                output_tokens = len(tokenizer.encode(answer))
+
+                token_usage = {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "total_tokens": input_tokens + output_tokens,
+                }
+
+                return answer, token_usage
             else:
                 return {"error": "Unspecified model mode to generate"}
         except Exception as e:
