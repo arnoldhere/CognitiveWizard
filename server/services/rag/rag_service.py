@@ -1,14 +1,11 @@
 """Singleton service/orchestrator for RAG ingestion, retrieval and response generation."""
 
 from __future__ import annotations
-
 import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
-
 import numpy as np
-
 from config.Faiss_index import faiss_service
 from config.settings import settings
 from services.rag.generator import Generator
@@ -16,6 +13,8 @@ from services.rag.preprocess.embedder import Embedder
 from services.rag.retriever import Retriever
 
 logger = logging.getLogger(__name__)
+
+TOP_K_RES = settings.TOP_K_RESULTS_RAG
 
 
 class RAGService:
@@ -78,7 +77,9 @@ class RAGService:
             "uploaded_documents": self._user_documents[user_id],
         }
 
-    def retrieve(self, query: str, top_k: int = 5, user_id: Optional[str] = None):
+    def retrieve(
+        self, query: str, top_k: int = TOP_K_RES, user_id: Optional[str] = None
+    ):
         self._ensure_user_loaded(user_id)
         if not self.has_knowledge_base(user_id):
             return []

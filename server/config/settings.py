@@ -16,6 +16,7 @@ class Settings:
     RAG_USER_DATA_DIR: str = "vectorDB/rag_user_data"
     CHAT_LIMIT_STORAGE_PATH: str = "vectorDB/chat_limit_state.json"
     EMBEDDING_DIM: int = 512
+    TOP_K_RESULTS_RAG: int = 3
 
     # ===========
     # HF configurations
