@@ -42,21 +42,17 @@ class HFClientManager:
     @classmethod
     def _get_local_pipeline(cls, model_name: str = settings.QUIZ_GENERATOR_MODEL_LOCAL):
         if model_name not in cls._pipelines:
-            # device = 0 if torch.cuda.is_available() else -1
             tokenizer = AutoTokenizer.from_pretrained(model_name)
+            tokenizer.pad_token = tokenizer.eos_token  # provide paddings
+            use_cuda = torch.cuda.is_available()
             model = AutoModelForCausalLM.from_pretrained(
                 model_name,
-                torch_dtype=torch.float16,  # reduces memory
-                # max_memory={0: "3GiB", "cpu": "6GiB"},  # GPU limit & RAM limit
             )
             cls._pipelines[model_name] = pipeline(
                 "text-generation",
-                model=model_name,
-                # tokenizer=tokenizer,
+                model=model,
+                tokenizer=tokenizer,
                 token=settings.HF_API_KEY or None,
-                # max_new_tokens=512,
-                # temperature=0.95,
-                # do_sample=True,
             )
 
         return cls._pipelines[model_name]
