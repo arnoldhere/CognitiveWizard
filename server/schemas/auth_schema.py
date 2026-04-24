@@ -1,5 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from datetime import datetime
 from typing import Optional
+
+from pydantic import BaseModel, EmailStr
 
 
 class UserCreate(BaseModel):
@@ -15,6 +17,9 @@ class UserRead(BaseModel):
     full_name: Optional[str] = None
     role: str
     is_active: bool
+    chat_limit: Optional[int] = None
+    subscribed: Optional[bool] = None
+    chat_limit_reset_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

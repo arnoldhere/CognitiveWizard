@@ -14,6 +14,22 @@ function createMessage(sender, text, extra = {}) {
   };
 }
 
+function formatResetTime(resetTime) {
+  if (!resetTime) return "not available";
+
+  const parsed = new Date(resetTime);
+  if (Number.isNaN(parsed.getTime())) return "not available";
+
+  return parsed.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 function MessageSources({ sources }) {
   if (!sources?.length) return null;
 
@@ -244,6 +260,7 @@ export default function ChatWindow({ ragReady, status }) {
           max_per_day: prev?.max_per_day ?? 5,
           limit_reached: true,
           reset_time: prev?.reset_time,
+          subscribed: prev?.subscribed ?? null,
         }));
       }
 
@@ -264,6 +281,11 @@ export default function ChatWindow({ ragReady, status }) {
     await sendQuery(lastFailedQuery);
   };
 
+  const resetAtLabel = formatResetTime(chatLimitInfo?.reset_time);
+  const remainingLabel = chatLimitInfo?.subscribed
+    ? "unlimited premium access"
+    : `${chatLimitInfo?.messages_remaining ?? 0} remaining today`;
+
   return (
     <section className="rag-panel chat-window">
       <header className="chat-header">
@@ -282,11 +304,8 @@ export default function ChatWindow({ ragReady, status }) {
         <div>
           <strong>Daily limit:</strong> 5 chat requests per day.
         </div>
-        <div>
-          {chatLimitInfo
-            ? `${chatLimitInfo.messages_remaining} remaining today`
-            : "Checking usage..."}
-        </div>
+        <div>{remainingLabel}</div>
+        <div className="chat-reset-time">Resets at: {resetAtLabel}</div>
       </div>
 
       <div className="chat-history" ref={chatContainerRef}>
@@ -324,7 +343,7 @@ export default function ChatWindow({ ragReady, status }) {
             <p>
               You have used all 5 chat requests for today. Premium purchase flow
               can be connected here later. For now, chat is disabled until the
-              limit resets.
+              limit resets at {resetAtLabel}.
             </p>
           </div>
         </div>

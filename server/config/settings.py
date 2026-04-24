@@ -14,7 +14,6 @@ class Settings:
     RAG_FAISS_INDEX_PATH: str = "vectorDB/rag_faiss.index"
     RAG_USER_INDEX_DIR: str = "vectorDB/rag_user_indices"
     RAG_USER_DATA_DIR: str = "vectorDB/rag_user_data"
-    CHAT_LIMIT_STORAGE_PATH: str = "vectorDB/chat_limit_state.json"
     EMBEDDING_DIM: int = 512
     TOP_K_RESULTS_RAG: int = 3
 

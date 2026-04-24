@@ -1,15 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.quiz_api import router as quiz_router
-from api.auth_api import router as auth_router
-from api.summarization_api import router as summarization_router
-from api.rag_api import router as rag_router
-from config.db import engine, Base
-from models import *
-from config.settings import settings
 import onnxruntime as ort
-
 import tensorflow as tf
+
+from api.auth_api import router as auth_router
+from api.quiz_api import router as quiz_router
+from api.rag_api import router as rag_router
+from api.summarization_api import router as summarization_router
+from config.db import Base, engine, ensure_user_table_columns
+from config.settings import settings
+from models import *
+
 
 gpus = tf.config.list_physical_devices("GPU")
 if gpus:
@@ -19,18 +20,15 @@ if gpus:
     except RuntimeError as e:
         print(e)
 
-ort.set_default_logger_severity(3)  # errors only
-
+ort.set_default_logger_severity(3)
 
 Base.metadata.create_all(bind=engine)
+ensure_user_table_columns()
+
 app = FastAPI(
     title="Cognitive Wizard Backend",
     description="Backend platform for Cognitive Wizard application",
 )
-
-# Ensure a temporary directory exists for testing the basic "store" functionality
-# UPLOAD_DIR = "media/temp_faces"
-# os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,

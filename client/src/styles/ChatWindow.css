@@ -162,6 +162,12 @@
   color: #ffd5c7;
 }
 
+.chat-reset-time {
+  width: 100%;
+  color: #7f97ab;
+  font-size: 0.82rem;
+}
+
 .chat-history {
   flex: 1;
   overflow-y: auto;

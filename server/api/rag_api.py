@@ -3,7 +3,10 @@ import os
 import tempfile
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy.orm import Session
+
 from api.auth_api import get_current_active_user
+from config.db import get_db
 from models.user import User
 from schemas.rag_schema import (
     RAGIngestRequest,
@@ -99,10 +102,13 @@ async def upload_document(
 
 
 @router.get("/status", response_model=RAGStatusResponse)
-def rag_status(current_user: User = Depends(get_current_active_user)):
+def rag_status(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
     user_id = str(current_user.id)
     payload = rag_service.status(user_id=user_id)
-    payload["chat_limit_info"] = chat_limit_service.get_user_status(user_id)
+    payload["chat_limit_info"] = chat_limit_service.get_user_status(db, current_user)
     return RAGStatusResponse(**payload)
 
 
@@ -110,10 +116,13 @@ def rag_status(current_user: User = Depends(get_current_active_user)):
 def chat(
     req: RAGQueryRequest,
     current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
     user_id = str(current_user.id)
 
-    can_send, messages_used, _messages_remaining = chat_limit_service.check_limit(user_id)
+    can_send, messages_used, _messages_remaining = chat_limit_service.check_limit(
+        db, current_user
+    )
     if not can_send:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -130,8 +139,8 @@ def chat(
             user_id=user_id,
         )
 
-        chat_limit_service.increment_message_count(user_id)
-        result["chat_limit_info"] = chat_limit_service.get_user_status(user_id)
+        user = chat_limit_service.increment_message_count(db, current_user)
+        result["chat_limit_info"] = chat_limit_service.get_user_status(db, user)
         return RAGResponse(**result)
     except ValueError as exc:
         raise HTTPException(

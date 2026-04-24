@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.sql import func
-from config.base import Base
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from config.base import Base
 
 
 class User(Base):
@@ -13,6 +14,9 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="user")
     is_active = Column(Boolean, default=True)
+    chat_limit = Column(Integer, nullable=True)
+    subscribed = Column(Boolean, nullable=True)
+    chat_limit_reset_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     grades = relationship(
         "Grade",
