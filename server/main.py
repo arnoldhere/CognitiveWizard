@@ -1,26 +1,47 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import onnxruntime as ort
-import tensorflow as tf
-
 from api.auth_api import router as auth_router
 from api.quiz_api import router as quiz_router
 from api.rag_api import router as rag_router
 from api.summarization_api import router as summarization_router
+from api.admin_api import router as admin_router
 from config.db import Base, engine, ensure_user_table_columns
 from config.settings import settings
 from models import *
+from services.auth_service import create_user, get_user_by_email
+import logging
+from config.db import get_db
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-gpus = tf.config.list_physical_devices("GPU")
-if gpus:
+def create_admin_if_not_exists():
+    db = get_db()
     try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-    except RuntimeError as e:
-        print(e)
+        existing_admin = get_user_by_email(db, settings.ADMIN_EMAIL)
+        if not existing_admin:
+            admin = create_user(
+                db,
+                email=settings.ADMIN_EMAIL,
+                password=settings.ADMIN_PASS,
+                full_name="System Administrator",
+                role="admin",
+            )
+            logger.info(f"Admin user created: {admin.email}")
+        else:
+            logger.info("Admin user already exists")
+    except Exception as e:
+        logger.error(f"Error creating admin user: {e}")
+    finally:
+        db.close()
 
-ort.set_default_logger_severity(3)
+
+# Create tables and admin user
+Base.metadata.create_all(bind=engine)
+ensure_user_table_columns()
+create_admin_if_not_exists()
 
 app = FastAPI(
     title="Cognitive Wizard Backend",
@@ -39,6 +60,7 @@ app.include_router(auth_router)
 app.include_router(quiz_router)
 app.include_router(summarization_router)
 app.include_router(rag_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")

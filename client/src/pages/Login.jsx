@@ -151,6 +151,22 @@ export default function Login() {
 
                     <Box sx={{ textAlign: 'center', mt: 2 }}>
                         <Typography variant="body2" color="text.secondary">
+                            <MuiLink
+                                component={Link}
+                                to="/forgot-password"
+                                sx={{
+                                    color: 'primary.main',
+                                    textDecoration: 'none',
+                                    fontWeight: 500,
+                                    '&:hover': {
+                                        textDecoration: 'underline',
+                                    },
+                                }}
+                            >
+                                Forgot Password?
+                            </MuiLink>
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
                             New here?{' '}
                             <MuiLink
                                 component={Link}

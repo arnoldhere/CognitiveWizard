@@ -55,3 +55,13 @@ class TokenData(BaseModel):
 
 class DeleteProfileRequest(BaseModel):
     password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str

@@ -2,8 +2,8 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { Box, CircularProgress } from "@mui/material";
 
-export default function ProtectedRoute({ children }) {
-    const { isAuthenticated, isLoading } = useAuth();
+export default function ProtectedRoute({ children, requiredRole }) {
+    const { isAuthenticated, isLoading, user } = useAuth();
     const location = useLocation();
 
     // Show loading spinner while checking authentication
@@ -26,6 +26,11 @@ export default function ProtectedRoute({ children }) {
     if (!isAuthenticated) {
         // Save the attempted location for redirect after login
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    // Check role if required
+    if (requiredRole && user?.role !== requiredRole) {
+        return <Navigate to="/" replace />;
     }
 
     // Render protected content

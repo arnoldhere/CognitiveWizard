@@ -160,6 +160,7 @@ def generate_quiz(
 
             response_text = res[0]["generated_text"]  #  correct
         logger.debug(f"Received response of length {len(response_text)}")
+        print(f"Raw response: {response_text}...")  # Print first 500 chars
 
         # Parse and validate
         success, parsed_data = _parse_response(response_text)

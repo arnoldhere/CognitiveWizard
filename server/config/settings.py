@@ -63,6 +63,10 @@ class Settings:
         if origin.strip()
     )
 
+    # admin credentials
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL")
+    ADMIN_PASS: str = os.getenv("ADMIN_PASS")
+
     @property
     def SQLALCHEMY_DATABASE_URL(self):
         return self.DATABASE_URL

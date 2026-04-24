@@ -18,6 +18,8 @@ import ErrorBoundary from "./components/utils/ErrorBoundary";
 import SummarizerPage from "./pages/Summarize";
 import FaceRegister from "./pages/FaceRegister";
 import FaceLogin from "./pages/FaceLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {
   return (
@@ -80,6 +82,16 @@ function App() {
                   }
                 />
 
+                {/* Admin Route - Require Admin Role */}
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Public Routes - Redirect if Authenticated */}
                 <Route
                   path="/login"
@@ -94,6 +106,14 @@ function App() {
                   element={
                     <PublicRoute>
                       <Signup />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/forgot-password"
+                  element={
+                    <PublicRoute>
+                      <ForgotPassword />
                     </PublicRoute>
                   }
                 />

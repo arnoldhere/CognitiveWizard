@@ -9,6 +9,8 @@ from schemas.auth_schema import (
     Token,
     FaceLoginResponse,
     DeleteProfileRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
 )
 from services.auth_service import (
     create_user,
@@ -22,6 +24,9 @@ from utils.security import create_access_token, decode_access_token
 from models.user import User
 from services.facial_service.facial_auth import register as register_face_service
 from services.facial_service.facial_auth import delete_user_face_data
+
+# OTP storage (in production, use Redis)
+otp_store = {}
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -96,6 +101,45 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserRead)
 def read_current_user(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+
+@router.post("/forgot-password")
+def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = get_user_by_email(db, request.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Generate OTP
+    import random
+
+    otp = str(random.randint(100000, 999999))
+    otp_store[request.email] = otp
+
+    # Send email (placeholder)
+    print(f"OTP for {request.email}: {otp}")  # In production, send email
+
+    return {"message": "OTP sent to email"}
+
+
+@router.post("/reset-password")
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    if request.email not in otp_store or otp_store[request.email] != request.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    user = get_user_by_email(db, request.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Update password
+    from services.auth_service import hash_password
+
+    user.hashed_password = hash_password(request.new_password)
+    db.commit()
+
+    # Clear OTP
+    del otp_store[request.email]
+
+    return {"message": "Password reset successfully"}
 
 
 # =============
