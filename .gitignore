@@ -8,3 +8,5 @@ demo.py
 server/media/
 server/vectorDB
 *vectorDB/
+alembic.ini
+/server/migrations/versions/*

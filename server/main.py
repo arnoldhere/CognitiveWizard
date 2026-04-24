@@ -22,9 +22,6 @@ if gpus:
 
 ort.set_default_logger_severity(3)
 
-Base.metadata.create_all(bind=engine)
-ensure_user_table_columns()
-
 app = FastAPI(
     title="Cognitive Wizard Backend",
     description="Backend platform for Cognitive Wizard application",
