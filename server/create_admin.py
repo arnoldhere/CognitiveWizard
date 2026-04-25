@@ -1,15 +1,15 @@
-from sqlalchemy.orm import Session
 from config.db import SessionLocal, engine
 from config.base import Base
 from models import *
 from services.auth_service import create_user, get_user_by_email
+from config.settings import settings
 
 
 def create_admin_user():
     db = SessionLocal()
     try:
         # Check if admin already exists
-        existing_admin = get_user_by_email(db, "admin@cogwiz.com")
+        existing_admin = get_user_by_email(db, settings.ADMIN_EMAIL)
         if existing_admin:
             print("Admin user already exists.")
             return
@@ -17,8 +17,8 @@ def create_admin_user():
         # Create admin user
         admin = create_user(
             db,
-            email="admin@cogwiz.com",
-            password="cogwiz",
+            email=settings.ADMIN_EMAIL,
+            password=settings.ADMIN_PASSWORD,
             full_name="System Administrator",
             role="admin",
         )
