@@ -205,6 +205,7 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                 <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.82)" }}>
                   Question {currentIndex + 1} of {totalQuestions}
                 </Typography>
+                <hr />
                 <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.82)" }}>
                   Progress {Math.round(progress)}%
                 </Typography>
