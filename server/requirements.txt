@@ -24,4 +24,9 @@ pydantic
 faiss-cpu
 faiss-gpu
 alembic
-smtplib
+smtplib 
+sentence-transformers
+langchain
+langchain-community
+langchain-core
+tiktoken

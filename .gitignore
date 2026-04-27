@@ -10,3 +10,4 @@ server/vectorDB
 *vectorDB/
 alembic.ini
 /server/migrations/versions/*
+*tmp/
