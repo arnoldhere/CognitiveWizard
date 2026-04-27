@@ -16,7 +16,7 @@ from schemas.rag_schema import (
     RAGUploadResponse,
 )
 from services.chat_limit_service import chat_limit_service
-from services.rag.rag_service import rag_service
+from services.simple_rag.rag_service import rag_service
 from services.summarization.input_handlers import Document_handler
 
 logger = logging.getLogger(__name__)

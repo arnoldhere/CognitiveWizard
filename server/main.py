@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_admin_if_not_exists():
-    db = get_db()
+    db = next(get_db())
     try:
         existing_admin = get_user_by_email(db, settings.ADMIN_EMAIL)
         if not existing_admin:
