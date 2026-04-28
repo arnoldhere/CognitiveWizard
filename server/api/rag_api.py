@@ -1,10 +1,8 @@
 import logging
 import os
 import tempfile
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
-
 from api.auth_api import get_current_active_user
 from config.db import get_db
 from models.user import User
@@ -16,7 +14,7 @@ from schemas.rag_schema import (
     RAGUploadResponse,
 )
 from services.chat_limit_service import chat_limit_service
-from services.simple_rag.rag_service import rag_service
+from services.rag.v0_rag_service import rag_service
 from services.summarization.input_handlers import Document_handler
 
 logger = logging.getLogger(__name__)

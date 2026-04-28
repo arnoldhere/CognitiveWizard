@@ -1,7 +1,9 @@
 from sentence_transformers import SentenceTransformer
-import numpy as np
 
 
+# =========
+# Sample customized Embedder
+# =========
 class Embedder:
     def __init__(self):
         self.model = SentenceTransformer("all-mpnet-base-v2")

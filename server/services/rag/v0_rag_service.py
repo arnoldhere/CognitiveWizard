@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from config.Faiss_index import faiss_service
 from config.settings import settings
-from services.simple_rag.generator import Generator
-from services.simple_rag.preprocess.embedder import Embedder
-from services.simple_rag.retriever import Retriever
+from services.rag.generator import Generator
+from services.rag.preprocess.embedder import Embedder
+from services.rag.retriever import Retriever
 
 logger = logging.getLogger(__name__)
 
