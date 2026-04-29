@@ -1,7 +1,7 @@
 import logging
 import os
 import tempfile
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
 from sqlalchemy.orm import Session
 from api.auth_api import get_current_active_user
 from config.db import get_db
@@ -15,6 +15,7 @@ from schemas.rag_schema import (
 )
 from services.chat_limit_service import chat_limit_service
 from services.rag.v0_rag_service import rag_service
+from services.rag.v1_rag_service import langchain_rag_service
 from services.summarization.input_handlers import Document_handler
 
 logger = logging.getLogger(__name__)
@@ -110,12 +111,28 @@ def rag_status(
     return RAGStatusResponse(**payload)
 
 
+@router.get("/status-langchain", response_model=RAGStatusResponse)
+def rag_status_langchain(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Get the status of the user's LangChain RAG knowledge base."""
+    user_id = str(current_user.id)
+    payload = langchain_rag_service.status(user_id=user_id)
+    payload["chat_limit_info"] = chat_limit_service.get_user_status(db, current_user)
+    return RAGStatusResponse(**payload)
+
+
 @router.post("/chat", response_model=RAGResponse)
 def chat(
     req: RAGQueryRequest,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
+    """
+    RAG Chat endpoint - supports both v0 and v1 (LangChain).
+    Use use_langchain parameter to switch between implementations.
+    """
     user_id = str(current_user.id)
 
     can_send, messages_used, _messages_remaining = chat_limit_service.check_limit(
@@ -131,7 +148,10 @@ def chat(
         )
 
     try:
-        result = rag_service.query(
+        # Route to appropriate RAG service based on use_langchain parameter
+        selected_service = langchain_rag_service if req.use_langchain else rag_service
+
+        result = selected_service.query(
             query=req.query,
             use_rag=bool(req.use_rag),
             user_id=user_id,
@@ -149,4 +169,50 @@ def chat(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate RAG response.",
+        ) from exc
+
+
+@router.post("/chat-langchain", response_model=RAGResponse)
+def chat_langchain(
+    req: RAGQueryRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    LangChain RAG Chat endpoint - dedicated endpoint for LangChain-based RAG.
+    This is equivalent to calling /chat with use_langchain=true.
+    """
+    user_id = str(current_user.id)
+
+    can_send, messages_used, _messages_remaining = chat_limit_service.check_limit(
+        db, current_user
+    )
+    if not can_send:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Daily chat limit reached. You have used {messages_used}/5 messages today. "
+                "Please upgrade to premium for unlimited access."
+            ),
+        )
+
+    try:
+        result = langchain_rag_service.query(
+            query=req.query,
+            use_rag=bool(req.use_rag),
+            user_id=user_id,
+        )
+
+        user = chat_limit_service.increment_message_count(db, current_user)
+        result["chat_limit_info"] = chat_limit_service.get_user_status(db, user)
+        return RAGResponse(**result)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except Exception as exc:
+        logger.exception("LangChain RAG chat failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate LangChain RAG response.",
         ) from exc

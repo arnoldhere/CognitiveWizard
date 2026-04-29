@@ -70,6 +70,14 @@ class Settings:
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL")
     ADMIN_PASS: str = os.getenv("ADMIN_PASS")
 
+    # ===========
+    # LLM & Models - API configs
+    # ===========
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    OPENAI_DEF_MODEL: str = os.getenv("OPENAI_DEF_MODEL")
+    HF_DEF_MODEL: str = os.getenv("HF_DEF_MODEL")
+    DEF_LLM_PROVIDER: str = os.getenv("DEF_LLM_PROVIDER")
+
     @property
     def SQLALCHEMY_DATABASE_URL(self):
         return self.DATABASE_URL

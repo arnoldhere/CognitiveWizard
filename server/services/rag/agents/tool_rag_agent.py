@@ -1,6 +1,6 @@
 from langchain_classic.agents import Tool, initialize_agent
 from langchain_classic.chat_models.openai import ChatOpenAI
-from providers.llm_openai import provider as llm_openai
+from providers.llm_provider import llm
 
 
 def build_agent(retriever_tool):
@@ -13,6 +13,6 @@ def build_agent(retriever_tool):
         )
     ]
     agent = initialize_agent(
-        tools, llm_openai, agent="zero-shot-react-description", verbose=True
+        tools, llm, agent="zero-shot-react-description", verbose=True
     )
     return agent

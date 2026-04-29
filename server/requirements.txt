@@ -31,3 +31,4 @@ langchain-community
 langchain-core
 langchain-openai
 tiktoken
+langchain-huggingface

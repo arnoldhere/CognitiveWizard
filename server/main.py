@@ -66,3 +66,10 @@ app.include_router(admin_router)
 @app.get("/health")
 def health():
     return {"message": "Hello from Wizard !!! 🚀"}
+
+
+@app.on_event("startup")
+async def startup_event():
+    from services.rag.v1_rag_service import langchain_rag_service
+
+    langchain_rag_service._ensure_vectordb_loaded()

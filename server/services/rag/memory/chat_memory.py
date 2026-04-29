@@ -1,10 +1,9 @@
-from langchain_classic.memory import ConversationBufferMemory
+from langchain_community.chat_message_histories import ChatMessageHistory
+
+_store = {}
 
 
-def get_memory():
-    """
-    Stores chat history(short term context)
-    WHY:
-    - Enables conversational continuity
-    """
-    return ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+def get_memory(session_id: str):
+    if session_id not in _store:
+        _store[session_id] = ChatMessageHistory()
+    return _store[session_id]
