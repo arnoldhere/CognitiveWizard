@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class Generator:
     def __init__(self, mode: str = "api"):
         if mode not in ["api", "local"]:
-            return False, f"Invalid model mode '{mode}'. Must be 'api' or 'local'"
+            raise ValueError(f"Invalid mode : {mode}")
 
         self.client = HFClientManager().get_client()
         self.mode = mode

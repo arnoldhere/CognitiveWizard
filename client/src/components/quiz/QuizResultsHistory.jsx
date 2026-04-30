@@ -29,15 +29,21 @@ export default function QuizResultsHistory({ results, loading, onFetchResults })
     const [topicSearch, setTopicSearch] = useState("");
 
     useEffect(() => {
-        onFetchResults({
-            skip: page * rowsPerPage,
-            limit: rowsPerPage,
-            sort_by: sortBy,
-            sort_order: sortOrder,
-            status_filter: statusFilter || undefined,
-            topic_search: topicSearch || undefined,
-        });
-    }, [page, rowsPerPage, sortBy, sortOrder, statusFilter, topicSearch]);
+        const handler = window.setTimeout(() => {
+            onFetchResults({
+                skip: page * rowsPerPage,
+                limit: rowsPerPage,
+                sort_by: sortBy,
+                sort_order: sortOrder,
+                status_filter: statusFilter || undefined,
+                topic_search: topicSearch || undefined,
+            });
+        }, 300);
+
+        return () => {
+            window.clearTimeout(handler);
+        };
+    }, [page, rowsPerPage, sortBy, sortOrder, statusFilter, topicSearch, onFetchResults]);
 
     const handleChangePage = (event, newPage) => {
         setPage(newPage);

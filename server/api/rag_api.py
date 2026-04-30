@@ -69,7 +69,7 @@ async def upload_document(
             tmp.flush()
 
         text = Document_handler.extract_text(temp_file_path)
-        result = rag_service.preprocess(
+        result = langchain_rag_service.preprocess(
             documents=[text],
             metadata={"filename": file.filename},
             user_id=str(current_user.id),
@@ -106,7 +106,7 @@ def rag_status(
     db: Session = Depends(get_db),
 ):
     user_id = str(current_user.id)
-    payload = rag_service.status(user_id=user_id)
+    payload = langchain_rag_service.status(user_id=user_id)
     payload["chat_limit_info"] = chat_limit_service.get_user_status(db, current_user)
     return RAGStatusResponse(**payload)
 
@@ -150,6 +150,9 @@ def chat(
     try:
         # Route to appropriate RAG service based on use_langchain parameter
         selected_service = langchain_rag_service if req.use_langchain else rag_service
+
+        if req.use_langchain:
+            logger.info(f"Langchain mode enabled...")
 
         result = selected_service.query(
             query=req.query,

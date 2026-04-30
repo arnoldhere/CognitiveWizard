@@ -1,5 +1,5 @@
 import { useQuiz } from "../hooks/useQuiz";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import QuizForm from "../components/quiz/QuizForm";
 import QuizCard from "../components/quiz/QuizCard";
 import QuizResults from "../components/quiz/QuizResults";

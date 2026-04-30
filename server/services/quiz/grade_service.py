@@ -57,11 +57,7 @@ def create_quiz_session(
 
 
 def get_quiz_session(db: Session, quiz_id: int, user_id: int) -> Grade | None:
-    return (
-        db.query(Grade)
-        .filter(Grade.id == quiz_id, Grade.user_id == user_id)
-        .first()
-    )
+    return db.query(Grade).filter(Grade.id == quiz_id, Grade.user_id == user_id).first()
 
 
 def list_completed_results(db: Session, user_id: int) -> list[Grade]:
@@ -98,9 +94,7 @@ def get_paginated_results(
 
     # Apply topic search
     if topic_search:
-        query = query.filter(
-            Grade.quiz_topic.ilike(f"%{topic_search}%")
-        )
+        query = query.filter(Grade.quiz_topic.ilike(f"%{topic_search}%"))
 
     # Get total before pagination
     total = query.count()
@@ -121,17 +115,21 @@ def get_paginated_results(
 def evaluate_quiz_session(
     db: Session, grade: Grade, submitted_answers: list[dict]
 ) -> Grade:
+
     answer_lookup = {
-        item["question_id"]: str(item["answer"]).strip() for item in grade.answer_key or []
+        item["question_id"]: str(item["answer"]).strip()
+        for item in grade.answer_key or []
     }
-    question_lookup = {
-        item["question_id"]: item for item in grade.question_set or []
-    }
+    question_lookup = {item["question_id"]: item for item in grade.question_set or []}
     submitted_lookup = {}
 
     for answer in submitted_answers:
         submitted_lookup[answer["question_id"]] = str(answer["selected_option"]).strip()
-
+    # validate uncomplete quiz
+    expected_ids = set(question_lookup.keys())
+    submitted_ids = set(submitted_lookup.keys())
+    if submitted_ids != expected_ids:
+        raise ValueError("Incomplete or invalid quiz submission")
     correct_answers = 0
     feedback_items = []
 

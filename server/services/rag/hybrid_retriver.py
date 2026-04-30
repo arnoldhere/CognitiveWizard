@@ -15,4 +15,10 @@ class HybridRetriever:
         )
 
     def retrieve(self, query: str):
-        return self.retrieve.get_relavant_documents(query)
+        return self.retriever.get_relevant_documents(query)
+
+    def search(self, query: str, k: int = 5):
+        return self.retriever.get_relevant_documents(query)
+
+    def get_relevant_documents(self, query: str):
+        return self.retriever.get_relevant_documents(query)

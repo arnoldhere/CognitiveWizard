@@ -166,7 +166,7 @@ async def login_with_face(image, db: Session):
         max_score = max(scores)
         avg_score = sum(scores) / len(scores)
         count = len(scores)
-        if max_score > 0.7 and count >= 2:
+        if max_score > 0.6 and count >= 1:
             if max_score > best_score:
                 best_score = max_score
                 best_user = user_id

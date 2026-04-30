@@ -14,7 +14,7 @@ class RAGQueryRequest(BaseModel):
     use_rag: Optional[bool] = True
     user_id: Optional[str] = None
     session_id: Optional[str] = None
-    use_langchain: Optional[bool] = True
+    use_langchain: Optional[bool] = False
     # New: use LangChain-based RAG (v1) instead of v0
 
 

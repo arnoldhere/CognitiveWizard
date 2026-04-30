@@ -104,7 +104,11 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
       selected_option: answers[question.question_id] || "",
     }));
 
-    await onSubmit(formattedAnswers);
+    try {
+      await onSubmit(formattedAnswers);
+    } catch (err) {
+      console.error("Quiz submission failed:", err);
+    }
   };
 
   if (!currentQuestion) {

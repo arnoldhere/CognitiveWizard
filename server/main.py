@@ -70,6 +70,4 @@ def health():
 
 @app.on_event("startup")
 async def startup_event():
-    from services.rag.v1_rag_service import langchain_rag_service
-
-    langchain_rag_service._ensure_vectordb_loaded()
+    logger.info("FastAPI startup complete")

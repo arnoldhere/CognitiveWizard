@@ -44,6 +44,7 @@ export const useQuiz = () => {
     } catch (err) {
       console.error("Error submitting quiz:", err);
       setError(err.response?.data?.detail || "Failed to submit quiz.");
+      setQuizSession(null);
       throw err;
     } finally {
       setSubmitting(false);

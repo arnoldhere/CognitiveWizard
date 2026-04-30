@@ -65,3 +65,7 @@ class ResetPasswordRequest(BaseModel):
     email: EmailStr
     otp: str
     new_password: str
+
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
