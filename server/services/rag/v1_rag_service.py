@@ -18,6 +18,7 @@ from models.rag_document import RAGDocument
 from services.rag.chains.v1_rag_chain import build_retrieval_qa_chain
 from services.rag.hybrid_retriver import HybridRetriever
 from services.rag.memory.chat_memory import get_memory
+from services.rag.source_files import build_source_url, resolve_source_url
 from config.vector_store.vectordb import VectorDBFactory
 from utils.preprocess.embedder import EmbeddingFactory
 
@@ -110,8 +111,16 @@ class LangChainRAGService:
 
         title = (metadata or {}).get("filename", "Uploaded Document")
         docs = [
-            Document(page_content=chunk, metadata={"user_id": user_id, "title": title})
-            for chunk in chunks
+            Document(
+                page_content=chunk,
+                metadata={
+                    "user_id": user_id,
+                    "title": title,
+                    "chunk_index": idx,
+                    "source_url": (metadata or {}).get("source_url"),
+                },
+            )
+            for idx, chunk in enumerate(chunks, start=1)
         ]
 
         user_vectordb = self._get_user_vectordb(user_id)
@@ -124,6 +133,7 @@ class LangChainRAGService:
                     "title": title,
                     "snippet": chunk_text[:280],
                     "text": chunk_text,
+                    "source_url": (metadata or {}).get("source_url"),
                 }
             )
 
@@ -163,6 +173,9 @@ class LangChainRAGService:
                     "snippet": doc.page_content[:280],
                     "text": doc.page_content,
                     "score": float(score),
+                    "source_url": self._source_url_from_metadata(
+                        doc.metadata, user_id
+                    ),
                 }
             )
 
@@ -221,7 +234,7 @@ class LangChainRAGService:
                         answer = str(chain_result)
                         original_docs = []
 
-                    sources = self._build_sources(original_docs)
+                    sources = self._build_sources(original_docs, user_id=user_id)
 
                     if not sources:
                         mode_used = "llm"
@@ -258,6 +271,7 @@ class LangChainRAGService:
                     "title": source["title"],
                     "snippet": source["snippet"],
                     "score": source["score"],
+                    "source_url": source.get("source_url"),
                 }
                 for source in sources
             ],
@@ -349,7 +363,9 @@ class LangChainRAGService:
         except Exception:
             return 0
 
-    def _build_sources(self, docs: List[Any]) -> List[Dict[str, Any]]:
+    def _build_sources(
+        self, docs: List[Any], user_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Build response sources with numeric scores for Pydantic validation."""
         sources = []
         for idx, item in enumerate(docs):
@@ -363,9 +379,21 @@ class LangChainRAGService:
                     "snippet": content[:280],
                     "text": content,
                     "score": float(score),
+                    "source_url": self._source_url_from_metadata(metadata, user_id),
                 }
             )
         return sources
+
+    def _source_url_from_metadata(
+        self, metadata: Dict[str, Any], user_id: Optional[str]
+    ) -> Optional[str]:
+        source_url = metadata.get("source_url")
+        if source_url:
+            return source_url
+        title = metadata.get("title")
+        return resolve_source_url(user_id, title) or (
+            build_source_url(title) if title else None
+        )
 
     def _split_scored_doc(self, item: Any):
         if isinstance(item, tuple) and len(item) >= 2:

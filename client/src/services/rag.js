@@ -42,6 +42,17 @@ export async function askRagQuestion({ query, use_rag = true, signal, use_langch
   }
 }
 
+export async function fetchRagSource(sourceUrl) {
+  try {
+    const response = await API.get(sourceUrl, {
+      responseType: "blob",
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(toErrorMessage(error, "Failed to open source document."));
+  }
+}
+
 export async function askLangChainRagQuestion({ query, use_rag = true, signal }) {
   /**
    * Convenience function to use LangChain RAG endpoint directly.

@@ -23,6 +23,7 @@ class RAGSource(BaseModel):
     title: str
     snippet: str
     score: float
+    source_url: Optional[str] = None
 
 
 class RAGResponse(BaseModel):

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import ErrorMessage from "../utils/ErrorMessage";
-import { askRagQuestion } from "../../services/rag";
+import { askRagQuestion, fetchRagSource } from "../../services/rag";
 import "../../styles/ChatWindow.css";
 
 function createMessage(sender, text, extra = {}) {
@@ -30,29 +30,103 @@ function formatResetTime(resetTime) {
   });
 }
 
-function MessageSources({ sources }) {
+function getTokenValue(tokenUsage, keys) {
+  if (!tokenUsage) return null;
+  for (const key of keys) {
+    const value = tokenUsage[key];
+    if (Number.isFinite(Number(value))) return Number(value);
+  }
+  return null;
+}
+
+function SourceScore({ score }) {
+  const value = Number(score);
+  if (!Number.isFinite(value)) return null;
+  return <span className="source-score">{Math.round(value * 100)}%</span>;
+}
+
+function getSourceHash(source) {
+  const snippet = (source?.snippet || "").replace(/\s+/g, " ").trim().slice(0, 90);
+  if (!snippet) return "";
+  const title = source?.title || "";
+  if (title.toLowerCase().endsWith(".pdf")) {
+    return `#search=${encodeURIComponent(snippet)}`;
+  }
+  return `#:~:text=${encodeURIComponent(snippet)}`;
+}
+
+function MessageSources({ sources, onOpenSource }) {
   if (!sources?.length) return null;
 
   return (
     <div className="source-list">
-      {sources.map((source) => (
-        <article key={source.id} className="source-card">
-          <header>
-            <span>{source.title}</span>
-            <small>score {Number(source.score).toFixed(3)}</small>
-          </header>
-          <p>{source.snippet}</p>
-        </article>
-      ))}
+      <div className="source-list-header">
+        <span>Sources</span>
+        <small>{sources.length}</small>
+      </div>
+      <div className="source-chip-grid">
+        {sources.map((source, index) => {
+          const canOpen = Boolean(source.source_url);
+          const label = source.title || `Source ${index + 1}`;
+          const body = (
+            <>
+              <span className="source-index">{index + 1}</span>
+              <span className="source-main">
+                <span className="source-title">{label}</span>
+                <span className="source-snippet">{source.snippet}</span>
+              </span>
+              <SourceScore score={source.score} />
+            </>
+          );
+
+          return canOpen ? (
+            <button
+              key={`${source.id}-${index}`}
+              type="button"
+              className="source-chip"
+              onClick={() => onOpenSource(source, getSourceHash(source))}
+              title="Open source document"
+            >
+              {body}
+            </button>
+          ) : (
+            <button
+              key={`${source.id}-${index}`}
+              type="button"
+              className="source-chip is-disabled"
+              disabled
+              title="Source file is not available for this older message"
+            >
+              {body}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, onOpenSource }) {
   const time = new Date(message.createdAt).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
+  const inputTokens = getTokenValue(message.tokenUsage, [
+    "input_tokens",
+    "prompt_tokens",
+    "input",
+    "prompt",
+  ]);
+  const outputTokens = getTokenValue(message.tokenUsage, [
+    "output_tokens",
+    "completion_tokens",
+    "output",
+    "completion",
+  ]);
+  const totalTokens = getTokenValue(message.tokenUsage, ["total_tokens", "total"]);
+  const showTokens =
+    message.sender === "bot" &&
+    (inputTokens !== null || outputTokens !== null || totalTokens !== null);
 
   return (
     <div className={`chat-msg ${message.sender}`}>
@@ -60,11 +134,19 @@ function MessageBubble({ message }) {
       {message.warning ? (
         <small className="chat-warning">{message.warning}</small>
       ) : null}
-      {message.sender === "bot" ? <MessageSources sources={message.sources} /> : null}
+      {message.sender === "bot" ? (
+        <MessageSources sources={message.sources} onOpenSource={onOpenSource} />
+      ) : null}
       <div className="message-footer">
-        {message.tokenUsage && (
+        {showTokens && (
           <small className="token-usage">
-            {message.tokenUsage.total_tokens} tokens
+            {inputTokens !== null ? `in ${inputTokens}` : null}
+            {inputTokens !== null && outputTokens !== null ? " / " : null}
+            {outputTokens !== null ? `out ${outputTokens}` : null}
+            {(inputTokens !== null || outputTokens !== null) && totalTokens !== null
+              ? " / "
+              : null}
+            {totalTokens !== null ? `total ${totalTokens}` : null}
           </small>
         )}
         <small>{time}</small>
@@ -281,6 +363,28 @@ export default function ChatWindow({ ragReady, status }) {
     await sendQuery(lastFailedQuery);
   };
 
+  const handleOpenSource = async (source, hash) => {
+    if (!source?.source_url) return;
+
+    const opened = window.open("", "_blank");
+    if (!opened) {
+      setError("Browser blocked the source document tab. Allow pop-ups and try again.");
+      return;
+    }
+    opened.opener = null;
+
+    try {
+      setError("");
+      const blob = await fetchRagSource(source.source_url);
+      const objectUrl = URL.createObjectURL(blob);
+      opened.location.href = `${objectUrl}${hash}`;
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (err) {
+      opened.close();
+      setError(err.message);
+    }
+  };
+
   const resetAtLabel = formatResetTime(chatLimitInfo?.reset_time);
   const remainingLabel = chatLimitInfo?.subscribed
     ? "unlimited premium access"
@@ -310,7 +414,11 @@ export default function ChatWindow({ ragReady, status }) {
 
       <div className="chat-history" ref={chatContainerRef}>
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <MessageBubble
+            key={message.id}
+            message={message}
+            onOpenSource={handleOpenSource}
+          />
         ))}
 
         {loading && <div className="typing-indicator">assistant thinking</div>}

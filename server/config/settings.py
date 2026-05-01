@@ -7,6 +7,7 @@ load_dotenv()
 
 @dataclass
 class Settings:
+    MEDIA_DIR: str = os.getenv("MEDIA_DIR")
     # ==============
     # ChromaDB setup
     # ==============

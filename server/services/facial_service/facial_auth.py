@@ -123,7 +123,7 @@ async def login_with_face(image, db: Session):
     face_crop = image[y1:y2, x1:x2]
     os.makedirs("media/faces", exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    cv2.imwrite(f"media/faces/login_at_{timestamp}.jpg", face_crop)
+    # cv2.imwrite(f"media/faces/login_at_{timestamp}.jpg", face_crop) # save cropped img at login time
     # ========
     # normalize the image
     # ========

@@ -1,7 +1,9 @@
 import logging
+import mimetypes
 import os
 import tempfile
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from api.auth_api import get_current_active_user
 from config.db import get_db
@@ -15,12 +17,39 @@ from schemas.rag_schema import (
 )
 from services.chat_limit_service import chat_limit_service
 from services.rag.v0_rag_service import rag_service
+from services.rag.source_files import (
+    get_user_source_path,
+    persist_uploaded_file,
+    safe_filename,
+)
 from services.rag.v1_rag_service import langchain_rag_service
 from services.summarization.input_handlers import Document_handler
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
+
+
+@router.get("/source/{filename}")
+def get_uploaded_source(
+    filename: str,
+    current_user: User = Depends(get_current_active_user),
+):
+    safe_name = safe_filename(filename)
+    source_path = get_user_source_path(str(current_user.id), safe_name)
+    if not source_path.exists() or not source_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source document is no longer available.",
+        )
+
+    media_type, _ = mimetypes.guess_type(str(source_path))
+    return FileResponse(
+        path=str(source_path),
+        filename=safe_name,
+        media_type=media_type or "application/octet-stream",
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/ingest")
@@ -70,9 +99,18 @@ async def upload_document(
             tmp.flush()
 
         text = Document_handler.extract_text(temp_file_path)
+        source_url = persist_uploaded_file(
+            temp_file_path,
+            str(current_user.id),
+            file.filename or "uploaded-file",
+        )
         result = langchain_rag_service.preprocess(
             documents=[text],
-            metadata={"filename": file.filename},
+            metadata={
+                "filename": file.filename,
+                "source_url": source_url,
+                "content_type": file.content_type,
+            },
             user_id=str(current_user.id),
             db=db,
         )
