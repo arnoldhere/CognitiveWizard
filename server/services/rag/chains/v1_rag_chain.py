@@ -51,14 +51,14 @@ def build_v1_rag_chain(retriever, prompt: Optional[PromptTemplate] = None):
         {
             "context": RunnableLambda(
                 lambda x: (
-                    retriever.get_relevant_documents(x["query"])
-                    if isinstance(x, dict) and "query" in x
+                    retriever.get_relevant_documents(x["input"])
+                    if isinstance(x, dict) and "input" in x
                     else retriever.get_relevant_documents(x)
                 )
             )
             | RunnableLambda(format_docs),
             "question": RunnableLambda(
-                lambda x: x.get("query", x) if isinstance(x, dict) else x
+                lambda x: x.get("input", x) if isinstance(x, dict) else x
             ),
         }
         | prompt
@@ -90,10 +90,10 @@ def build_retrieval_qa_chain(
 
     # Chain that also returns retrieved docs for source attribution
     def retrieve_and_format(x):
-        query = x.get("query", x) if isinstance(x, dict) else x
+        query = x.get("input", x) if isinstance(x, dict) else x
         docs = retriever.get_relevant_documents(query)
         return {
-            "query": query,
+            "input": query,
             "context": format_docs(
                 [doc.get("text", doc) if isinstance(doc, dict) else doc for doc in docs]
             ),

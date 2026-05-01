@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
@@ -54,7 +55,7 @@ export default function Profile() {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
 
-    const handleFetchResults = async (params) => {
+    const handleFetchResults = useCallback(async (params) => {
         try {
             setLoading(true);
             setError(null);
@@ -66,7 +67,7 @@ export default function Profile() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     const handleDeleteProfile = async () => {
         if (!deletePassword.trim()) {
@@ -102,13 +103,16 @@ export default function Profile() {
             setDeleteLoading(false);
         }
     };
-
     useEffect(() => {
-        if (tabValue === 1) {
-            handleFetchResults();
+        if (tabValue === 1 && results.data.length === 0) {
+            handleFetchResults({
+                skip: 0,
+                limit: 10,
+                sort_by: "submitted_at",
+                sort_order: "desc",
+            });
         }
-    }, [tabValue]);
-
+    }, [tabValue, handleFetchResults, results.data.length]);
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Paper

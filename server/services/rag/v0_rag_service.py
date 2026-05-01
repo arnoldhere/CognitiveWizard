@@ -114,7 +114,13 @@ class RAGService:
             return answer, token_usage
         return result, None
 
-    def query(self, query: str, use_rag: bool = True, user_id: Optional[str] = None):
+    def query(
+        self,
+        query: str,
+        use_rag: bool = True,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ):
         self._ensure_user_loaded(user_id)
 
         warning = None

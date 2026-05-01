@@ -11,19 +11,21 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import numpy as np
+from sqlalchemy.orm import Session
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from config.settings import settings
+from models.rag_document import RAGDocument
 from services.rag.chains.v1_rag_chain import build_retrieval_qa_chain
-from utils.preprocess.embedder import EmbeddingFactory
-from config.vector_store.vectordb import VectorDBFactory
 from services.rag.hybrid_retriver import HybridRetriever
-from utils.trim_context import trim_context_to_budget
+from services.rag.memory.chat_memory import get_memory
+from config.vector_store.vectordb import VectorDBFactory
+from utils.preprocess.embedder import EmbeddingFactory
 
 logger = logging.getLogger(__name__)
 
 TOP_K_RES = settings.TOP_K_RESULTS_RAG
+RAG_INDEX_FILENAME = "index.faiss"
 
 
 class LangChainRAGService:
@@ -49,19 +51,26 @@ class LangChainRAGService:
 
     def _ensure_user_vectordb_loaded(self, user_id: str):
         """Ensure a per-user FAISS vector store is available."""
-        if user_id in self._vectordbs:
-            return
-
+        if user_id not in self._vectordbs:
+            self._vectordbs[user_id] = None  # Don't initialize yet
         index_path = self._get_user_index_path(user_id)
-        index_file = index_path / "index.faiss"
+        index_file = index_path / RAG_INDEX_FILENAME
 
         if index_file.exists():
             logger.info(f"Loading existing FAISS index for user {user_id}")
-            self._vectordbs[user_id] = VectorDBFactory.load_embeddings(
-                str(index_path), self.embedder
-            )
+            try:
+                self._vectordbs[user_id] = VectorDBFactory.load_embeddings(
+                    str(index_path), self.embedder
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Failed to load FAISS index for user {user_id}: {exc}. "
+                    "Reinitializing empty user index."
+                )
+                self._vectordbs[user_id] = FAISS.from_documents([], self.embedder)
+                self._vectordbs[user_id].save_local(str(index_path))
         else:
-            logger.warning(
+            logger.info(
                 f"FAISS index not found for user {user_id}. Creating new empty per-user index."
             )
             self._vectordbs[user_id] = FAISS.from_documents([], self.embedder)
@@ -93,6 +102,7 @@ class LangChainRAGService:
         documents: List[str],
         metadata: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None,
+        db: Optional[Session] = None,
     ):
         """Preprocess and ingest documents into the knowledge base."""
         if not user_id:
@@ -115,7 +125,10 @@ class LangChainRAGService:
         user_vectordb = self._get_user_vectordb(user_id)
         user_vectordb.add_documents(docs)
         user_vectordb.save_local(str(self._get_user_index_path(user_id)))
-
+        if self._vectordbs[user_id] is None:
+            self._vectordbs[user_id] = FAISS.from_documents(docs, self.embedder)
+        else:
+            self._vectordbs[user_id].add_documents(docs)
         for chunk_text in chunks:
             self._chunk_store[user_id].append(
                 {
@@ -131,6 +144,7 @@ class LangChainRAGService:
 
         self._documents_ingested[user_id] += len(documents)
         self._persist_user_state(user_id)
+        self._persist_uploaded_document_metadata(user_id, title, chunks, metadata, db)
 
         return {
             "status": "success",
@@ -150,9 +164,7 @@ class LangChainRAGService:
             return []
 
         user_vectordb = self._get_user_vectordb(user_id)
-        docs = user_vectordb.similarity_search(
-            query, k=top_k, filter={"user_id": user_id}
-        )
+        docs = user_vectordb.similarity_search(query, k=top_k)
 
         sources = []
         for i, doc in enumerate(docs):
@@ -168,7 +180,13 @@ class LangChainRAGService:
 
         return sources
 
-    def query(self, query: str, use_rag: bool = True, user_id: Optional[str] = None):
+    def query(
+        self,
+        query: str,
+        use_rag: bool = True,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ):
         """
         Process a query using LangChain RAG chain.
         Returns answer, mode_used, sources, and metadata.
@@ -182,7 +200,6 @@ class LangChainRAGService:
         answer = ""
         token_usage = None
 
-        # Determine if we should use RAG
         should_use_rag = bool(use_rag) and self.has_knowledge_base(user_id)
 
         if use_rag and not should_use_rag:
@@ -195,40 +212,53 @@ class LangChainRAGService:
 
         try:
             if should_use_rag:
-                # Retrieve documents first
-                sources = self.retrieve(query, user_id=user_id)
+                try:
+                    memory = None
+                    if session_id or user_id:
+                        memory = get_memory(session_id or user_id)
 
-                if not sources:
-                    mode_used = "llm"
-                    warning = (
-                        "No relevant context was found in your uploaded documents. "
-                        "Answer generated without retrieval."
-                    )
-                    answer = self._generate_without_context(query)
-                else:
-                    # Use LangChain RAG chain with context
-                    try:
-                        # TODO: for better context management do implement:rank->trim/summarize->final context
-                        chain_result = chain.invoke(
-                            {
-                                "input": query,
-                                "context": trim_context_to_budget(
-                                    sources=sources, max_tokens=3000
-                                ),
-                            },
-                            config={"configurable": {"session_id": user_id}},
-                        )
-                        if isinstance(chain_result, dict):
-                            answer = chain_result.get("answer", str(chain_result))
-                        else:
-                            answer = str(chain_result)
-                    except Exception as e:
-                        logger.warning(
-                            f"LangChain RAG chain failed: {e}. Falling back to basic generation."
+                    chain_input = {"input": query}
+                    if memory is not None:
+                        chain_input["chat_history"] = memory
+
+                    chain_result = chain.invoke(chain_input)
+                    if isinstance(chain_result, dict):
+                        answer = chain_result.get("answer", str(chain_result))
+                        original_docs = chain_result.get("original_docs", [])
+                    else:
+                        answer = str(chain_result)
+                        original_docs = []
+
+                    sources = [
+                        {
+                            "id": idx,
+                            "title": (
+                                doc.metadata.get("title")
+                                if hasattr(doc, "metadata")
+                                else None
+                            ),
+                            "snippet": getattr(doc, "page_content", str(doc))[:280],
+                            "text": getattr(doc, "page_content", str(doc)),
+                            "score": None,
+                        }
+                        for idx, doc in enumerate(original_docs)
+                    ]
+
+                    if not sources:
+                        mode_used = "llm"
+                        warning = (
+                            "No relevant context was found in your uploaded documents. "
+                            "Answer generated without retrieval."
                         )
                         answer = self._generate_without_context(query)
+                except Exception as e:
+                    logger.warning(
+                        f"LangChain RAG chain failed: {e}. Falling back to basic generation."
+                    )
+                    mode_used = "llm"
+                    warning = "Unable to execute retrieval chain. Answer generated without retrieval."
+                    answer = self._generate_without_context(query)
             else:
-                # LLM only mode
                 answer = self._generate_without_context(query)
 
         except Exception as e:
@@ -280,7 +310,10 @@ class LangChainRAGService:
         self._ensure_user_loaded(user_id)
         if not user_id:
             return False
-        return len(self._chunk_store.get(user_id, [])) > 0
+
+        chunked = len(self._chunk_store.get(user_id, [])) > 0
+        vector_count = self._get_vectordb_count(user_id)
+        return chunked or vector_count > 0
 
     # =====================
     # Private Helper Methods
@@ -323,27 +356,17 @@ class LangChainRAGService:
 
         return chunks
 
-    def _align_vector_dim(self, embeddings: np.ndarray) -> np.ndarray:
-        """Ensure embeddings have the correct dimension."""
-        expected_dim = settings.EMBEDDING_DIM
-
-        if isinstance(embeddings, list):
-            if not embeddings:
-                return np.array([]).reshape(0, expected_dim)
-            embeddings = np.array(embeddings)
-
-        if embeddings.ndim == 1:
-            embeddings = embeddings.reshape(1, -1)
-
-        if embeddings.shape[1] < expected_dim:
-            padding = np.zeros(
-                (embeddings.shape[0], expected_dim - embeddings.shape[1])
-            )
-            embeddings = np.hstack([embeddings, padding])
-        elif embeddings.shape[1] > expected_dim:
-            embeddings = embeddings[:, :expected_dim]
-
-        return embeddings
+    def _get_vectordb_count(self, user_id: str) -> int:
+        try:
+            self._ensure_user_vectordb_loaded(user_id)
+            vectordb = self._vectordbs.get(user_id)
+            if vectordb is not None and hasattr(vectordb, "index"):
+                index = getattr(vectordb, "index")
+                if hasattr(index, "ntotal"):
+                    return int(index.ntotal)
+            return 0
+        except Exception:
+            return 0
 
     def _user_metadata_path(self, user_id: str) -> str:
         """Get the path for user metadata."""
@@ -378,6 +401,36 @@ class LangChainRAGService:
                 json.dump(state, f, indent=2)
         except Exception as e:
             logger.warning(f"Failed to persist user state: {e}")
+
+    def _persist_uploaded_document_metadata(
+        self,
+        user_id: str,
+        title: str,
+        chunks: List[str],
+        metadata: Optional[Dict[str, Any]],
+        db: Optional[Session],
+    ) -> None:
+        """Save document metadata to the relational database for auditing and reference."""
+        if db is None:
+            return
+
+        try:
+            for idx, chunk_text in enumerate(chunks, start=1):
+                rag_doc = RAGDocument(
+                    user_id=int(user_id),
+                    document_name=title,
+                    chunk_index=idx,
+                    snippet=chunk_text[:280],
+                    metadata_json=json.dumps(metadata or {}),
+                )
+                db.add(rag_doc)
+            db.commit()
+        except Exception as exc:
+            logger.warning(f"Failed to persist RAG metadata for user {user_id}: {exc}.")
+            try:
+                db.rollback()
+            except Exception:
+                pass
 
     def _load_user_state(self, user_id: str) -> None:
         """Load user state from disk."""

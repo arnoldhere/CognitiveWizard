@@ -52,6 +52,7 @@ def ingest_documents(
 async def upload_document(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
     """Upload a PDF/DOCX file and ingest it into the user's RAG knowledge base."""
     extension = os.path.splitext(file.filename or "")[1].lower()
@@ -73,6 +74,7 @@ async def upload_document(
             documents=[text],
             metadata={"filename": file.filename},
             user_id=str(current_user.id),
+            db=db,
         )
 
         return RAGUploadResponse(
@@ -158,6 +160,7 @@ def chat(
             query=req.query,
             use_rag=bool(req.use_rag),
             user_id=user_id,
+            session_id=req.session_id,
         )
 
         user = chat_limit_service.increment_message_count(db, current_user)
@@ -204,6 +207,7 @@ def chat_langchain(
             query=req.query,
             use_rag=bool(req.use_rag),
             user_id=user_id,
+            session_id=req.session_id,
         )
 
         user = chat_limit_service.increment_message_count(db, current_user)
