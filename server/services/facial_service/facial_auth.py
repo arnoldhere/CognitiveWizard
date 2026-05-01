@@ -8,7 +8,7 @@ import os
 from services.facial_service.detect_face import detect_face
 from services.facial_service.face_embedding import embedder
 from utils.decode_image import normalize
-from config.Faiss_index import faiss_service
+from config.chroma_index import chroma_service
 from sqlalchemy.orm import Session
 from models.face_embeddings import FaceEmbedding
 from services.facial_service.get_user import get_user_by_vector_id
@@ -30,9 +30,9 @@ async def register(image_bytes, userid, db: Session):
     os.makedirs("media/faces", exist_ok=True)
     cv2.imwrite(f"media/faces/{userid}.jpg", face_crop)
 
-    # Normalization and FAISS storage
+    # Normalize before storing so Chroma cosine distance maps cleanly to confidence.
     embeddings = normalize(embedding)
-    vec_id = faiss_service.add_vector(embeddings, src="face")
+    vec_id = chroma_service.add_vector(embeddings, src="face")
 
     if vec_id is None:
         return {"error": "Unable to save face embeddings"}
@@ -45,7 +45,7 @@ async def register(image_bytes, userid, db: Session):
         db.refresh(new_embedding)
     except Exception as e:
         db.rollback()
-        faiss_service.delete_vector(int(vec_id))
+        chroma_service.delete_vector(int(vec_id), src="face")
         return {"error": f"Unable to save face metadata: {str(e)}"}
 
     return {"message": "Face registered successfully", "vec_id": vec_id}
@@ -55,7 +55,7 @@ async def delete_user_face_data(db: Session, user_id: int):
     """
     Delete all facial data associated with a user:
     - Face embeddings from MySQL
-    - Face vectors from FAISS index
+    - Face vectors from ChromaDB
     - Stored face image files
     Args:
         db: Database session
@@ -72,10 +72,9 @@ async def delete_user_face_data(db: Session, user_id: int):
 
         vector_ids_deleted = []
 
-        # 2. Delete face image files and FAISS vectors
+        # 2. Delete face image files and Chroma vectors
         for embedding in face_embeddings:
-            # Delete from FAISS
-            faiss_service.delete_vector(embedding.vector_id, src="face")
+            chroma_service.delete_vector(embedding.vector_id, src="face")
             vector_ids_deleted.append(embedding.vector_id)
 
             # Delete face image file
@@ -130,9 +129,9 @@ async def login_with_face(image, db: Session):
     # ========
     embedding = normalize(embedding)
     # ========
-    # search the FAISS
+    # Search ChromaDB for the most similar registered faces.
     # ========
-    results = faiss_service.search_top_k(embedding, src="face", k=3)
+    results = chroma_service.search_top_k(embedding, src="face", k=3)
     if not results:
         return {"error": "No matching face found..."}
     # ========
@@ -166,7 +165,7 @@ async def login_with_face(image, db: Session):
         max_score = max(scores)
         avg_score = sum(scores) / len(scores)
         count = len(scores)
-        if max_score > 0.6 and count >= 1:
+        if max_score > 0.7 and count >= 1:
             if max_score > best_score:
                 best_score = max_score
                 best_user = user_id

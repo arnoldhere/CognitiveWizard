@@ -29,7 +29,7 @@ Face Detection + Alignment
         ↓
 Embedding 
         ↓
-Store in FAISS + MySQL
+Store in ChromaDB + MySQL
 ```
 ---
 
@@ -65,12 +65,12 @@ Store in FAISS + MySQL
 
 **Recommended Approach:**
 
-* FAISS (for similarity search)
+* ChromaDB (for similarity search)
 * SQL (for user metadata)
 
 **Why this setup:**
 
-* FAISS → fast vector similarity search
+* ChromaDB -> persistent vector similarity search
 * SQL → structured user management
 * Avoids early dependency on paid vector DBs (like Pinecone)
 
@@ -137,7 +137,7 @@ POST /auth/face/register
 
   * Detect face
   * Generate embedding
-  * Store in FAISS + DB
+  * Store in ChromaDB + DB
 
 ---
 
@@ -164,7 +164,7 @@ POST /auth/face/login
 * users
 * face_embeddings (user_id, embedding_id, metadata)
 
-**FAISS Index**
+**ChromaDB Collection**
 
 ```
 [embedding_vector] → user_id
@@ -176,6 +176,6 @@ POST /auth/face/login
 
 * Use embeddings instead of images → reduces storage + improves privacy
 * Use cosine similarity → best suited for face embeddings
-* Use hybrid storage (FAISS + SQL) → balance performance & structure
+* Use hybrid storage (ChromaDB + SQL) -> balance performance & structure
 * Avoid LLM usage → this is a computer vision problem
 ---

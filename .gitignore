@@ -11,3 +11,4 @@ server/vectorDB
 alembic.ini
 /server/migrations/versions/*
 *tmp/
+.pytest*/

@@ -179,7 +179,7 @@ async def delete_profile(
     This will delete:
     - User account from MySQL
     - Face embeddings from MySQL
-    - Face vectors from FAISS
+    - Face vectors from ChromaDB
     - Stored face image files
 
     Requires password confirmation for security.
@@ -232,6 +232,7 @@ async def face_login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=result["error"]
         )
+    print(f"Detected User Id {result['user_id']} with score {result['confidence']}")
 
     user = get_user_by_id(db, result["user_id"])
     if not user:

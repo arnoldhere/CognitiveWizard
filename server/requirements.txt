@@ -21,8 +21,7 @@ beautifulsoup4
 youtube-transcript-api
 PyMuPDF
 pydantic
-faiss-cpu
-faiss-gpu
+chromadb
 alembic
 smtplib 
 sentence-transformers
@@ -32,3 +31,4 @@ langchain-core
 langchain-openai
 tiktoken
 langchain-huggingface
+langchain-chroma

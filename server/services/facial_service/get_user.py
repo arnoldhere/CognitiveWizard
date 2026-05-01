@@ -6,7 +6,7 @@ from config.db import get_db
 
 def get_user_by_vector_id(vector_ids, db: Session):
     """
-    fetch userids mapped to FAISS vector ids
+    Fetch user IDs mapped to Chroma vector IDs.
     """
     try:
         results = (
@@ -14,7 +14,7 @@ def get_user_by_vector_id(vector_ids, db: Session):
             .filter(FaceEmbedding.vector_id.in_(vector_ids))
             .all()
         )
-        # Map: vector_id → user_id
+        # Map Chroma vector_id -> user_id for the facial-auth decision step.
         mapping = {r.vector_id: r.user_id for r in results}
         return mapping
     except Exception as e:

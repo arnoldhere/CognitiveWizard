@@ -12,7 +12,6 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
-from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from config.settings import settings
 from models.rag_document import RAGDocument
@@ -25,7 +24,6 @@ from utils.preprocess.embedder import EmbeddingFactory
 logger = logging.getLogger(__name__)
 
 TOP_K_RES = settings.TOP_K_RESULTS_RAG
-RAG_INDEX_FILENAME = "index.faiss"
 
 
 class LangChainRAGService:
@@ -45,37 +43,31 @@ class LangChainRAGService:
         self._user_documents: Dict[str, List[str]] = {}
 
     def _get_user_index_path(self, user_id: str) -> Path:
-        index_path = Path(settings.RAG_USER_INDEX_DIR) / str(user_id)
+        index_path = Path(settings.RAG_USER_VECTOR_DIR) / str(user_id)
         index_path.mkdir(parents=True, exist_ok=True)
         return index_path
 
     def _ensure_user_vectordb_loaded(self, user_id: str):
-        """Ensure a per-user FAISS vector store is available."""
-        if user_id not in self._vectordbs:
-            self._vectordbs[user_id] = None  # Don't initialize yet
-        index_path = self._get_user_index_path(user_id)
-        index_file = index_path / RAG_INDEX_FILENAME
+        """Ensure a per-user Chroma vector store, retriever, and chain are ready."""
+        if user_id in self._vectordbs:
+            return
 
-        if index_file.exists():
-            logger.info(f"Loading existing FAISS index for user {user_id}")
-            try:
-                self._vectordbs[user_id] = VectorDBFactory.load_embeddings(
-                    str(index_path), self.embedder
-                )
-            except Exception as exc:
-                logger.warning(
-                    f"Failed to load FAISS index for user {user_id}: {exc}. "
-                    "Reinitializing empty user index."
-                )
-                self._vectordbs[user_id] = FAISS.from_documents([], self.embedder)
-                self._vectordbs[user_id].save_local(str(index_path))
-        else:
-            logger.info(
-                f"FAISS index not found for user {user_id}. Creating new empty per-user index."
+        index_path = self._get_user_index_path(user_id)
+        collection_name = self._rag_collection_name(user_id)
+        try:
+            self._vectordbs[user_id] = VectorDBFactory.load_embeddings(
+                str(index_path), self.embedder, collection_name=collection_name
             )
-            self._vectordbs[user_id] = FAISS.from_documents([], self.embedder)
-            self._vectordbs[user_id].save_local(str(index_path))
-            logger.info(f"Created new empty FAISS index at {index_path}")
+        except Exception as exc:
+            logger.warning(
+                "Failed to load Chroma RAG collection for user %s: %s. "
+                "Creating a fresh collection handle.",
+                user_id,
+                exc,
+            )
+            self._vectordbs[user_id] = VectorDBFactory.create(
+                collection_name, self.embedder, str(index_path)
+            )
 
         self._retrievers[user_id] = HybridRetriever(self._vectordbs[user_id])
         self._rag_chains[user_id] = build_retrieval_qa_chain(
@@ -124,11 +116,7 @@ class LangChainRAGService:
 
         user_vectordb = self._get_user_vectordb(user_id)
         user_vectordb.add_documents(docs)
-        user_vectordb.save_local(str(self._get_user_index_path(user_id)))
-        if self._vectordbs[user_id] is None:
-            self._vectordbs[user_id] = FAISS.from_documents(docs, self.embedder)
-        else:
-            self._vectordbs[user_id].add_documents(docs)
+
         for chunk_text in chunks:
             self._chunk_store[user_id].append(
                 {
@@ -163,18 +151,18 @@ class LangChainRAGService:
         if not self.has_knowledge_base(user_id):
             return []
 
-        user_vectordb = self._get_user_vectordb(user_id)
-        docs = user_vectordb.similarity_search(query, k=top_k)
+        retriever = self._get_user_retriever(user_id)
+        scored_docs = retriever.get_relevant_documents_with_scores(query, k=top_k)
 
         sources = []
-        for i, doc in enumerate(docs):
+        for i, (doc, score) in enumerate(scored_docs):
             sources.append(
                 {
                     "id": i,
-                    "title": doc.metadata.get("title"),
+                    "title": doc.metadata.get("title") or "Uploaded Document",
                     "snippet": doc.page_content[:280],
                     "text": doc.page_content,
-                    "score": None,
+                    "score": float(score),
                 }
             )
 
@@ -219,7 +207,11 @@ class LangChainRAGService:
 
                     chain_input = {"input": query}
                     if memory is not None:
-                        chain_input["chat_history"] = memory
+                        # ChatPromptTemplate expects a list of BaseMessage objects,
+                        # not the ChatMessageHistory container itself.
+                        chain_input["chat_history"] = list(
+                            getattr(memory, "messages", [])
+                        )
 
                     chain_result = chain.invoke(chain_input)
                     if isinstance(chain_result, dict):
@@ -229,20 +221,7 @@ class LangChainRAGService:
                         answer = str(chain_result)
                         original_docs = []
 
-                    sources = [
-                        {
-                            "id": idx,
-                            "title": (
-                                doc.metadata.get("title")
-                                if hasattr(doc, "metadata")
-                                else None
-                            ),
-                            "snippet": getattr(doc, "page_content", str(doc))[:280],
-                            "text": getattr(doc, "page_content", str(doc)),
-                            "score": None,
-                        }
-                        for idx, doc in enumerate(original_docs)
-                    ]
+                    sources = self._build_sources(original_docs)
 
                     if not sources:
                         mode_used = "llm"
@@ -251,6 +230,10 @@ class LangChainRAGService:
                             "Answer generated without retrieval."
                         )
                         answer = self._generate_without_context(query)
+
+                    if memory is not None and answer:
+                        memory.add_user_message(query)
+                        memory.add_ai_message(answer)
                 except Exception as e:
                     logger.warning(
                         f"LangChain RAG chain failed: {e}. Falling back to basic generation."
@@ -360,13 +343,48 @@ class LangChainRAGService:
         try:
             self._ensure_user_vectordb_loaded(user_id)
             vectordb = self._vectordbs.get(user_id)
-            if vectordb is not None and hasattr(vectordb, "index"):
-                index = getattr(vectordb, "index")
-                if hasattr(index, "ntotal"):
-                    return int(index.ntotal)
+            if vectordb is not None and hasattr(vectordb, "_collection"):
+                return int(vectordb._collection.count())
             return 0
         except Exception:
             return 0
+
+    def _build_sources(self, docs: List[Any]) -> List[Dict[str, Any]]:
+        """Build response sources with numeric scores for Pydantic validation."""
+        sources = []
+        for idx, item in enumerate(docs):
+            doc, score = self._split_scored_doc(item)
+            content = getattr(doc, "page_content", str(doc))
+            metadata = getattr(doc, "metadata", {}) or {}
+            sources.append(
+                {
+                    "id": idx,
+                    "title": metadata.get("title") or "Uploaded Document",
+                    "snippet": content[:280],
+                    "text": content,
+                    "score": float(score),
+                }
+            )
+        return sources
+
+    def _split_scored_doc(self, item: Any):
+        if isinstance(item, tuple) and len(item) >= 2:
+            return item[0], self._coerce_score(item[1])
+        return item, 0.0
+
+    def _coerce_score(self, score: Any) -> float:
+        try:
+            value = float(score)
+        except (TypeError, ValueError):
+            return 0.0
+        return max(0.0, min(1.0, value))
+
+    def _rag_collection_name(self, user_id: str) -> str:
+        safe_user_id = "".join(
+            char if char.isalnum() or char in "_-" else "_" for char in str(user_id)
+        )
+        safe_user_id = safe_user_id.strip("_-")[:48].strip("_-") or "default"
+        return f"{settings.RAG_CHROMA_COLLECTION_PREFIX}_{safe_user_id}"
 
     def _user_metadata_path(self, user_id: str) -> str:
         """Get the path for user metadata."""

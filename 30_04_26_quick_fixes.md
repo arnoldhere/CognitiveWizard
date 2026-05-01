@@ -4,8 +4,8 @@ This file summarizes recent bug fixes and test-related changes applied to the Co
 
 ## Backend Fixes
 
-- **Per-user FAISS Indexing:**
-  - Updated `v1_rag_service.py` to use per-user FAISS vector stores for LangChain RAG, matching legacy v0 behavior.
+- **Per-user Vector Indexing:**
+  - Updated `v1_rag_service.py` to use per-user vector stores for LangChain RAG, matching legacy v0 behavior.
   - Ensured user state persistence is compatible with both legacy and new keys.
 - **API Routing:**
   - Changed `/rag/status` endpoint in `rag_api.py` to use the new LangChain RAG service for status reporting.

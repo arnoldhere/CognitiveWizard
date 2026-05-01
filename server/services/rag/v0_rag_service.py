@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 import numpy as np
-from config.Faiss_index import faiss_service
+from config.chroma_index import chroma_service
 from config.settings import settings
 from services.rag.generator import Generator
 from services.rag.preprocess.embedder import Embedder
@@ -20,7 +20,7 @@ TOP_K_RES = settings.TOP_K_RESULTS_RAG
 class RAGService:
     def __init__(self):
         self.embedder = Embedder()
-        self.vector_store = faiss_service
+        self.vector_store = chroma_service
         self.generator = Generator()
         self.retriever = Retriever(self.vector_store, self.embedder)
 
@@ -252,7 +252,7 @@ class RAGService:
             return arr if np.array(vectors).ndim > 1 else arr[0]
 
         logger.warning(
-            "Embedding dimension mismatch detected (embedder=%s, faiss=%s). Applying runtime alignment.",
+            "Embedding dimension mismatch detected (embedder=%s, vector_store=%s). Applying runtime alignment.",
             current_dim,
             target_dim,
         )

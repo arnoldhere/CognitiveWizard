@@ -7,12 +7,17 @@ load_dotenv()
 
 @dataclass
 class Settings:
-    # ===========
-    # FAISS setup
-    # ===========
-    FACE_FAISS_INDEX_PATH: str = "vectorDB/face_faiss.index"
-    RAG_FAISS_INDEX_PATH: str = "vectorDB/rag_faiss.index"
-    RAG_USER_INDEX_DIR: str = "vectorDB/rag_user_indices"
+    # ==============
+    # ChromaDB setup
+    # ==============
+    CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR")
+    FACE_CHROMA_COLLECTION: str = os.getenv("FACE_CHROMA_COLLECTION", "face_embeddings")
+    RAG_CHROMA_COLLECTION_PREFIX: str = os.getenv(
+        "RAG_CHROMA_COLLECTION_PREFIX", "rag_user"
+    )
+    RAG_USER_VECTOR_DIR: str = os.getenv(
+        "RAG_USER_VECTOR_DIR", "vectorDB/chroma/rag_user_vectors"
+    )
     RAG_USER_DATA_DIR: str = "vectorDB/rag_user_data"
     EMBEDDING_DIM: int = 512
     TOP_K_RESULTS_RAG: int = 3
