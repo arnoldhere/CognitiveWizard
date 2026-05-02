@@ -72,6 +72,16 @@ export const faceLogin = async (imageData) => {
   return res.data;
 };
 
+export const getFaceLoginStatus = async () => {
+  const res = await API.get("/auth/face/status");
+  return res.data;
+};
+
+export const removeFaceLogin = async () => {
+  const res = await API.delete("/auth/face");
+  return res.data;
+};
+
 export const getQuizResults = async ({
   skip = 0,
   limit = 10,

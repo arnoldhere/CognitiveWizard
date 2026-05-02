@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getQuizResults, deleteProfile } from "../services/api";
+import { getQuizResults, deleteProfile, getFaceLoginStatus, removeFaceLogin } from "../services/api";
 import QuizResultsHistory from "../components/quiz/QuizResultsHistory";
 import {
     Container,
@@ -55,6 +55,12 @@ export default function Profile() {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
 
+    const [faceLoginStatus, setFaceLoginStatus] = useState(null);
+    const [faceLoading, setFaceLoading] = useState(true);
+    const [faceError, setFaceError] = useState(null);
+    const [faceDeleteLoading, setFaceDeleteLoading] = useState(false);
+    const [faceDeleteSuccess, setFaceDeleteSuccess] = useState(null);
+
     const handleFetchResults = useCallback(async (params) => {
         try {
             setLoading(true);
@@ -103,6 +109,50 @@ export default function Profile() {
             setDeleteLoading(false);
         }
     };
+    const loadFaceLoginStatus = useCallback(async () => {
+        try {
+            setFaceLoading(true);
+            setFaceError(null);
+            const data = await getFaceLoginStatus();
+            setFaceLoginStatus(Boolean(data.has_face_login));
+        } catch (err) {
+            console.error("Error fetching face login status:", err);
+            setFaceError("Unable to load facial login status.");
+            setFaceLoginStatus(false);
+        } finally {
+            setFaceLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (user) {
+            loadFaceLoginStatus();
+        }
+    }, [user, loadFaceLoginStatus]);
+
+    const handleRemoveFaceSetup = async () => {
+        const confirmed = window.confirm(
+            "Remove facial login setup? You can re-add it later from this profile page."
+        );
+        if (!confirmed) return;
+
+        try {
+            setFaceDeleteLoading(true);
+            setFaceDeleteSuccess(null);
+            setFaceError(null);
+            await removeFaceLogin();
+            setFaceLoginStatus(false);
+            setFaceDeleteSuccess("Facial login setup removed successfully.");
+        } catch (err) {
+            console.error("Error removing facial login setup:", err);
+            setFaceError(
+                err.response?.data?.detail || err.message || "Failed to remove facial login setup."
+            );
+        } finally {
+            setFaceDeleteLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (tabValue === 1 && results.data.length === 0) {
             handleFetchResults({
@@ -253,21 +303,56 @@ export default function Profile() {
                                 </Typography>
 
                                 <Chip
-                                    label="Not Setup"
-                                    color="warning"
+                                    label={
+                                        faceLoading
+                                            ? "Checking setup..."
+                                            : faceLoginStatus
+                                                ? "Face Login Enabled"
+                                                : "Not Setup"
+                                    }
+                                    color={
+                                        faceLoading
+                                            ? "info"
+                                            : faceLoginStatus
+                                                ? "success"
+                                                : "warning"
+                                    }
                                     size="small"
                                     sx={{ mt: 1 }}
                                 />
+                                {faceError && (
+                                    <Alert severity="error" sx={{ mt: 2 }}>
+                                        {faceError}
+                                    </Alert>
+                                )}
+                                {faceDeleteSuccess && (
+                                    <Alert severity="success" sx={{ mt: 2 }}>
+                                        {faceDeleteSuccess}
+                                    </Alert>
+                                )}
                             </Box>
 
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={() => navigate("/face-register")}
-                                sx={{ borderRadius: 2, textTransform: "none", px: 3 }}
-                            >
-                                Setup Facial Login
-                            </Button>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={() => navigate("/face-register")}
+                                    sx={{ borderRadius: 2, textTransform: "none", px: 3 }}
+                                >
+                                    {faceLoginStatus ? "Re-setup Facial Login" : "Setup Facial Login"}
+                                </Button>
+                                {faceLoginStatus && !faceLoading ? (
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        onClick={handleRemoveFaceSetup}
+                                        disabled={faceDeleteLoading}
+                                        sx={{ borderRadius: 2, textTransform: "none", px: 3 }}
+                                    >
+                                        {faceDeleteLoading ? "Removing..." : "Remove Facial Login"}
+                                    </Button>
+                                ) : null}
+                            </Box>
                         </Paper>
                     </Box>
 

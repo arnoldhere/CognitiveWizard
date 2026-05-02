@@ -104,6 +104,14 @@ async def delete_user_face_data(db: Session, user_id: int):
         return {"status": "error", "message": f"Failed to delete face data: {str(e)}"}
 
 
+async def user_has_face_data(db: Session, user_id: int):
+    """
+    Check whether the user already has facial login data registered.
+    """
+    count = db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user_id).count()
+    return count > 0
+
+
 async def login_with_face(image, db: Session):
     """
     Authenticate user for login with face

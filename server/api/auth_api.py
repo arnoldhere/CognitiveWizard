@@ -20,10 +20,13 @@ from services.auth_service import (
     verify_password,
 )
 from services.facial_service.facial_auth import login_with_face
+from services.facial_service.facial_auth import register as register_face_service
+from services.facial_service.facial_auth import (
+    delete_user_face_data,
+    user_has_face_data,
+)
 from utils.security import create_access_token, decode_access_token
 from models.user import User
-from services.facial_service.facial_auth import register as register_face_service
-from services.facial_service.facial_auth import delete_user_face_data
 
 # OTP storage (in production, use Redis)
 otp_store = {}
@@ -163,6 +166,31 @@ async def register_face(
             ),
         )
     return {"message": "face registered..", "data": res}
+
+
+@router.get("/face/status")
+async def face_status(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Return whether the current user has facial login data registered."""
+    has_face_login = await user_has_face_data(db, current_user.id)
+    return {"has_face_login": has_face_login}
+
+
+@router.delete("/face")
+async def delete_face_setup(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Remove the current user's facial login setup without deleting the user account."""
+    result = await delete_user_face_data(db, current_user.id)
+    if result.get("status") != "success":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.get("message", "Failed to remove facial login setup."),
+        )
+    return {"status": "success", "message": "Facial login setup removed."}
 
 
 # =============
