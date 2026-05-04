@@ -5,7 +5,7 @@ from api.quiz_api import router as quiz_router
 from api.rag_api import router as rag_router
 from api.summarization_api import router as summarization_router
 from api.admin_api import router as admin_router
-from config.db import Base, engine, ensure_user_table_columns
+from config.db import Base, engine, ensure_grade_table_columns, ensure_user_table_columns
 from config.settings import settings
 from models import *
 from services.auth_service import create_user, get_user_by_email
@@ -41,6 +41,7 @@ def create_admin_if_not_exists():
 # Create tables and admin user
 Base.metadata.create_all(bind=engine)
 ensure_user_table_columns()
+ensure_grade_table_columns()
 create_admin_if_not_exists()
 
 app = FastAPI(

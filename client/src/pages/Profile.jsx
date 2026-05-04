@@ -2,7 +2,13 @@ import { useCallback } from "react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getQuizResults, deleteProfile, getFaceLoginStatus, removeFaceLogin } from "../services/api";
+import {
+    getQuizResults,
+    deleteProfile,
+    getFaceLoginStatus,
+    removeFaceLogin,
+    getQuizResultDetail,
+} from "../services/api";
 import QuizResultsHistory from "../components/quiz/QuizResultsHistory";
 import {
     Container,
@@ -48,6 +54,9 @@ export default function Profile() {
     const [results, setResults] = useState({ data: [], total: 0, pages: 0 });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [selectedQuizDetail, setSelectedQuizDetail] = useState(null);
+    const [detailOpen, setDetailOpen] = useState(false);
+    const [detailLoading, setDetailLoading] = useState(false);
 
     // Delete profile modal states
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -60,6 +69,14 @@ export default function Profile() {
     const [faceError, setFaceError] = useState(null);
     const [faceDeleteLoading, setFaceDeleteLoading] = useState(false);
     const [faceDeleteSuccess, setFaceDeleteSuccess] = useState(null);
+    const formatDuration = (seconds) => {
+        if (seconds === null || seconds === undefined) {
+            return "N/A";
+        }
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}m ${secs}s`;
+    };
 
     const handleFetchResults = useCallback(async (params) => {
         try {
@@ -107,6 +124,21 @@ export default function Profile() {
             );
         } finally {
             setDeleteLoading(false);
+        }
+    };
+
+    const handleViewQuizDetails = async (quizId) => {
+        try {
+            setDetailLoading(true);
+            setError(null);
+            const detail = await getQuizResultDetail(quizId);
+            setSelectedQuizDetail(detail);
+            setDetailOpen(true);
+        } catch (err) {
+            console.error("Error fetching quiz detail:", err);
+            setError(err.response?.data?.detail || "Failed to fetch quiz details");
+        } finally {
+            setDetailLoading(false);
         }
     };
     const loadFaceLoginStatus = useCallback(async () => {
@@ -421,8 +453,74 @@ export default function Profile() {
                     results={results}
                     loading={loading}
                     onFetchResults={handleFetchResults}
+                    onViewDetails={handleViewQuizDetails}
                 />
             </TabPanel>
+
+            <Dialog
+                open={detailOpen}
+                onClose={() => {
+                    setDetailOpen(false);
+                    setSelectedQuizDetail(null);
+                }}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle sx={{ fontWeight: 700 }}>Quiz Attempt Details</DialogTitle>
+                <DialogContent>
+                    {detailLoading ? (
+                        <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : selectedQuizDetail ? (
+                        <Box sx={{ pt: 1 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                {selectedQuizDetail.quiz_topic}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Score: {selectedQuizDetail.score_percentage}% ({selectedQuizDetail.correct_answers}/
+                                {selectedQuizDetail.total_questions}) | Time Taken: {formatDuration(selectedQuizDetail.time_taken)} / {formatDuration(selectedQuizDetail.time_limit_seconds)}
+                            </Typography>
+                            <Divider sx={{ mb: 2 }} />
+                            {selectedQuizDetail.feedback?.map((item, index) => (
+                                <Paper
+                                    key={`${item.question_id}-${index}`}
+                                    elevation={0}
+                                    sx={{
+                                        p: 2,
+                                        mb: 1.5,
+                                        borderRadius: 2,
+                                        border: "1px solid",
+                                        borderColor: item.is_correct ? "success.light" : "warning.light",
+                                    }}
+                                >
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                                        Q{index + 1}. {item.question}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Your answer: {item.selected_option || "Not answered"}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Correct answer: {item.correct_answer}
+                                    </Typography>
+                                </Paper>
+                            ))}
+                        </Box>
+                    ) : (
+                        <Alert severity="info">No detail found for this quiz.</Alert>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => {
+                            setDetailOpen(false);
+                            setSelectedQuizDetail(null);
+                        }}
+                    >
+                        Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Delete Profile Confirmation Dialog */}
             <Dialog

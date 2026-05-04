@@ -32,28 +32,40 @@ def _extract_json(text: str) -> Tuple[bool, str]:
     except json.JSONDecodeError:
         pass
 
-    # Try to extract JSON block
-    # Look for [...] patterns
-    json_match = re.search(r"\[.*\]", text, re.DOTALL)
+    # Remove common markdown code blocks
+    text_cleaned = re.sub(r"^```(?:json)?\s*\n?", "", text)
+    text_cleaned = re.sub(r"\n?```\s*$", "", text_cleaned)
+    text_cleaned = text_cleaned.strip()
+
+    # Try parsing cleaned text
+    try:
+        json.loads(text_cleaned)
+        logger.debug("Text is valid JSON after removing markdown")
+        return True, text_cleaned
+    except json.JSONDecodeError:
+        pass
+
+    # Try to extract JSON array [...] - prioritize this as we expect arrays
+    json_match = re.search(r"\[[\s\S]*\]", text_cleaned)
     if json_match:
         json_str = json_match.group(0)
         try:
             json.loads(json_str)
-            logger.debug("Extracted valid JSON from text")
+            logger.debug("Extracted valid JSON array from text")
             return True, json_str
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.debug(f"Array extraction failed: {e}")
 
     # Try to find JSON object {...}
-    json_match = re.search(r"\{.*\}", text, re.DOTALL)
+    json_match = re.search(r"\{[\s\S]*\}", text_cleaned)
     if json_match:
         json_str = json_match.group(0)
         try:
             json.loads(json_str)
             logger.debug("Extracted valid JSON object from text")
             return True, json_str
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.debug(f"Object extraction failed: {e}")
 
     logger.warning("Could not extract valid JSON from response")
     return False, ""
@@ -70,9 +82,11 @@ def _parse_response(response_text: str) -> Tuple[bool, List[Dict]]:
         tuple: (success, parsed_data or [])
     """
     try:
+        logger.debug(f"Raw response (first 300 chars): {response_text[:300]}")
         success, json_str = _extract_json(response_text)
         if not success:
             logger.error("Failed to extract JSON from response")
+            logger.debug(f"Full response was: {response_text}")
             return False, []
 
         logger.debug(f"Parsing JSON string of length {len(json_str)}")
@@ -81,8 +95,10 @@ def _parse_response(response_text: str) -> Tuple[bool, List[Dict]]:
         # Ensure it's a list
         if not isinstance(data, list):
             if isinstance(data, dict) and "quizzes" in data:
+                logger.debug("Found 'quizzes' key in dict, extracting")
                 data = data["quizzes"]
             elif isinstance(data, dict) and "quiz" in data:
+                logger.debug("Found 'quiz' key in dict, extracting")
                 data = data["quiz"]
             else:
                 logger.warning(f"Expected list, got {type(data)}")
@@ -93,6 +109,9 @@ def _parse_response(response_text: str) -> Tuple[bool, List[Dict]]:
 
     except json.JSONDecodeError as e:
         logger.error(f"JSON decode error: {str(e)}")
+        logger.debug(
+            f"Failed to parse JSON. Response (first 500 chars): {response_text[:500]}"
+        )
         return False, []
     except Exception as e:
         logger.error(f"Error parsing response: {str(e)}")
@@ -174,9 +193,7 @@ def generate_quiz(
             logger.error("Quiz validation failed or no valid questions")
             return False, []
 
-        logger.info(
-            f"Quiz generation successful: {len(validated_data)} valid questions"
-        )
+        logger.info(f"Quiz generation successful..")
         return True, validated_data
 
     except Exception as e:

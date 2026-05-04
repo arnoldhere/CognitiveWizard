@@ -25,6 +25,11 @@ export const submitQuiz = async (payload) => {
   return res.data;
 };
 
+export const getQuizResultDetail = async (quizId) => {
+  const res = await API.get(`/quiz/results/${quizId}`);
+  return res.data;
+};
+
 export const summarizeContent = async ({ input_type, source, mode = "brief", model_mode = "api" }) => {
   const res = await API.post("/summarize/content", {
     input_type,

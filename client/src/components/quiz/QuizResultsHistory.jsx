@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-    Container,
     Paper,
     Table,
     TableBody,
@@ -17,10 +16,16 @@ import {
     CircularProgress,
     MenuItem,
     Button,
+    Tooltip,
 } from "@mui/material";
-import { Download, TrendingUp } from "@mui/icons-material";
+import { TrendingUp, Visibility } from "@mui/icons-material";
 
-export default function QuizResultsHistory({ results, loading, onFetchResults }) {
+export default function QuizResultsHistory({
+    results,
+    loading,
+    onFetchResults,
+    onViewDetails,
+}) {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [sortBy, setSortBy] = useState("submitted_at");
@@ -62,6 +67,15 @@ export default function QuizResultsHistory({ results, loading, onFetchResults })
             hour: "2-digit",
             minute: "2-digit",
         });
+    };
+
+    const formatDuration = (seconds) => {
+        if (seconds === null || seconds === undefined) {
+            return "N/A";
+        }
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}m ${secs}s`;
     };
 
     if (loading) {
@@ -153,13 +167,19 @@ export default function QuizResultsHistory({ results, loading, onFetchResults })
                                 Answers
                             </TableCell>
                             <TableCell align="right" sx={{ fontWeight: 700, color: "white" }}>
+                                Time Taken
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: "white" }}>
                                 Date
+                            </TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 700, color: "white" }}>
+                                Details
                             </TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {results.data && results.data.length > 0 ? (
-                            results.data.map((row, index) => (
+                            results.data.map((row) => (
                                 <TableRow
                                     key={row.id}
                                     sx={{
@@ -210,14 +230,31 @@ export default function QuizResultsHistory({ results, loading, onFetchResults })
                                     </TableCell>
                                     <TableCell align="right">
                                         <Typography variant="body2" color="text.secondary">
+                                            {formatDuration(row.time_taken)}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <Typography variant="body2" color="text.secondary">
                                             {formatDate(row.submitted_at)}
                                         </Typography>
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        <Tooltip title="View quiz details">
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={<Visibility />}
+                                                onClick={() => onViewDetails(row.id)}
+                                            >
+                                                View
+                                            </Button>
+                                        </Tooltip>
                                     </TableCell>
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                                     <Typography color="text.secondary">No results found</Typography>
                                 </TableCell>
                             </TableRow>

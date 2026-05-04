@@ -1,23 +1,38 @@
 def build_quiz_prompt(topic: str, difficulty: str, num_questions: int = 5):
-    prompt = f"""
-    You are an AI quiz generator.
-      Generate {num_questions} {difficulty}-level multiple choice questions on the topic: "{topic}".
-      STRICT FORMAT:
+    prompt = f"""You are an AI quiz generator. Generate {num_questions} {difficulty}-level multiple choice questions on the topic: "{topic}".
 
-      {{
-        "question": "string",
-        "options": [
-          "option text 1",
-          "option text 2",
-          "option text 3",
-          "option text 4"
-        ],
-        "answer": "exact option text"
-      }}
-      Rules:
-      - DO NOT prefix options with A, B, C, D
-      - DO NOT return objects
-      - DO NOT return labels
-      - Options must be plain strings only
+CRITICAL: Return ONLY a valid JSON array. No markdown, no explanations, no comments.
+
+Return format (a JSON array of {num_questions} objects):
+[
+  {{
+    "question": "Question text here?",
+    "options": [
+      "Option 1",
+      "Option 2",
+      "Option 3",
+      "Option 4"
+    ],
+    "answer": "Exact option text that matches one in options"
+  }},
+  {{
+    "question": "Another question?",
+    "options": [
+      "Option 1",
+      "Option 2",
+      "Option 3",
+      "Option 4"
+    ],
+    "answer": "Exact option text that matches one in options"
+  }}
+]
+
+RULES:
+- Return ONLY valid JSON array (no wrapping text)
+- Each object must have "question", "options" (4 strings), and "answer" fields
+- Answer must exactly match one of the options
+- Do NOT prefix options with A, B, C, D or numbers
+- Do NOT escape quotes incorrectly
+- Ensure valid JSON syntax
 """
     return prompt.strip()

@@ -7,6 +7,7 @@ from schemas.quiz_schema import (
     QuizSubmissionRequest,
     QuizSubmissionResult,
     QuizHistoryResponse,
+    QuizHistoryDetail,
 )
 from services.quiz.quiz_generator import generate_quiz
 from services.quiz.grade_service import (
@@ -55,6 +56,7 @@ def create_quiz(
             "topic": quiz_session.quiz_topic,
             "difficulty": quiz_session.difficulty,
             "total_questions": quiz_session.total_questions,
+            "time_limit_seconds": quiz_session.time_limit_seconds,
             "questions": quiz_session.question_set,
         },
     }
@@ -69,6 +71,15 @@ def submit_quiz(
     current_user=Depends(require_role(["user", "admin"])),
     db: Session = Depends(get_db),
 ):
+    """
+    Submit quiz answers and receive evaluated results.
+
+    Validates submission completeness:
+    - Manual submissions (is_auto_submitted=False): require all questions answered
+    - Timeout submissions (is_auto_submitted=True): accept partial answers
+
+    Returns complete evaluation with score, feedback, and timing data.
+    """
     quiz_session = get_quiz_session(db, payload.quiz_id, current_user.id)
 
     if not quiz_session:
@@ -83,8 +94,12 @@ def submit_quiz(
             detail="This quiz has already been submitted",
         )
 
-    # Ensure all questions answered
-    if len({a.question_id for a in payload.answers}) != quiz_session.total_questions:
+    # Manual submissions must answer every question.
+    if (
+        not payload.is_auto_submitted
+        and len({a.question_id for a in payload.answers})
+        != quiz_session.total_questions
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Please answer every question before submitting",
@@ -100,6 +115,7 @@ def submit_quiz(
             }
             for a in payload.answers
         ],
+        is_auto_submitted=payload.is_auto_submitted,
     )
 
     return {
@@ -110,6 +126,9 @@ def submit_quiz(
         "correct_answers": evaluated_quiz.correct_answers,
         "score_percentage": evaluated_quiz.score_percentage,
         "result": evaluated_quiz.result,
+        "time_limit_seconds": evaluated_quiz.time_limit_seconds,
+        "time_taken": evaluated_quiz.time_taken,
+        "is_auto_submitted": payload.is_auto_submitted,
         "summary": build_quiz_summary(evaluated_quiz),
         "feedback": evaluated_quiz.feedback or [],
         "submitted_at": evaluated_quiz.submitted_at,
@@ -166,6 +185,8 @@ def get_results(
             "submitted_at": r.submitted_at,
             "total_questions": r.total_questions,
             "correct_answers": r.correct_answers,
+            "time_taken": r.time_taken,
+            "time_limit_seconds": r.time_limit_seconds,
         }
         for r in results
     ]
@@ -176,4 +197,34 @@ def get_results(
         "skip": skip,
         "limit": limit,
         "pages": (total + limit - 1) // limit if total > 0 else 0,
+    }
+
+
+@router.get("/results/{quiz_id}", response_model=QuizHistoryDetail)
+def get_result_detail(
+    quiz_id: int,
+    current_user=Depends(require_role(["user", "admin"])),
+    db: Session = Depends(get_db),
+):
+    quiz_session = get_quiz_session(db, quiz_id, current_user.id)
+
+    if not quiz_session or quiz_session.result not in ["pass", "fail"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quiz result not found",
+        )
+
+    return {
+        "id": quiz_session.id,
+        "quiz_topic": quiz_session.quiz_topic,
+        "difficulty": quiz_session.difficulty,
+        "total_questions": quiz_session.total_questions,
+        "correct_answers": quiz_session.correct_answers,
+        "score_percentage": quiz_session.score_percentage,
+        "result": quiz_session.result,
+        "time_limit_seconds": quiz_session.time_limit_seconds,
+        "time_taken": quiz_session.time_taken,
+        "submitted_at": quiz_session.submitted_at,
+        "user_answers": quiz_session.user_answers or [],
+        "feedback": quiz_session.feedback or [],
     }

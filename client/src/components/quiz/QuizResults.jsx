@@ -23,6 +23,12 @@ import {
 
 export default function QuizResults({ result, onStartAgain }) {
   const passPercentage = result.result === "pass" ? 100 : (result.score_percentage / 100) * 100;
+  const formatDuration = (seconds) => {
+    if (seconds === null || seconds === undefined) return "N/A";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -79,6 +85,11 @@ export default function QuizResults({ result, onStartAgain }) {
                 >
                   {result.summary}
                 </Typography>
+                {result.is_auto_submitted ? (
+                  <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+                    Time limit reached. This quiz was submitted automatically.
+                  </Alert>
+                ) : null}
               </Box>
               <Chip
                 label={result.result.toUpperCase()}
@@ -120,6 +131,27 @@ export default function QuizResults({ result, onStartAgain }) {
                     }}
                   >
                     {result.score_percentage}%
+                  </Typography>
+                </Card>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 3,
+                    background: "rgba(255,255,255,0.7)",
+                    backdropFilter: "blur(10px)",
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: "text.secondary" }}>
+                    Time Taken
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary" }}>
+                    {formatDuration(result.time_taken)}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                    Limit: {formatDuration(result.time_limit_seconds)}
                   </Typography>
                 </Card>
               </Grid>

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class QuizRequest(BaseModel):
@@ -21,6 +21,7 @@ class QuizGenerateData(BaseModel):
     topic: str
     difficulty: str
     total_questions: int
+    time_limit_seconds: int
     questions: list[QuizQuestion]
 
 
@@ -37,6 +38,7 @@ class QuizAnswerSubmission(BaseModel):
 class QuizSubmissionRequest(BaseModel):
     quiz_id: int
     answers: list[QuizAnswerSubmission]
+    is_auto_submitted: bool = False
 
 
 class QuizQuestionFeedback(BaseModel):
@@ -56,6 +58,9 @@ class QuizSubmissionResult(BaseModel):
     correct_answers: int
     score_percentage: float
     result: str
+    time_limit_seconds: int
+    time_taken: Optional[int] = None
+    is_auto_submitted: bool = False
     summary: str
     feedback: list[QuizQuestionFeedback]
     submitted_at: datetime
@@ -70,6 +75,23 @@ class QuizHistoryItem(BaseModel):
     submitted_at: Optional[datetime] = None
     total_questions: Optional[int] = None
     correct_answers: Optional[int] = None
+    time_taken: Optional[int] = None
+    time_limit_seconds: Optional[int] = None
+
+
+class QuizHistoryDetail(BaseModel):
+    id: int
+    quiz_topic: str
+    difficulty: str
+    total_questions: int
+    correct_answers: int
+    score_percentage: float
+    result: str
+    time_limit_seconds: int
+    time_taken: Optional[int] = None
+    submitted_at: Optional[datetime] = None
+    user_answers: list[dict] = Field(default_factory=list)
+    feedback: list[QuizQuestionFeedback] = Field(default_factory=list)
 
 
 class QuizHistoryResponse(BaseModel):

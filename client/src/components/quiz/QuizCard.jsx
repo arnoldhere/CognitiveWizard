@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -26,7 +26,9 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
   const [answers, setAnswers] = useState({});
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [fullscreenNotice, setFullscreenNotice] = useState("");
+  const [timeLeft, setTimeLeft] = useState(quiz?.time_limit_seconds || 0);
   const examRef = useRef(null);
+  const autoSubmitTriggered = useRef(false);
 
   const currentQuestion = quiz?.questions?.[currentIndex];
   const totalQuestions = quiz?.questions?.length || 0;
@@ -35,6 +37,23 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
     [answers]
   );
   const progress = totalQuestions ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
+  const isLastTwoMinutes = timeLeft > 0 && timeLeft <= 120;
+
+  const formatSeconds = (seconds) => {
+    const safeSeconds = Math.max(0, seconds);
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = safeSeconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  const buildFormattedAnswers = useCallback(
+    () =>
+      quiz.questions.map((question) => ({
+        question_id: question.question_id,
+        selected_option: answers[question.question_id] || "",
+      })),
+    [answers, quiz.questions]
+  );
 
   const enterFullscreen = async () => {
     const node = examRef.current;
@@ -79,6 +98,48 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!quiz?.time_limit_seconds || submitting || autoSubmitTriggered.current) {
+      return undefined;
+    }
+
+    // Initialize timer with quiz's time limit
+    setTimeLeft(quiz.time_limit_seconds);
+
+    const timer = window.setInterval(() => {
+      setTimeLeft((previous) => {
+        // Stop timer at 0, don't go negative
+        if (previous <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return previous - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timer) window.clearInterval(timer);
+    };
+  }, [quiz?.time_limit_seconds, submitting]);
+
+  // Handle automatic submission when time expires
+  useEffect(() => {
+    // Only auto-submit when time hits exactly 0, not during pending or already submitted
+    if (timeLeft !== 0 || autoSubmitTriggered.current || submitting) {
+      return;
+    }
+
+    // Prevent duplicate submission attempts
+    autoSubmitTriggered.current = true;
+
+    const formattedAnswers = buildFormattedAnswers();
+    void onSubmit({ answers: formattedAnswers, isAutoSubmitted: true }).catch((err) => {
+      console.error("Auto submission failed:", err);
+      // Reset flag on error to allow manual recovery
+      autoSubmitTriggered.current = false;
+    });
+  }, [timeLeft, submitting, onSubmit, buildFormattedAnswers]);
+
   const handleSelect = (questionId, selectedOption) => {
     setAnswers((previous) => ({
       ...previous,
@@ -99,13 +160,10 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
   };
 
   const handleSubmit = async () => {
-    const formattedAnswers = quiz.questions.map((question) => ({
-      question_id: question.question_id,
-      selected_option: answers[question.question_id] || "",
-    }));
+    const formattedAnswers = buildFormattedAnswers();
 
     try {
-      await onSubmit(formattedAnswers);
+      await onSubmit({ answers: formattedAnswers, isAutoSubmitted: false });
     } catch (err) {
       console.error("Quiz submission failed:", err);
     }
@@ -164,6 +222,14 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                     sx={{ bgcolor: "rgba(129,140,248,0.18)", color: "#c7d2fe" }}
                   />
                   <Chip
+                    label={`Timer ${formatSeconds(timeLeft)}`}
+                    sx={{
+                      bgcolor: isLastTwoMinutes ? "rgba(239,68,68,0.24)" : "rgba(16,185,129,0.22)",
+                      color: isLastTwoMinutes ? "#fecaca" : "#bbf7d0",
+                      fontWeight: 700,
+                    }}
+                  />
+                  <Chip
                     label={isFullscreen ? "Fullscreen active" : "Fullscreen recommended"}
                     sx={{ bgcolor: "rgba(34,197,94,0.16)", color: "#bbf7d0" }}
                   />
@@ -197,6 +263,34 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                 }}
               >
                 {fullscreenNotice}
+              </Alert>
+            )}
+
+            {isLastTwoMinutes && (
+              <Alert
+                severity="warning"
+                sx={{
+                  borderRadius: 3,
+                  bgcolor: "rgba(239,68,68,0.14)",
+                  color: "#fecaca",
+                  "& .MuiAlert-icon": { color: "#f87171" },
+                }}
+              >
+                Quick reminder: only {formatSeconds(timeLeft)} left. Please complete and submit.
+              </Alert>
+            )}
+
+            {timeLeft === 0 && (
+              <Alert
+                severity="info"
+                sx={{
+                  borderRadius: 3,
+                  bgcolor: "rgba(56,189,248,0.12)",
+                  color: "#bae6fd",
+                  "& .MuiAlert-icon": { color: "#38bdf8" },
+                }}
+              >
+                Time is up. Your quiz is being submitted automatically.
               </Alert>
             )}
 

@@ -24,7 +24,7 @@ export const useQuiz = () => {
     }
   };
 
-  const submitQuiz = async (answers) => {
+  const submitQuiz = async ({ answers, isAutoSubmitted = false }) => {
     if (!quizSession?.quiz_id) {
       return null;
     }
@@ -36,6 +36,7 @@ export const useQuiz = () => {
       const data = await submitQuizRequest({
         quiz_id: quizSession.quiz_id,
         answers,
+        is_auto_submitted: isAutoSubmitted,
       });
 
       setResult(data);
