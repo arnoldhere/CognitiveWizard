@@ -25,9 +25,38 @@ def ensure_user_table_columns() -> None:
         statements.append("ALTER TABLE users ADD COLUMN chat_limit INTEGER NULL")
     if "subscribed" not in existing_columns:
         statements.append("ALTER TABLE users ADD COLUMN subscribed BOOLEAN NULL")
+    if "subscription_plan" not in existing_columns:
+        statements.append(
+            "ALTER TABLE users ADD COLUMN subscription_plan VARCHAR(50) NULL"
+        )
+    if "daily_chat_limit" not in existing_columns:
+        statements.append("ALTER TABLE users ADD COLUMN daily_chat_limit INTEGER NULL")
     if "chat_limit_reset_at" not in existing_columns:
         statements.append(
             "ALTER TABLE users ADD COLUMN chat_limit_reset_at DATETIME NULL"
+        )
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+
+def ensure_payment_transaction_columns() -> None:
+    inspector = inspect(engine)
+    if "payment_transactions" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"] for column in inspector.get_columns("payment_transactions")
+    }
+    statements = []
+
+    if "amount_inr" not in existing_columns:
+        statements.append(
+            "ALTER TABLE payment_transactions ADD COLUMN amount_inr INTEGER NOT NULL DEFAULT 0"
         )
 
     if not statements:

@@ -87,6 +87,21 @@ export const removeFaceLogin = async () => {
   return res.data;
 };
 
+export const getSubscriptionPlans = async () => {
+  const res = await API.get("/subscriptions/plans");
+  return res.data;
+};
+
+export const createSubscriptionOrder = async (payload) => {
+  const res = await API.post("/subscriptions/order", payload);
+  return res.data;
+};
+
+export const confirmSubscriptionPayment = async (payload) => {
+  const res = await API.post("/subscriptions/confirm", payload);
+  return res.data;
+};
+
 export const getQuizResults = async ({
   skip = 0,
   limit = 10,

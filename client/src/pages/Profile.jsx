@@ -8,6 +8,9 @@ import {
     getFaceLoginStatus,
     removeFaceLogin,
     getQuizResultDetail,
+    getSubscriptionPlans,
+    createSubscriptionOrder,
+    confirmSubscriptionPayment,
 } from "../services/api";
 import QuizResultsHistory from "../components/quiz/QuizResultsHistory";
 import {
@@ -49,7 +52,7 @@ function TabPanel(props) {
 
 export default function Profile() {
     const navigate = useNavigate()
-    const { user, logout } = useAuth();
+    const { user, logout, refreshUser } = useAuth();
     const [tabValue, setTabValue] = useState(0);
     const [results, setResults] = useState({ data: [], total: 0, pages: 0 });
     const [loading, setLoading] = useState(false);
@@ -69,6 +72,15 @@ export default function Profile() {
     const [faceError, setFaceError] = useState(null);
     const [faceDeleteLoading, setFaceDeleteLoading] = useState(false);
     const [faceDeleteSuccess, setFaceDeleteSuccess] = useState(null);
+
+    // Subscription states
+    const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+    const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+    const [subscriptionError, setSubscriptionError] = useState(null);
+    const [selectedPlan, setSelectedPlan] = useState(null);
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    const [paymentLoading, setPaymentLoading] = useState(false);
+    const [paymentError, setPaymentError] = useState(null);
     const formatDuration = (seconds) => {
         if (seconds === null || seconds === undefined) {
             return "N/A";
@@ -156,11 +168,26 @@ export default function Profile() {
         }
     }, []);
 
+    const loadSubscriptionPlans = useCallback(async () => {
+        try {
+            setSubscriptionLoading(true);
+            setSubscriptionError(null);
+            const plans = await getSubscriptionPlans();
+            setSubscriptionPlans(plans);
+        } catch (err) {
+            console.error("Error fetching subscription plans:", err);
+            setSubscriptionError("Unable to load subscription plans.");
+        } finally {
+            setSubscriptionLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         if (user) {
             loadFaceLoginStatus();
+            loadSubscriptionPlans();
         }
-    }, [user, loadFaceLoginStatus]);
+    }, [user, loadFaceLoginStatus, loadSubscriptionPlans]);
 
     const handleRemoveFaceSetup = async () => {
         const confirmed = window.confirm(
@@ -195,6 +222,78 @@ export default function Profile() {
             });
         }
     }, [tabValue, handleFetchResults, results.data.length]);
+
+    const handlePurchaseSubscription = (plan) => {
+        setSelectedPlan(plan);
+        setPaymentModalOpen(true);
+    };
+
+    const handleConfirmPayment = async () => {
+        if (!selectedPlan) return;
+
+        try {
+            setPaymentLoading(true);
+            setPaymentError(null);
+
+            // Create order
+            const orderData = await createSubscriptionOrder({
+                plan: selectedPlan.id,
+            });
+
+            // Initialize Razorpay
+            const options = {
+                key:
+                    import.meta.env.VITE_RAZORPAY_KEY_ID ||
+                    import.meta.env.VITE_REACT_APP_RAZORPAY_KEY_ID ||
+                    "rzp_test_your_key_here", // Use env var
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: "Cognitive Wizard",
+                description: `Subscription: ${selectedPlan.name}`,
+                order_id: orderData.order_id,
+                handler: async (response) => {
+                    try {
+                        // Confirm payment on backend
+                        await confirmSubscriptionPayment({
+                            plan: selectedPlan.id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                        });
+
+                        // Refresh user data to show updated subscription
+                        await refreshUser();
+                        setPaymentModalOpen(false);
+                        setSelectedPlan(null);
+                        alert("Subscription purchased successfully!");
+                    } catch (err) {
+                        console.error("Payment confirmation failed:", err);
+                        setPaymentError("Payment confirmation failed. Please contact support.");
+                    }
+                },
+                prefill: {
+                    name: user?.full_name || "",
+                    email: user?.email || "",
+                },
+                theme: {
+                    color: "#1976d2",
+                },
+            };
+
+            if (!window.Razorpay) {
+                throw new Error("Razorpay checkout script not loaded. Please ensure the Razorpay SDK is available.");
+            }
+
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+        } catch (err) {
+            console.error("Error creating subscription order:", err);
+            setPaymentError(err.response?.data?.detail || "Failed to create payment order.");
+        } finally {
+            setPaymentLoading(false);
+        }
+    };
+
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Paper
@@ -217,6 +316,7 @@ export default function Profile() {
                         icon={<History />}
                         iconPosition="start"
                     />
+                    <Tab label="Subscriptions" icon={<AdminPanelSettings />} iconPosition="start" />
                 </Tabs>
             </Paper>
 
@@ -457,6 +557,66 @@ export default function Profile() {
                 />
             </TabPanel>
 
+            <TabPanel value={tabValue} index={2}>
+                <Typography variant="h6" gutterBottom>
+                    Subscription Plans
+                </Typography>
+                {subscriptionError && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {subscriptionError}
+                    </Alert>
+                )}
+                {subscriptionLoading ? (
+                    <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : (
+                    <Grid container spacing={3}>
+                        {subscriptionPlans.map((plan) => (
+                            <Grid item xs={12} md={4} key={plan.id}>
+                                <Paper
+                                    elevation={2}
+                                    sx={{
+                                        p: 3,
+                                        textAlign: "center",
+                                        borderRadius: 2,
+                                        border: user?.subscription_plan === plan.id ? "2px solid #1976d2" : "1px solid #e0e0e0",
+                                    }}
+                                >
+                                    <Typography variant="h5" gutterBottom>
+                                        {plan.name}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                        {plan.description}
+                                    </Typography>
+                                    <Typography variant="h4" color="primary" sx={{ fontWeight: "bold" }}>
+                                        ₹{plan.amount_inr}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                        per month
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ mb: 1 }}>
+                                        Daily Limit: {plan.daily_chat_limit} chats
+                                    </Typography>
+                                    {user?.subscription_plan === plan.id ? (
+                                        <Chip label="Current Plan" color="primary" />
+                                    ) : (
+                                        <Button
+                                            variant="contained"
+                                            fullWidth
+                                            onClick={() => handlePurchaseSubscription(plan)}
+                                            sx={{ mt: 2 }}
+                                        >
+                                            Purchase
+                                        </Button>
+                                    )}
+                                </Paper>
+                            </Grid>
+                        ))}
+                    </Grid>
+                )}
+            </TabPanel>
+
             <Dialog
                 open={detailOpen}
                 onClose={() => {
@@ -594,6 +754,67 @@ export default function Profile() {
                             <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
                         ) : null}
                         {deleteLoading ? "Deleting..." : "Delete"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={paymentModalOpen}
+                onClose={() => {
+                    setPaymentModalOpen(false);
+                    setSelectedPlan(null);
+                    setPaymentError(null);
+                }}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{ fontWeight: 700 }}>
+                    Confirm Subscription Purchase
+                </DialogTitle>
+                <DialogContent>
+                    {selectedPlan && (
+                        <Box sx={{ pt: 1 }}>
+                            <Typography variant="h6" gutterBottom>
+                                {selectedPlan.name} Plan
+                            </Typography>
+                            <Typography variant="body1" sx={{ mb: 1 }}>
+                                Amount: ₹{selectedPlan.amount_inr}
+                            </Typography>
+                            <Typography variant="body1" sx={{ mb: 2 }}>
+                                Daily Limit: {selectedPlan.daily_chat_limit} chats
+                            </Typography>
+                            {paymentError && (
+                                <Alert severity="error" sx={{ mb: 2 }}>
+                                    {paymentError}
+                                </Alert>
+                            )}
+                            <Typography variant="body2" color="text.secondary">
+                                You will be redirected to Razorpay for secure payment processing.
+                            </Typography>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => {
+                            setPaymentModalOpen(false);
+                            setSelectedPlan(null);
+                            setPaymentError(null);
+                        }}
+                        disabled={paymentLoading}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleConfirmPayment}
+                        variant="contained"
+                        disabled={paymentLoading}
+                        sx={{ minWidth: "120px" }}
+                    >
+                        {paymentLoading ? (
+                            <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                        ) : null}
+                        {paymentLoading ? "Processing..." : "Pay Now"}
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -386,9 +386,10 @@ export default function ChatWindow({ ragReady, status }) {
   };
 
   const resetAtLabel = formatResetTime(chatLimitInfo?.reset_time);
-  const remainingLabel = chatLimitInfo?.subscribed
-    ? "unlimited premium access"
-    : `${chatLimitInfo?.messages_remaining ?? 0} remaining today`;
+  const planName = chatLimitInfo?.subscription_name || "Free";
+  const planLimit = chatLimitInfo?.subscription_daily_limit ?? chatLimitInfo?.max_per_day ?? 5;
+  const planBadgeLabel = `${planName} • ${planLimit} chats/day`;
+  const remainingLabel = `${chatLimitInfo?.messages_remaining ?? 0} remaining today`;
 
   return (
     <section className="rag-panel chat-window">
@@ -397,9 +398,12 @@ export default function ChatWindow({ ragReady, status }) {
           <p className="chat-kicker">session</p>
           <h2>RAG Assistant Console</h2>
         </div>
-        <span className={`chat-mode-chip ${ragReady ? "rag" : "llm"}`}>
-          {ragReady ? "user-scoped rag" : "llm fallback"}
-        </span>
+        <div className="chat-header-right">
+          <span className={`chat-mode-chip ${ragReady ? "rag" : "llm"}`}>
+            {ragReady ? "user-scoped rag" : "llm fallback"}
+          </span>
+          <span className="subscription-badge">{planBadgeLabel}</span>
+        </div>
       </header>
 
       <UploadedHistory documents={uploadedDocuments} />

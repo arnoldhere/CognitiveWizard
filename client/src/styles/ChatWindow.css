@@ -47,6 +47,28 @@
   margin-bottom: 12px;
 }
 
+.chat-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.subscription-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(140, 247, 197, 0.12);
+  border: 1px solid rgba(140, 247, 197, 0.18);
+  color: #8cf7c5;
+  font-size: 0.78rem;
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .chat-kicker {
   margin: 0 0 6px;
   color: #8cf7c5;

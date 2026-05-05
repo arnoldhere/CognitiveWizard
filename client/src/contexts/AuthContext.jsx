@@ -118,6 +118,16 @@ export function AuthProvider({ children }) {
         setUser(updatedUser);
     }, [user]);
 
+    const refreshUser = useCallback(async () => {
+        try {
+            const response = await getCurrentUser();
+            persistSession(token, response.data);
+        } catch (error) {
+            console.error("Error refreshing user:", error);
+            throw error;
+        }
+    }, [token, persistSession]);
+
     const value = {
         user,
         token,
@@ -128,6 +138,7 @@ export function AuthProvider({ children }) {
         signup,
         logout,
         updateUser,
+        refreshUser,
         isAuthenticated: Boolean(token && user),
         isLoading: loading || initializing,
     };

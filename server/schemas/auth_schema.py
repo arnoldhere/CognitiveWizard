@@ -19,6 +19,8 @@ class UserRead(BaseModel):
     is_active: bool
     chat_limit: Optional[int] = None
     subscribed: Optional[bool] = None
+    subscription_plan: Optional[str] = None
+    daily_chat_limit: Optional[int] = None
     chat_limit_reset_at: Optional[datetime] = None
 
     class Config:

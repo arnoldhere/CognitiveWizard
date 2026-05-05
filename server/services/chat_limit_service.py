@@ -15,8 +15,8 @@ class ChatLimitService:
         self.max_messages_per_day = max_messages_per_day
 
     def _effective_limit(self, user: User) -> int:
-        if user.subscribed:
-            return 10**9
+        if user.daily_chat_limit and user.daily_chat_limit > 0:
+            return user.daily_chat_limit
         return self.max_messages_per_day
 
     def _ensure_tracking_window(self, db: Session, user: User) -> User:
@@ -54,18 +54,27 @@ class ChatLimitService:
     def get_user_status(self, db: Session, user: User) -> dict:
         user = self._ensure_tracking_window(db, user)
         can_send, used, remaining = self.check_limit(db, user)
-        max_messages = None if user.subscribed else self.max_messages_per_day
+        max_messages = self._effective_limit(user)
 
         return {
             "can_send": can_send,
             "messages_used": used,
-            "messages_remaining": None if user.subscribed else remaining,
+            "messages_remaining": remaining,
             "max_per_day": max_messages,
-            "reset_time": user.chat_limit_reset_at.isoformat()
-            if user.chat_limit_reset_at
-            else None,
+            "reset_time": (
+                user.chat_limit_reset_at.isoformat()
+                if user.chat_limit_reset_at
+                else None
+            ),
             "limit_reached": not can_send,
-            "subscribed": user.subscribed,
+            "subscribed": bool(user.subscribed),
+            "subscription_plan": user.subscription_plan,
+            "subscription_name": (
+                user.subscription_plan.capitalize()
+                if user.subscription_plan
+                else "Free"
+            ),
+            "subscription_daily_limit": user.daily_chat_limit or max_messages,
         }
 
 

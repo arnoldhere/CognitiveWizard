@@ -179,11 +179,12 @@ def chat(
         db, current_user
     )
     if not can_send:
+        user_status = chat_limit_service.get_user_status(db, current_user)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
-                f"Daily chat limit reached. You have used {messages_used}/5 messages today. "
-                "Please upgrade to premium for unlimited access."
+                f"Daily chat limit reached. You have used {messages_used}/{user_status['max_per_day']} messages today. "
+                "Please upgrade to a subscription plan to increase your daily limit."
             ),
         )
 
@@ -232,11 +233,12 @@ def chat_langchain(
         db, current_user
     )
     if not can_send:
+        user_status = chat_limit_service.get_user_status(db, current_user)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
-                f"Daily chat limit reached. You have used {messages_used}/5 messages today. "
-                "Please upgrade to premium for unlimited access."
+                f"Daily chat limit reached. You have used {messages_used}/{user_status['max_per_day']} messages today. "
+                "Please upgrade to a subscription plan to increase your daily limit."
             ),
         )
 

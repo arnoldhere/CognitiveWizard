@@ -72,6 +72,11 @@ class Settings:
         if origin.strip()
     )
 
+    # Razorpay test credentials
+    RAZORPAY_ORDER_URL: str = os.getenv("RAZORPAY_ORDER_URL", "")
+    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "")
+    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "")
+
     # admin credentials
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL")
     ADMIN_PASS: str = os.getenv("ADMIN_PASS")
