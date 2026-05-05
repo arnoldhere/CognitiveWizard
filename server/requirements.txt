@@ -23,7 +23,6 @@ PyMuPDF
 pydantic
 chromadb
 alembic
-smtplib 
 sentence-transformers
 langchain
 langchain-community
