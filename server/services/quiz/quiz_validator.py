@@ -141,9 +141,7 @@ def validate(data, auto_fix: bool = True):
                             best_match = opt
 
                     if best_match and best_ratio > 0.5:
-                        logger.info(
-                            f"Q{q_idx}: Auto-fixed answer '{answer_str}' → '{best_match}'"
-                        )
+                        logger.info(f"Q{q_idx}: Auto-fixed answer..")
                         answer_str = best_match
                     else:
                         logger.warning(f"Q{q_idx}: No match → using first option")

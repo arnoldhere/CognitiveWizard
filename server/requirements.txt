@@ -31,3 +31,10 @@ langchain-openai
 tiktoken
 langchain-huggingface
 langchain-chroma
+pydantic[email]
+opencv-python
+tensorflow
+retina-face==0.0.17
+tf-keras
+insightface
+python-multipart
