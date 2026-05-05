@@ -1,5 +1,5 @@
 ##  Core Idea
-Hybrid RAG Engine (Chatbot): A sophisticated retrieval pipeline utilizing Faiss (CPU/GPU) for vector storage. It features a query router that dynamically selects between user-uploaded documents and external knowledge bases, followed by a retriever, a re-ranker, and an LLM generator.
+Hybrid RAG Engine (Chatbot): A sophisticated retrieval pipeline for vector storage. It features a query router that dynamically selects between user-uploaded documents and external knowledge bases, followed by a retriever, a re-ranker, and an LLM generator.
 
 ```
 User Query

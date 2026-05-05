@@ -2,9 +2,9 @@
 
 ## 📌 Overview
 
-This project is an AI-powered learning platform that generates personalized quizzes, evaluates user responses, analyzes sentiment, and provides adaptive learning recommendations.
+CognitiveWizard is an AI-powered learning platform that provides adaptive and smart materials and tools for learning and study purpose.
 
-The system leverages transformer-based models using Hugging Face to deliver intelligent and scalable educational experiences.
+The platform provides Quiz and Summarization engine, RAG powered chatbot and more tools.
 
 ---
 
@@ -12,32 +12,26 @@ The system leverages transformer-based models using Hugging Face to deliver inte
 ## Core idea
 > An AI-driven personalized learning engine
 - Generates quizzes dynamically
-- Evaluates user understanding
-- Analyzes sentiment + confidence
+- Summarization for quick notes and study
+- Personal assistant for study & chat
 - Adapts learning path
-
----
-
-## Objectives
-
-* Generate quizzes dynamically based on user input
-* Evaluate answers using semantic understanding
-* Analyze user sentiment to understand confidence and engagement
-* Recommend topics for improved learning outcomes
 
 ---
 
 ## High-Level Architecture
 1. User Interface
-    - ReactJS (Web App)
+    - ReactJS + VITE
 2. Backend
     - FastAPI
-    - MySQL
     - Redis + Celery / kafka
 3. AI Engine
     - Hugging face transformers
     - Langchain
     - pytorch
+4. Storage
+    - MySQL
+    - chromaDB for embeddings
+    - MongoDB for chat storage
 
 
 ## Core Features
@@ -55,7 +49,7 @@ The system leverages transformer-based models using Hugging Face to deliver inte
 * input data is preproccesed and divided to chunks and sent to Llama model for summarization
 * summarization is displayed in readable format for quick study
 
-### 3. AI powered Study planner
+### 3. AI powered Study planner (not released)
 
 * Input:
     - User goals (exam, skill, deadline)
@@ -74,10 +68,8 @@ The system leverages transformer-based models using Hugging Face to deliver inte
     - rescheduling on missed tasks
 
 
-### 4. Sentiment Analysis
-
-* Detect user confidence and frustration levels
-* Improve personalization
+### 4. RAG Powered Chatbot
+    A personal assitant for study related chat with modern techniques such as RAG, Langchain. It features a query router that dynamically selects between user-uploaded documents and external knowledge bases, followed by a retriever, a re-ranker, and an LLM generator.
 
 ### 5. Recommendation System
 
