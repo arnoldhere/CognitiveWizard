@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import ErrorMessage from "../utils/ErrorMessage";
-import { askRagQuestion, fetchRagSource } from "../../services/rag";
+import { askRagQuestion, fetchChatSessionHistory, fetchRagSource } from "../../services/rag";
 import "../../styles/ChatWindow.css";
 
 function createMessage(sender, text, extra = {}) {
@@ -182,7 +182,7 @@ function UploadedHistory({ documents }) {
   );
 }
 
-export default function ChatWindow({ ragReady, status }) {
+export default function ChatWindow({ ragReady, status, selectedSession, onSessionAssigned }) {
   const uploadedDocuments = status?.uploaded_documents ?? [];
   const initialLimitInfo = status?.chat_limit_info ?? null;
 
@@ -196,12 +196,14 @@ export default function ChatWindow({ ragReady, status }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sessionError, setSessionError] = useState("");
   const [lastFailedQuery, setLastFailedQuery] = useState("");
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [chatLimitInfo, setChatLimitInfo] = useState(initialLimitInfo);
   const [chatLimitReached, setChatLimitReached] = useState(
     Boolean(initialLimitInfo?.limit_reached || initialLimitInfo?.can_send === false),
   );
+  const [sessionLoading, setSessionLoading] = useState(false);
 
   const chatContainerRef = useRef(null);
   const currentRequestRef = useRef(null);
@@ -215,6 +217,61 @@ export default function ChatWindow({ ragReady, status }) {
       Boolean(nextLimitInfo?.limit_reached || nextLimitInfo?.can_send === false),
     );
   }, [status?.chat_limit_info]);
+
+  useEffect(() => {
+    if (!selectedSession) {
+      setMessages([
+        createMessage(
+          "bot",
+          "Private RAG session ready. Upload a document to ground answers in your own knowledge base.",
+          { modeUsed: "llm", sources: [] },
+        ),
+      ]);
+      setSessionError("");
+      setSessionLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    const loadSessionHistory = async () => {
+      setSessionLoading(true);
+      setSessionError("");
+
+      try {
+        const data = await fetchChatSessionHistory(selectedSession.session_id);
+        if (!mounted) return;
+
+        const sessionMessages = (data.messages ?? []).map((item) =>
+          createMessage(item.role, item.content, {
+            createdAt: item.created_at,
+            metadata: item.metadata,
+          }),
+        );
+
+        if (sessionMessages.length > 0) {
+          setMessages(sessionMessages);
+        } else {
+          setMessages([
+            createMessage(
+              "bot",
+              "Private RAG session ready. Upload a document to ground answers in your own knowledge base.",
+              { modeUsed: "llm", sources: [] },
+            ),
+          ]);
+        }
+      } catch (err) {
+        if (!mounted) return;
+        setSessionError(err.message || "Failed to load chat history.");
+      } finally {
+        if (mounted) setSessionLoading(false);
+      }
+    };
+
+    loadSessionHistory();
+    return () => {
+      mounted = false;
+    };
+  }, [selectedSession]);
 
   const smoothScrollToBottom = (duration = 380) => {
     const container = chatContainerRef.current;
@@ -312,6 +369,7 @@ export default function ChatWindow({ ragReady, status }) {
         query: trimmed,
         use_rag: ragReady,
         signal: controller.signal,
+        session_id: selectedSession?.session_id,
       });
 
       setMessages((prev) => [
@@ -327,6 +385,15 @@ export default function ChatWindow({ ragReady, status }) {
       if (data.chat_limit_info) {
         setChatLimitInfo(data.chat_limit_info);
         setChatLimitReached(Boolean(data.chat_limit_info.limit_reached));
+      }
+
+      if (data.session_id && onSessionAssigned) {
+        onSessionAssigned({
+          session_id: data.session_id,
+          title: data.session_title || selectedSession?.title || "Chat Session",
+          message_count: selectedSession?.message_count ?? 0,
+          last_message_at: selectedSession?.last_message_at,
+        });
       }
 
       setLastFailedQuery("");
@@ -405,6 +472,19 @@ export default function ChatWindow({ ragReady, status }) {
           <span className="subscription-badge">{planBadgeLabel}</span>
         </div>
       </header>
+      <div className="chat-session-summary">
+        <strong>{selectedSession ? selectedSession.title : "No session selected"}</strong>
+        <br />
+        <span>{selectedSession ? `${selectedSession.message_count ?? 0} messages` : "Choose or create a chat session to begin."}</span>
+      </div>
+      {sessionLoading ? (
+        <div className="chat-session-loading">Loading chat session history...</div>
+      ) : null}
+      {sessionError ? (
+        <div className="chat-error-wrap">
+          <ErrorMessage message={sessionError} />
+        </div>
+      ) : null}
 
       <UploadedHistory documents={uploadedDocuments} />
 
@@ -448,6 +528,11 @@ export default function ChatWindow({ ragReady, status }) {
         </div>
       )}
 
+      {sessionError ? (
+        <div className="chat-error-wrap">
+          <ErrorMessage message={sessionError} />
+        </div>
+      ) : null}
       {chatLimitReached && (
         <div className="chat-limit-alert" role="alert">
           <div className="limit-alert-content">

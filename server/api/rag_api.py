@@ -267,7 +267,7 @@ def create_chat_session_endpoint(
         title=chat_session.title,
         active=chat_session.active,
         message_count=chat_session.message_count,
-        metadata=chat_session.metadata,
+        session_metadata=chat_session.metadata,
         created_at=chat_session.created_at,
         last_message_at=chat_session.last_message_at,
     )
@@ -285,7 +285,7 @@ def list_chat_sessions_endpoint(
             title=session.title,
             active=session.active,
             message_count=session.message_count,
-            metadata=session.metadata,
+            session_metadata=session.chat_metadata,
             created_at=session.created_at,
             last_message_at=session.last_message_at,
         )
@@ -310,7 +310,7 @@ def get_chat_session_endpoint(
         title=chat_session.title,
         active=chat_session.active,
         message_count=chat_session.message_count,
-        metadata=chat_session.metadata,
+        session_metadata=chat_session.chat_metadata,
         created_at=chat_session.created_at,
         last_message_at=chat_session.last_message_at,
     )

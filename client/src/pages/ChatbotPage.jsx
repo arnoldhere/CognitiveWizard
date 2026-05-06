@@ -2,13 +2,23 @@ import { useEffect, useState } from "react";
 import ChatWindow from "../components/rag/ChatWindow";
 import FileUpload from "../components/rag/FileUpload";
 import ContextDisplay from "../components/rag/ContextDisplay";
-import { fetchRagStatus } from "../services/rag";
+import SessionManager from "../components/rag/SessionManager";
+import {
+  fetchChatSessions,
+  createChatSession,
+  deleteChatSession,
+  fetchRagStatus,
+} from "../services/rag";
 import "../styles/ChatbotPage.css";
 
 export default function ChatbotPage() {
   const [status, setStatus] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState("");
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState("");
+  const [selectedSession, setSelectedSession] = useState(null);
 
   const refreshStatus = async () => {
     setStatusLoading(true);
@@ -23,8 +33,57 @@ export default function ChatbotPage() {
     }
   };
 
+  const refreshSessions = async () => {
+    setSessionsLoading(true);
+    setSessionsError("");
+
+    try {
+      const payload = await fetchChatSessions();
+      setSessions(payload || []);
+      if (!selectedSession && payload?.length) {
+        setSelectedSession(payload[0]);
+      } else if (selectedSession) {
+        const found = payload?.find((item) => item.session_id === selectedSession.session_id);
+        setSelectedSession(found || selectedSession);
+      }
+    } catch (error) {
+      setSessionsError(error.message);
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
+  const handleCreateSession = async () => {
+    setSessionsError("");
+    try {
+      const session = await createChatSession();
+      await refreshSessions();
+      setSelectedSession(session);
+    } catch (error) {
+      setSessionsError(error.message);
+    }
+  };
+
+  const handleSelectSession = (session) => {
+    setSelectedSession(session);
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    setSessionsError("");
+    try {
+      await deleteChatSession(sessionId);
+      await refreshSessions();
+      if (selectedSession?.session_id === sessionId) {
+        setSelectedSession(null);
+      }
+    } catch (error) {
+      setSessionsError(error.message);
+    }
+  };
+
   useEffect(() => {
     refreshStatus();
+    refreshSessions();
   }, []);
 
   return (
@@ -41,6 +100,15 @@ export default function ChatbotPage() {
 
       <section className="chatbot-layout">
         <aside className="chatbot-sidebar">
+          <SessionManager
+            sessions={sessions}
+            selectedSession={selectedSession}
+            loading={sessionsLoading}
+            error={sessionsError}
+            onCreateSession={handleCreateSession}
+            onSelectSession={handleSelectSession}
+            onDeleteSession={handleDeleteSession}
+          />
           <FileUpload onUploadSuccess={refreshStatus} />
           <ContextDisplay
             status={status}
@@ -49,10 +117,13 @@ export default function ChatbotPage() {
             onRefresh={refreshStatus}
           />
         </aside>
+
         <div className="chatbot-main">
           <ChatWindow
             ragReady={Boolean(status?.ready_for_rag)}
             status={status}
+            selectedSession={selectedSession}
+            onSessionAssigned={(session) => setSelectedSession(session)}
           />
         </div>
       </section>

@@ -22,23 +22,63 @@ export async function uploadDocument(file) {
   }
 }
 
-export async function askRagQuestion({ query, use_rag = true, signal, use_langchain = true }) {
+export async function askRagQuestion({ query, use_rag = true, signal, use_langchain = true, session_id = null }) {
   try {
     // Support both v0 (default) and v1 (LangChain) endpoints
     const endpoint = use_langchain ? "/rag/chat-langchain" : "/rag/chat";
+    const payload = {
+      query,
+      use_rag,
+      use_langchain,
+    };
 
-    const response = await API.post(
-      endpoint,
-      {
-        query,
-        use_rag,
-        use_langchain,
-      },
-      { signal },
-    );
+    if (session_id) {
+      payload.session_id = session_id;
+    }
+
+    const response = await API.post(endpoint, payload, { signal });
     return response.data;
   } catch (error) {
     throw new Error(toErrorMessage(error, "Failed to get answer from chatbot."));
+  }
+}
+
+export async function fetchChatSessions() {
+  try {
+    const response = await API.get("/rag/sessions");
+    return response.data;
+  } catch (error) {
+    throw new Error(toErrorMessage(error, "Failed to load chat sessions."));
+  }
+}
+
+export async function createChatSession({ title = null, initial_prompt = null } = {}) {
+  try {
+    const response = await API.post("/rag/sessions", {
+      title,
+      initial_prompt,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(toErrorMessage(error, "Failed to start a new chat session."));
+  }
+}
+
+export async function deleteChatSession(session_id) {
+  try {
+    const response = await API.delete(`/rag/sessions/${session_id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(toErrorMessage(error, "Failed to delete the chat session."));
+  }
+}
+
+export async function fetchChatSessionHistory(session_id) {
+  try {
+    const response = await API.get(`/rag/sessions/${session_id}/history`);
+    return response.data;
+  } catch (error) {
+    throw new Error(toErrorMessage(error, "Failed to load session history."));
   }
 }
 

@@ -14,7 +14,7 @@ class ChatSessionResponse(BaseModel):
     title: str
     active: bool
     message_count: int
-    metadata: Optional[Dict[str, Any]] = None
+    session_metadata: Optional[Dict[str, Any]] = None
     created_at: datetime
     last_message_at: Optional[datetime] = None
 
@@ -27,7 +27,7 @@ class ChatSessionHistoryItem(BaseModel):
     role: str
     content: str
     created_at: datetime
-    metadata: Optional[Dict[str, Any]] = None
+    item_metadata: Optional[Dict[str, Any]] = None
 
 
 class ChatSessionHistoryResponse(BaseModel):

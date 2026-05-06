@@ -70,7 +70,7 @@ def create_chat_session(
         user_id=user_id,
         title=session_title,
         active=True,
-        metadata=metadata or {},
+        chat_metadata=metadata or {},
         created_at=datetime.utcnow(),
         last_message_at=None,
         message_count=0,
@@ -119,16 +119,8 @@ def list_chat_sessions(db: Session, user_id: int) -> list[ChatSession]:
     Sessions are ordered by:
     1. Most recent message activity
     2. Creation date (fallback ordering)
-    Args:
-        db (Session):
-            Active SQLAlchemy database session.
-
-        user_id (int):
-            ID of the user.
-    Returns:
-        list[ChatSession]:
-            List of active chat sessions.
     """
+
     return (
         db.query(ChatSession)
         .filter(
@@ -136,7 +128,8 @@ def list_chat_sessions(db: Session, user_id: int) -> list[ChatSession]:
             ChatSession.active == True,
         )
         .order_by(
-            ChatSession.last_message_at.desc().nullslast(),
+            ChatSession.last_message_at.is_(None),
+            ChatSession.last_message_at.desc(),
             ChatSession.created_at.desc(),
         )
         .all()

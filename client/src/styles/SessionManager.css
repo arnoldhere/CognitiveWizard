@@ -1,0 +1,118 @@
+.session-manager-panel {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+}
+
+.session-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.session-actions button {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(140, 247, 197, 0.18);
+    background: linear-gradient(180deg, rgba(14, 32, 42, 0.96), rgba(7, 18, 28, 0.96));
+    color: #effff9;
+    padding: 12px 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.session-actions button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.session-actions button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.session-list-wrapper {
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.session-list {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.session-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(102, 217, 239, 0.12);
+    background: rgba(10, 18, 26, 0.88);
+}
+
+.session-item.is-selected {
+    border-color: rgba(140, 247, 197, 0.34);
+    background: rgba(11, 34, 46, 0.95);
+}
+
+.session-item-button {
+    text-align: left;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+}
+
+.session-title {
+    display: block;
+    font-weight: 600;
+    color: #f5fbff;
+    margin-bottom: 4px;
+}
+
+.session-meta {
+    display: block;
+    font-size: 0.82rem;
+    color: #8fa8b9;
+}
+
+.session-delete {
+    border: none;
+    border-radius: 999px;
+    width: 34px;
+    height: 34px;
+    background: rgba(255, 97, 97, 0.12);
+    color: #ffb7aa;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.session-delete:hover {
+    background: rgba(255, 97, 97, 0.18);
+}
+
+.session-empty {
+    padding: 14px 12px;
+    border-radius: 14px;
+    border: 1px dashed rgba(102, 217, 239, 0.18);
+    background: rgba(8, 16, 24, 0.74);
+    color: #8fa8b9;
+}
+
+.session-empty p {
+    margin: 0 0 8px;
+    font-weight: 600;
+    color: #f5fbff;
+}
+
+.session-empty small {
+    color: #7f97ab;
+}
