@@ -34,6 +34,10 @@ class RAGResponse(BaseModel):
     token_usage: Optional[Dict[str, int]] = Field(
         default=None, description="Token usage statistics"
     )
+    session_id: Optional[str] = Field(
+        default=None, description="Session identifier for persisted chat history"
+    )
+    session_title: Optional[str] = Field(default=None, description="Chat session title")
     chat_limit_info: Optional[Dict[str, Any]] = Field(
         default=None, description="Chat message limit information"
     )

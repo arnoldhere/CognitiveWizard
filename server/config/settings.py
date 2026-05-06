@@ -54,6 +54,8 @@ class Settings:
     REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = os.getenv("REDIS_PORT", 6379)
     REDIS_DB_INDEX: int = os.getenv("REDIS_DB_INDEX", 0)
+    MONGO_URI: str = os.getenv("MONGO_URI", "")
+    MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "")
 
     # ===========
     # Middlewares & Authentication configurations

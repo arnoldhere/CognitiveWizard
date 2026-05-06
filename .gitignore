@@ -12,3 +12,4 @@ alembic.ini
 /server/migrations/versions/*
 *tmp/
 .pytest*/
+tasks.txt

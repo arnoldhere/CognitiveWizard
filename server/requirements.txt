@@ -32,6 +32,7 @@ langchain-anthropic
 tiktoken
 langchain-huggingface
 langchain-chroma
+pymongo
 pydantic[email]
 opencv-python
 tensorflow

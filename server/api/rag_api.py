@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 from api.auth_api import get_current_active_user
 from config.db import get_db
 from models.user import User
+from schemas.chat_schema import (
+    ChatSessionCreateRequest,
+    ChatSessionDeleteResponse,
+    ChatSessionHistoryResponse,
+    ChatSessionResponse,
+)
 from schemas.rag_schema import (
     RAGIngestRequest,
     RAGQueryRequest,
@@ -16,6 +22,13 @@ from schemas.rag_schema import (
     RAGUploadResponse,
 )
 from services.chat_limit_service import chat_limit_service
+from services.chat_session_service import (
+    create_chat_session,
+    get_chat_session,
+    list_chat_sessions,
+    soft_delete_chat_session,
+)
+from services.chat_message_store import fetch_chat_history
 from services.rag.v0_rag_service import rag_service
 from services.rag.source_files import (
     get_user_source_path,
@@ -195,15 +208,35 @@ def chat(
         if req.use_langchain:
             logger.info(f"Langchain mode enabled...")
 
+        if req.session_id:
+            session = get_chat_session(db, current_user.id, req.session_id)
+            if not session:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Chat session not found or access denied.",
+                )
+            session_id = session.session_id
+        else:
+            session = create_chat_session(
+                db,
+                current_user.id,
+                title=None,
+                initial_prompt=req.query,
+            )
+            session_id = session.session_id
+
         result = selected_service.query(
             query=req.query,
             use_rag=bool(req.use_rag),
             user_id=user_id,
-            session_id=req.session_id,
+            session_id=session_id,
+            db=db if req.use_langchain else None,
         )
 
         user = chat_limit_service.increment_message_count(db, current_user)
         result["chat_limit_info"] = chat_limit_service.get_user_status(db, user)
+        result["session_id"] = session_id
+        result["session_title"] = session.title
         return RAGResponse(**result)
     except ValueError as exc:
         raise HTTPException(
@@ -215,6 +248,120 @@ def chat(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate RAG response.",
         ) from exc
+
+
+@router.post("/sessions", response_model=ChatSessionResponse)
+def create_chat_session_endpoint(
+    request: ChatSessionCreateRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    chat_session = create_chat_session(
+        db,
+        current_user.id,
+        title=request.title,
+        initial_prompt=request.initial_prompt,
+    )
+    return ChatSessionResponse(
+        session_id=chat_session.session_id,
+        title=chat_session.title,
+        active=chat_session.active,
+        message_count=chat_session.message_count,
+        metadata=chat_session.metadata,
+        created_at=chat_session.created_at,
+        last_message_at=chat_session.last_message_at,
+    )
+
+
+@router.get("/sessions", response_model=list[ChatSessionResponse])
+def list_chat_sessions_endpoint(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    sessions = list_chat_sessions(db, current_user.id)
+    return [
+        ChatSessionResponse(
+            session_id=session.session_id,
+            title=session.title,
+            active=session.active,
+            message_count=session.message_count,
+            metadata=session.metadata,
+            created_at=session.created_at,
+            last_message_at=session.last_message_at,
+        )
+        for session in sessions
+    ]
+
+
+@router.get("/sessions/{session_id}", response_model=ChatSessionResponse)
+def get_chat_session_endpoint(
+    session_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    chat_session = get_chat_session(db, current_user.id, session_id)
+    if not chat_session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat session not found.",
+        )
+    return ChatSessionResponse(
+        session_id=chat_session.session_id,
+        title=chat_session.title,
+        active=chat_session.active,
+        message_count=chat_session.message_count,
+        metadata=chat_session.metadata,
+        created_at=chat_session.created_at,
+        last_message_at=chat_session.last_message_at,
+    )
+
+
+@router.get("/sessions/{session_id}/history", response_model=ChatSessionHistoryResponse)
+def get_chat_session_history_endpoint(
+    session_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    chat_session = get_chat_session(db, current_user.id, session_id)
+    if not chat_session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat session not found.",
+        )
+    messages = fetch_chat_history(session_id)
+    return ChatSessionHistoryResponse(
+        session_id=chat_session.session_id,
+        title=chat_session.title,
+        messages=[
+            {
+                "role": msg["role"],
+                "content": msg["content"],
+                "created_at": msg["created_at"],
+                "metadata": msg.get("metadata"),
+            }
+            for msg in messages
+        ],
+    )
+
+
+@router.delete("/sessions/{session_id}", response_model=ChatSessionDeleteResponse)
+def delete_chat_session_endpoint(
+    session_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    chat_session = soft_delete_chat_session(db, current_user.id, session_id)
+    if not chat_session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat session not found.",
+        )
+    return ChatSessionDeleteResponse(
+        session_id=chat_session.session_id,
+        deleted=True,
+        active=chat_session.active,
+        message="Chat session has been archived and will no longer receive new messages.",
+    )
 
 
 @router.post("/chat-langchain", response_model=RAGResponse)
@@ -243,15 +390,35 @@ def chat_langchain(
         )
 
     try:
+        if req.session_id:
+            session = get_chat_session(db, current_user.id, req.session_id)
+            if not session:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Chat session not found or access denied.",
+                )
+            session_id = session.session_id
+        else:
+            session = create_chat_session(
+                db,
+                current_user.id,
+                title=None,
+                initial_prompt=req.query,
+            )
+            session_id = session.session_id
+
         result = langchain_rag_service.query(
             query=req.query,
             use_rag=bool(req.use_rag),
             user_id=user_id,
-            session_id=req.session_id,
+            session_id=session_id,
+            db=db,
         )
 
         user = chat_limit_service.increment_message_count(db, current_user)
         result["chat_limit_info"] = chat_limit_service.get_user_status(db, user)
+        result["session_id"] = session_id
+        result["session_title"] = session.title
         return RAGResponse(**result)
     except ValueError as exc:
         raise HTTPException(

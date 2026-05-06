@@ -6,6 +6,7 @@ This service provides the same interface as v0_rag_service but uses LangChain in
 """
 
 from __future__ import annotations
+import datetime
 import json
 import logging
 import os
@@ -13,6 +14,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 from langchain_core.documents import Document
+from services.chat_message_store import store_chat_message
+from services.chat_session_service import update_chat_session_activity
 from config.settings import settings
 from models.rag_document import RAGDocument
 from services.rag.chains.v1_rag_chain import build_retrieval_qa_chain
@@ -173,9 +176,7 @@ class LangChainRAGService:
                     "snippet": doc.page_content[:280],
                     "text": doc.page_content,
                     "score": float(score),
-                    "source_url": self._source_url_from_metadata(
-                        doc.metadata, user_id
-                    ),
+                    "source_url": self._source_url_from_metadata(doc.metadata, user_id),
                 }
             )
 
@@ -187,6 +188,7 @@ class LangChainRAGService:
         use_rag: bool = True,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
+        db: Optional[Session] = None,
     ):
         """
         Process a query using LangChain RAG chain.
@@ -247,6 +249,33 @@ class LangChainRAGService:
                     if memory is not None and answer:
                         memory.add_user_message(query)
                         memory.add_ai_message(answer)
+                        if session_id and user_id:
+                            try:
+                                store_chat_message(
+                                    session_id,
+                                    int(user_id),
+                                    "user",
+                                    query,
+                                )
+                                store_chat_message(
+                                    session_id,
+                                    int(user_id),
+                                    "assistant",
+                                    answer,
+                                )
+                                if db is not None:
+                                    update_chat_session_activity(
+                                        db,
+                                        session_id=session_id,
+                                        user_id=int(user_id),
+                                        last_message_at=datetime.datetime.utcnow(),
+                                        increment_messages=2,
+                                    )
+                            except Exception:
+                                logger.warning(
+                                    "Failed to persist chat history for session %s",
+                                    session_id,
+                                )
                 except Exception as e:
                     logger.warning(
                         f"LangChain RAG chain failed: {e}. Falling back to basic generation."
@@ -442,9 +471,12 @@ class LangChainRAGService:
         }
 
         try:
-            path = self._user_metadata_path(user_id)
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(state, f, indent=2)
+            pass
+            # use below code if need to store json file
+            # path = self._user_metadata_path(user_id)
+            # print(path)
+            # with open(path, "w", encoding="utf-8") as f:
+            # json.dump(state, f, indent=2)
         except Exception as e:
             logger.warning(f"Failed to persist user state: {e}")
 
