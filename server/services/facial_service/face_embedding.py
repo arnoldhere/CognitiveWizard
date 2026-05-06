@@ -1,16 +1,15 @@
 import insightface
 import numpy as np
 import cv2
+import tensorflow as tf
 
 
 class FaceEmbedder:
     def __init__(self):
         # buffalo_l includes both detection and recognition models
-        self.model = insightface.app.FaceAnalysis(
-            name="buffalo_s", providers=["CPUExecutionProvider"]
-        )
+        self.model = insightface.app.FaceAnalysis(name="buffalo_s")
         # ctx_id=0 uses the first GPU
-        self.model.prepare(ctx_id=0, det_size=(640, 640))
+        self.model.prepare(ctx_id=-1, det_size=(640, 640))
 
     def process_image(self, image):
         if image is None:

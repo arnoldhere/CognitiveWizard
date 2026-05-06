@@ -6,7 +6,7 @@ from config.hf_inference import HFClientManager
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL_MODE = "api"
+DEFAULT_MODEL_MODE = "local"
 
 
 def _build_chunk_prompt(text: str, mode: str) -> str:
@@ -78,30 +78,39 @@ def _validate_input(
 # summarization engine using Hugging face platform
 # ==============
 def _generate_summary_with_client(
-    client, prompt: str, model_mode: str = DEFAULT_MODEL_MODE
+    client, prompt: str, model_mode: Optional[str] = None
 ) -> str:
-    """Generate summary using the appropriate client method."""
+    model_mode = model_mode or DEFAULT_MODEL_MODE
+
     try:
         if model_mode == "api":
             response = client.chat_completion(
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=1024,  # Reduced for efficiency
-                temperature=0.3,  # Lower temperature for more consistent summaries
+                max_tokens=1024,
+                temperature=0.3,
             )
-            return response.choices[0].message["content"].strip()
+
+            return response.choices[0].message.get("content", "").strip()
 
         elif model_mode == "local":
-            # For local models, we need to handle the response format properly
             response = client(
-                prompt, max_new_tokens=512, temperature=0.3, do_sample=True
+                prompt,
+                max_new_tokens=512,
+                temperature=0.3,
+                do_sample=False,  # deterministic
             )
+
             if isinstance(response, list) and response:
-                return response[0]["generated_text"].strip()
-            else:
-                return str(response).strip()
+                generated = response[0].get("generated_text", "")
+                return generated[len(prompt) :].strip()
+
+            return str(response).strip()
+
+        else:
+            raise ValueError(f"Unsupported model_mode: {model_mode}")
 
     except Exception as e:
-        logger.error(f"Error generating summary with {model_mode} client: {str(e)}")
+        logger.error(f"Error generating summary with {model_mode}: {str(e)}")
         raise
 
 
@@ -111,75 +120,103 @@ def Summarization(
     model_mode: str = DEFAULT_MODEL_MODE,
     max_chunks: int = 20,
 ) -> Tuple[bool, str]:
-    """
-    Enhanced summarization logic with hierarchical processing and robust error handling.
-    Flow: Validate -> Clean -> Chunk -> Summarize Chunks -> Consolidate -> Final Summary
-    Args:
-        text: Input text to summarize
-        mode: "brief" or "detailed"
-        model_mode: "api" or "local"
-        max_chunks: Maximum number of chunks to process (to prevent excessive API calls)
-    """
+
     try:
-        # Input validation
+        # -------------------------
+        # 1. Validate input
+        # -------------------------
         is_valid, error_msg = _validate_input(text, mode, model_mode)
         if not is_valid:
             logger.warning(f"Input validation failed: {error_msg}")
             return False, error_msg
+
         logger.info(
             f"Starting summarization: mode={mode}, model_mode={model_mode}, text_length={len(text)}"
         )
 
-        # Initialize the inference client
+        # -------------------------
+        # 2. Load correct client
+        # -------------------------
         client = HFClientManager.get_client(mode=model_mode)
-        # Clean text
+
+        # Safety checks (important)
+        if model_mode == "api" and not hasattr(client, "chat_completion"):
+            return False, "Invalid API client provided"
+
+        if model_mode == "local" and not callable(client):
+            return False, "Invalid local model (must be callable)"
+
+        # -------------------------
+        # 3. Clean text
+        # -------------------------
         cleaned_text = TextCleaner.clean(text)
         if len(cleaned_text) < 50:
-            return (
-                False,
-                "Text became too short after cleaning. Please provide more content.",
-            )
+            return False, "Text too short after cleaning"
 
-        logger.debug(f"Text cleaned, length: {len(cleaned_text)}")
-
-        # Chunk text with intelligent splitting
+        # -------------------------
+        # 4. Chunk text
+        # -------------------------
         chunks = TextChunker.chunk(cleaned_text)
 
-        # Limit chunks to prevent excessive processing
+        if not chunks:
+            return False, "Chunking failed"
+
         if len(chunks) > max_chunks:
             logger.warning(f"Too many chunks ({len(chunks)}), limiting to {max_chunks}")
             chunks = chunks[:max_chunks]
-        if not chunks:
-            return False, "Failed to chunk the input text"
-        logger.debug(f"Created {len(chunks)} chunks for processing")
 
-        # Process chunks if more than one, otherwise process as single chunk
+        logger.debug(f"{len(chunks)} chunks created")
+
+        # -------------------------
+        # 5. Define execution functions
+        # -------------------------
+        def summarize_chunk(prompt: str) -> str:
+            if model_mode == "api":
+                response = client.chat_completion(
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=1024,
+                    temperature=0.3,
+                )
+                return response.choices[0].message.get("content", "").strip()
+
+            elif model_mode == "local":
+                response = client(
+                    prompt,
+                    max_new_tokens=512,
+                    do_sample=False,  # deterministic output
+                    temperature=0.3,
+                )
+
+                if isinstance(response, list) and response:
+                    generated = response[0].get("generated_text", "")
+                    return generated[len(prompt) :].strip()
+
+                return str(response).strip()
+
+        # -------------------------
+        # 6. Summarization flow
+        # -------------------------
         if len(chunks) == 1:
-            # Single chunk - direct summarization
             prompt = _build_chunk_prompt(chunks[0], mode)
-            final_summary = _generate_summary_with_client(client, prompt, model_mode)
+            final_summary = summarize_chunk(prompt)
+
         else:
-            # Multiple chunks - hierarchical summarization
             partial_summaries = []
 
-            # Summarize each chunk
             for i, chunk in enumerate(chunks):
                 logger.debug(f"Processing chunk {i+1}/{len(chunks)}")
                 prompt = _build_chunk_prompt(chunk, mode)
-                summary = _generate_summary_with_client(client, prompt, model_mode)
+                summary = summarize_chunk(prompt)
                 partial_summaries.append(summary)
 
-            # Consolidate partial summaries
-            logger.debug("Consolidating partial summaries")
+            logger.debug("Merging partial summaries")
+
             final_prompt = _build_final_prompt(partial_summaries, mode)
-            final_summary = _generate_summary_with_client(
-                client, final_prompt, model_mode
-            )
+            final_summary = summarize_chunk(final_prompt)
 
         logger.info("Summarization completed successfully")
         return True, final_summary
 
     except Exception as e:
-        error_msg = f"Summarization failed: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return False, error_msg
+        logger.error(f"Summarization failed: {str(e)}", exc_info=True)
+        return False, f"Summarization failed: {str(e)}"

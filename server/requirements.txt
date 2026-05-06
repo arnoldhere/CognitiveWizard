@@ -28,6 +28,7 @@ langchain
 langchain-community
 langchain-core
 langchain-openai
+langchain-anthropic
 tiktoken
 langchain-huggingface
 langchain-chroma
