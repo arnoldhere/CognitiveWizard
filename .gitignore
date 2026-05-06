@@ -13,3 +13,4 @@ alembic.ini
 *tmp/
 .pytest*/
 tasks.txt
+*prod_DockerFile.yml
