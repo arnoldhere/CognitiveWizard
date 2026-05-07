@@ -14,3 +14,4 @@ alembic.ini
 .pytest*/
 tasks.txt
 *prod_DockerFile.yml
+*.env
