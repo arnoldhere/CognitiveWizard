@@ -119,6 +119,96 @@
     font-weight: 400;
 }
 
+.session-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.session-edit {
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    background: #fef3c7;
+    color: #d97706;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.session-edit:hover {
+    background: #fde68a;
+    transform: scale(1.05);
+}
+
+.session-edit-mode {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.session-title-input {
+    border: 2px solid #10b981;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    background: #ffffff;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.session-title-input:focus {
+    border-color: #059669;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.session-edit-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.session-edit-save,
+.session-edit-cancel {
+    border: none;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.session-edit-save {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.session-edit-save:hover {
+    background: #a7f3d0;
+    transform: scale(1.05);
+}
+
+.session-edit-cancel {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.session-edit-cancel:hover {
+    background: #fecaca;
+    transform: scale(1.05);
+}
+
 .session-delete {
     border: none;
     border-radius: 8px;

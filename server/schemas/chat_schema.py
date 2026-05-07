@@ -9,6 +9,10 @@ class ChatSessionCreateRequest(BaseModel):
     initial_prompt: Optional[str] = None
 
 
+class ChatSessionRenameRequest(BaseModel):
+    title: str
+
+
 class ChatSessionResponse(BaseModel):
     session_id: str
     title: str

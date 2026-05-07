@@ -7,6 +7,7 @@ import {
   fetchChatSessions,
   createChatSession,
   deleteChatSession,
+  renameChatSession,
   fetchRagStatus,
 } from "../services/rag";
 import "../styles/ChatbotPage.css";
@@ -19,6 +20,7 @@ export default function ChatbotPage() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState("");
   const [selectedSession, setSelectedSession] = useState(null);
+  const [sessionSwitchingLoading, setSessionSwitchingLoading] = useState(false);
 
   const refreshStatus = async () => {
     setStatusLoading(true);
@@ -81,6 +83,20 @@ export default function ChatbotPage() {
     }
   };
 
+  const handleRenameSession = async (sessionId, newTitle) => {
+    setSessionsError("");
+    try {
+      await renameChatSession(sessionId, newTitle);
+      await refreshSessions();
+      // Update selected session if it's the one being renamed
+      if (selectedSession?.session_id === sessionId) {
+        setSelectedSession(prev => prev ? { ...prev, title: newTitle } : null);
+      }
+    } catch (error) {
+      setSessionsError(error.message);
+    }
+  };
+
   useEffect(() => {
     refreshStatus();
     refreshSessions();
@@ -108,6 +124,7 @@ export default function ChatbotPage() {
             onCreateSession={handleCreateSession}
             onSelectSession={handleSelectSession}
             onDeleteSession={handleDeleteSession}
+            onRenameSession={handleRenameSession}
           />
           <FileUpload onUploadSuccess={refreshStatus} />
           <ContextDisplay

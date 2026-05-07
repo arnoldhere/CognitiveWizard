@@ -220,3 +220,39 @@ def update_chat_session_activity(
     db.refresh(chat_session)
 
     return chat_session
+
+
+def rename_chat_session(
+    db: Session,
+    user_id: int,
+    session_id: str,
+    new_title: str,
+) -> ChatSession | None:
+    """
+    Rename a chat session.
+    Args:
+        db (Session):
+            Active SQLAlchemy database session.
+        user_id (int):
+            Owner of the session.
+        session_id (str):
+            Session identifier to rename.
+        new_title (str):
+            New title for the session.
+    Returns:
+        ChatSession | None:
+            Updated session object if found, otherwise None.
+    """
+    # Retrieve session
+    chat_session = get_chat_session(db, user_id, session_id)
+    if not chat_session:
+        return None
+
+    # Update title
+    chat_session.title = new_title.strip()
+
+    # Persist updates
+    db.commit()
+    db.refresh(chat_session)
+
+    return chat_session

@@ -12,6 +12,7 @@ from schemas.chat_schema import (
     ChatSessionCreateRequest,
     ChatSessionDeleteResponse,
     ChatSessionHistoryResponse,
+    ChatSessionRenameRequest,
     ChatSessionResponse,
 )
 from schemas.rag_schema import (
@@ -26,6 +27,7 @@ from services.chat_session_service import (
     create_chat_session,
     get_chat_session,
     list_chat_sessions,
+    rename_chat_session,
     soft_delete_chat_session,
 )
 from services.chat_message_store import fetch_chat_history
@@ -341,6 +343,30 @@ def get_chat_session_history_endpoint(
             }
             for msg in messages
         ],
+    )
+
+
+@router.put("/sessions/{session_id}", response_model=ChatSessionResponse)
+def rename_chat_session_endpoint(
+    session_id: str,
+    request: ChatSessionRenameRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    chat_session = rename_chat_session(db, current_user.id, session_id, request.title)
+    if not chat_session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat session not found.",
+        )
+    return ChatSessionResponse(
+        session_id=chat_session.session_id,
+        title=chat_session.title,
+        active=chat_session.active,
+        message_count=chat_session.message_count,
+        session_metadata=chat_session.chat_metadata,
+        created_at=chat_session.created_at,
+        last_message_at=chat_session.last_message_at,
     )
 
 

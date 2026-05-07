@@ -73,6 +73,17 @@ export async function deleteChatSession(session_id) {
   }
 }
 
+export async function renameChatSession(session_id, new_title) {
+  try {
+    const response = await API.put(`/rag/sessions/${session_id}`, {
+      title: new_title,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(toErrorMessage(error, "Failed to rename the chat session."));
+  }
+}
+
 export async function fetchChatSessionHistory(session_id) {
   try {
     const response = await API.get(`/rag/sessions/${session_id}/history`);
