@@ -39,3 +39,4 @@ retina-face
 insightface
 python-multipart
 pymysql
+gunicorn
