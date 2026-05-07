@@ -34,7 +34,7 @@ langchain-chroma
 pymongo
 pydantic[email]
 opencv-python-headless
-tensorflow==2.15
+tensorflow==2.15.0
 retina-face
 insightface
 python-multipart

@@ -1,8 +1,6 @@
 from collections import defaultdict
 from utils.decode_image import decode_image
 from datetime import datetime
-
-# from fastapi import
 import cv2
 import os
 from services.facial_service.detect_face import detect_face
