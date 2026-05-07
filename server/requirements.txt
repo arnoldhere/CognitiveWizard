@@ -35,7 +35,7 @@ pymongo
 pydantic[email]
 opencv-python-headless
 tensorflow==2.15.0
-retina-face
+retina-face==0.0.13
 insightface
 python-multipart
 pymysql
