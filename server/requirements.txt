@@ -34,9 +34,8 @@ langchain-huggingface
 langchain-chroma
 pymongo
 pydantic[email]
-opencv-python
+opencv-python-headless
 tensorflow
 retina-face==0.0.17
-tf-keras
 insightface
 python-multipart
