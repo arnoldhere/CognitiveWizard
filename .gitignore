@@ -15,3 +15,4 @@ alembic.ini
 tasks.txt
 *prod_DockerFile.yml
 *.env
+docker-compose.yml
