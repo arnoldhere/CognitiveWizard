@@ -47,10 +47,7 @@ class Settings:
     DB_HOST: str = os.getenv("DB_HOST", "127.0.0.1")
     DB_PORT: str = os.getenv("DB_PORT", "3306")
     DB_NAME: str = os.getenv("DB_NAME", "cognitive_wizard")
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        f"mysql+pymysql://{os.getenv('DB_USER', 'root')}:{os.getenv('DB_PASSWORD', 'password')}@{os.getenv('DB_HOST', '127.0.0.1')}:{os.getenv('DB_PORT', '3306')}/{os.getenv('DB_NAME', 'cognitive_wizard')}",
-    )
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
     REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = os.getenv("REDIS_PORT", 6379)
     REDIS_DB_INDEX: int = os.getenv("REDIS_DB_INDEX", 0)

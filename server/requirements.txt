@@ -38,3 +38,4 @@ tensorflow
 retina-face
 insightface
 python-multipart
+pymysql

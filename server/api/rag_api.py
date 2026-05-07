@@ -267,7 +267,7 @@ def create_chat_session_endpoint(
         title=chat_session.title,
         active=chat_session.active,
         message_count=chat_session.message_count,
-        session_metadata=chat_session.metadata,
+        session_metadata=chat_session.chat_metadata,
         created_at=chat_session.created_at,
         last_message_at=chat_session.last_message_at,
     )
