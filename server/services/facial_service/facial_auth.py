@@ -1,15 +1,18 @@
 from collections import defaultdict
+import shutil
+import logging
 from utils.decode_image import decode_image
 from datetime import datetime
 import cv2
 import os
-from services.facial_service.detect_face import detect_face
 from services.facial_service.face_embedding import embedder
 from utils.decode_image import normalize
 from config.chroma_index import chroma_service
 from sqlalchemy.orm import Session
 from models.face_embeddings import FaceEmbedding
 from services.facial_service.get_user import get_user_by_vector_id
+
+logger = logging.getLogger(__name__)
 
 
 async def register(image_bytes, userid, db: Session):
@@ -55,6 +58,7 @@ async def delete_user_face_data(db: Session, user_id: int):
     - Face embeddings from MySQL
     - Face vectors from ChromaDB
     - Stored face image files
+    - RAG uploaded documents
     Args:
         db: Database session
         user_id: ID of the user whose face data to delete
@@ -75,15 +79,20 @@ async def delete_user_face_data(db: Session, user_id: int):
             chroma_service.delete_vector(embedding.vector_id, src="face")
             vector_ids_deleted.append(embedding.vector_id)
 
-            # Delete face image file
-            face_image_path = f"media/faces/{user_id}.jpg"
-            if os.path.exists(face_image_path):
-                try:
-                    os.remove(face_image_path)
-                except Exception as e:
-                    print(
-                        f"Warning: Could not delete face image {face_image_path}: {e}"
-                    )
+        # Delete RAG uploaded files
+        upload_path = f"media/rag_uploads/{user_id}"
+        if os.path.exists(upload_path):
+            shutil.rmtree(upload_path)  # removes entire folder and contents
+
+        # Delete face image file
+        face_image_path = f"media/faces/{user_id}.jpg"
+        if os.path.exists(face_image_path):
+            try:
+                os.remove(face_image_path)
+            except Exception as e:
+                logger.warning(
+                    f"Warning: Could not delete face image {face_image_path}: {e}"
+                )
 
         # 3. Delete records from MySQL face_embeddings table
         db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user_id).delete()
@@ -98,7 +107,7 @@ async def delete_user_face_data(db: Session, user_id: int):
 
     except Exception as e:
         db.rollback()
-        print(f"Error deleting face data for user {user_id}: {e}")
+        logger.error(f"Error deleting face data for user {user_id}: {e}")
         return {"status": "error", "message": f"Failed to delete face data: {str(e)}"}
 
 

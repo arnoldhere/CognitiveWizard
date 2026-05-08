@@ -3,9 +3,7 @@ import logging
 import re
 from typing import List, Dict, Tuple
 from config.hf_inference import HFClientManager
-from config.settings import settings
 from utils.prompt_builder.quiz_prompt import build_quiz_prompt
-from utils.prompt_builder.format_prompt_local import format_prompt_for_local
 from . import quiz_validator
 
 logger = logging.getLogger(__name__)
@@ -170,7 +168,6 @@ def generate_quiz(
             response_text = res.choices[0].message["content"]
 
         else:
-            # formatted_prompt = format_prompt_for_local(messages)
             # LOCAL PIPELINE MODE
             res = client(
                 messages,

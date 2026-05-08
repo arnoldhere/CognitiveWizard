@@ -1,7 +1,5 @@
 from models.face_embeddings import FaceEmbedding
 from sqlalchemy.orm import Session
-from fastapi import Depends
-from config.db import get_db
 
 
 def get_user_by_vector_id(vector_ids, db: Session):

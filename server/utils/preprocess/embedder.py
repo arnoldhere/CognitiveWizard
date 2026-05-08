@@ -1,8 +1,5 @@
 import torch
-from config.settings import settings
-from langchain_huggingface import HuggingFaceEndpointEmbeddings
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from sentence_transformers import SentenceTransformer
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # ==========================
 # Config
@@ -18,8 +15,8 @@ class EmbeddingFactory:
     Factory class for embedding models.
     """
 
-    model = SentenceTransformer(DEF_EMBEDD_MODEL)
+    # model = SentenceTransformer(DEF_EMBEDD_MODEL)
 
     @staticmethod
-    def get_embeddings(model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    def get_embeddings(model_name: str = DEF_EMBEDD_MODEL):
         return HuggingFaceEmbeddings(model_name=model_name)

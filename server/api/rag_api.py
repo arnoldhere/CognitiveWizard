@@ -2,7 +2,7 @@ import logging
 import mimetypes
 import os
 import tempfile
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from api.auth_api import get_current_active_user
@@ -28,8 +28,8 @@ from services.chat_session_service import (
     get_chat_session,
     list_chat_sessions,
     rename_chat_session,
-    soft_delete_chat_session,
 )
+from services.data_cleanup_service import DataCleanupService
 from services.chat_message_store import fetch_chat_history
 from services.rag.v0_rag_service import rag_service
 from services.rag.source_files import (
@@ -376,18 +376,41 @@ def delete_chat_session_endpoint(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    chat_session = soft_delete_chat_session(db, current_user.id, session_id)
+    """Delete a chat session and all associated data from all storage systems."""
+    # Verify the session belongs to the user
+    chat_session = get_chat_session(db, current_user.id, session_id)
     if not chat_session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Chat session not found.",
         )
-    return ChatSessionDeleteResponse(
-        session_id=chat_session.session_id,
-        deleted=True,
-        active=chat_session.active,
-        message="Chat session has been archived and will no longer receive new messages.",
-    )
+
+    try:
+        # Comprehensive cleanup from all systems
+        cleanup_result = DataCleanupService.cleanup_chat_session_data(
+            db, current_user.id, session_id
+        )
+
+        if cleanup_result["status"] == "error":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete chat session completely.",
+            )
+
+        return ChatSessionDeleteResponse(
+            session_id=session_id,
+            deleted=True,
+            active=False,
+            message="Chat session and all associated messages permanently deleted.",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete chat session {session_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete chat session.",
+        )
 
 
 @router.post("/chat-langchain", response_model=RAGResponse)

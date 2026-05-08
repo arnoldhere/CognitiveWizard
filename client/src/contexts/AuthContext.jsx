@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useContext } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { login as authLogin, signup as authSignup, getCurrentUser } from "../services/auth";
 import { API, setAuthToken } from "../services/api";
 import { AuthContext } from "./auth-context";
@@ -149,4 +149,3 @@ export function AuthProvider({ children }) {
         </AuthContext.Provider>
     );
 }
-

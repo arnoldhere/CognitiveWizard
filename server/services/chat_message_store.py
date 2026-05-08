@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, List
 
-from config.settings import settings
 from config.mongo import get_mongo_collection
 
 # MongoDB collection name used for storing chat messages

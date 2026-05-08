@@ -17,7 +17,7 @@ class HFClientManager:
         """
 
         if mode == "api":
-            return cls._get_api_client()
+            return cls._get_api_client(model_name=settings.HF_DEF_MODEL)
 
         elif mode == "local":
             return cls._get_local_pipeline()

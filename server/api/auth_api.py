@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+import logging
 from config.db import get_db
 from schemas.auth_schema import (
     UserCreate,
@@ -25,8 +26,11 @@ from services.facial_service.facial_auth import (
     delete_user_face_data,
     user_has_face_data,
 )
+from services.data_cleanup_service import DataCleanupService
 from utils.security import create_access_token, decode_access_token
 from models.user import User
+
+logger = logging.getLogger(__name__)
 
 # OTP storage (in production, use Redis)
 otp_store = {}
@@ -204,11 +208,11 @@ async def delete_profile(
 ):
     """
     Delete user profile completely with password confirmation.
-    This will delete:
-    - User account from MySQL
-    - Face embeddings from MySQL
-    - Face vectors from ChromaDB
-    - Stored face image files
+    This will permanently remove ALL user data from:
+    - MySQL: user account, chat sessions, RAG documents, subscriptions
+    - MongoDB: all chat sessions and messages
+    - ChromaDB: all RAG vector embeddings
+    - Disk: all uploaded RAG documents and face images
 
     Requires password confirmation for security.
     """
@@ -219,25 +223,28 @@ async def delete_profile(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Invalid password"
             )
 
-        # 2. Delete facial recognition data
+        # 2. Delete all user data comprehensively
+        cleanup_result = DataCleanupService.cleanup_user_data(db, current_user.id)
+
+        # 3. Delete facial recognition data (also handles RAG uploads)
         face_deletion_result = await delete_user_face_data(db, current_user.id)
 
-        # 3. Delete user record from database
+        # 4. Delete user record from database
         db.delete(current_user)
         db.commit()
 
         return {
             "status": "success",
-            "message": "Profile deleted successfully",
+            "message": "Profile and all associated data deleted successfully",
+            "cleanup_details": cleanup_result,
             "face_data_deleted": face_deletion_result.get("status") == "success",
-            "face_details": face_deletion_result,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Error deleting profile for user {current_user.id}: {e}")
+        logger.error(f"Error deleting profile for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete profile: {str(e)}",

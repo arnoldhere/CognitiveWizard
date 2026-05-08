@@ -1,6 +1,5 @@
 import requests
 from bs4 import BeautifulSoup
-import re
 from urllib.parse import urlparse
 from services.summarization.preprocess.text_cleaner import TextCleaner
 

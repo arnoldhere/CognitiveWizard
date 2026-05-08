@@ -10,7 +10,6 @@ const FaceRegistration = () => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const [status, setStatus] = useState('');
-    const [stream, setStream] = useState(null);
 
 
     // Initialize the camera when the component mounts
@@ -24,8 +23,6 @@ const FaceRegistration = () => {
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream;
                 }
-
-                setStream(mediaStream); // safe now
             } catch (err) {
                 console.error("Error accessing camera:", err);
                 setStatus("Camera permission denied or device not found.");

@@ -20,8 +20,6 @@ export default function ChatbotPage() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState("");
   const [selectedSession, setSelectedSession] = useState(null);
-  const [sessionSwitchingLoading, setSessionSwitchingLoading] = useState(false);
-
   const refreshStatus = async () => {
     setStatusLoading(true);
     setStatusError("");

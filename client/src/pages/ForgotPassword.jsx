@@ -17,7 +17,7 @@ const ForgotPassword = () => {
             setMessage('OTP sent to your email');
             setStep(2);
             setError('');
-        } catch (err) {
+        } catch {
             setError('Failed to send OTP');
         }
     };
@@ -31,7 +31,7 @@ const ForgotPassword = () => {
             setEmail('');
             setOtp('');
             setNewPassword('');
-        } catch (err) {
+        } catch {
             setError('Invalid OTP or failed to reset password');
         }
     };

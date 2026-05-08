@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc, or_
+from sqlalchemy import desc, asc
 from models.grade import Grade
 from models.user import User
 

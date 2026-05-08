@@ -21,8 +21,6 @@ export default function FaceLogin() {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [cameraReady, setCameraReady] = useState(false);
-    const [stream, setStream] = useState(null);
-
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -43,7 +41,6 @@ export default function FaceLogin() {
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream;
                 }
-                setStream(mediaStream);
                 setCameraReady(true);
                 setStatus("Camera ready. Align your face and press Capture.");
             } catch (err) {

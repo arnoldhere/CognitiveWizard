@@ -1,6 +1,5 @@
 import re
 from typing import Tuple
-from typing import Optional
 
 
 class TextCleaner:
