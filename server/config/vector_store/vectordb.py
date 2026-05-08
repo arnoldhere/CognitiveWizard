@@ -1,7 +1,5 @@
 import logging
-
 from langchain_chroma import Chroma
-
 from config.settings import settings
 
 logger = logging.getLogger(__name__)

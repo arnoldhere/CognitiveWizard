@@ -20,8 +20,8 @@ class Settings:
         "RAG_USER_VECTOR_DIR", "vectorDB/chroma/rag_user_vectors"
     )
     RAG_USER_DATA_DIR: str = "vectorDB/rag_user_data"
-    EMBEDDING_DIM: int = 512
-    TOP_K_RESULTS_RAG: int = 3
+    EMBEDDING_DIM: int = 1024
+    TOP_K_RESULTS_RAG: int = 5
 
     # ===========
     # HF configurations

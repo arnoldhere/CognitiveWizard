@@ -1,38 +1,25 @@
 import torch
-
-# from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
-
-# from sentence_transformers import SentenceTransformer
 from config.settings import settings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from sentence_transformers import SentenceTransformer
 
-# ============
-# Factory to create embeddings using langchain
-# ============
-# DEF_EMBEDD_MODEL = "BAAI/bge-m3"  # best balance: speed + accuracy + multilingual
-DEF_EMBEDD_MODEL = "all-MiniLM-L6-v2"  # lightweight
+# ==========================
+# Config
+# ==========================
+
+DEF_EMBEDD_MODEL = "BAAI/bge-m3"
+EMBEDDING_MODEL_MODE = "local"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class EmbeddingFactory:
     """
-    Factory to create embeddings.
-    WHY:
-    - Avoid hardcoding model
-    - Easily switch to OpenAI / other embeddings later
+    Factory class for embedding models.
     """
 
-    # default embedding model
-    # DEF_EMBEDD_MODEL = SentenceTransformer("google/embeddinggemma-300m")
-    # DEF_EMBEDD_MODEL = SentenceTransformer("Qwen/Qwen3-Embedding-8B") Find alternate too large
+    model = SentenceTransformer(DEF_EMBEDD_MODEL)
 
     @staticmethod
-    def get_embeddings(model_name: str = DEF_EMBEDD_MODEL):
-        # == needs more ram for deployement
-        # return HuggingFaceEmbeddings(
-        #     model_name=model_name,
-        #     model_kwargs={"token": settings.HF_API_KEY, "device": DEVICE},
-        # )
-        return HuggingFaceInferenceAPIEmbeddings(
-            model_name=model_name, api_key=settings.HF_API_KEY
-        )
+    def get_embeddings(model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        return HuggingFaceEmbeddings(model_name=model_name)
