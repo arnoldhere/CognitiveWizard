@@ -1,12 +1,16 @@
 import torch
-from langchain_huggingface import HuggingFaceEmbeddings
-from sentence_transformers import SentenceTransformer
+
+# from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+
+# from sentence_transformers import SentenceTransformer
 from config.settings import settings
 
 # ============
 # Factory to create embeddings using langchain
 # ============
-DEF_EMBEDD_MODEL = "BAAI/bge-m3"  # best balance: speed + accuracy + multilingual
+# DEF_EMBEDD_MODEL = "BAAI/bge-m3"  # best balance: speed + accuracy + multilingual
+DEF_EMBEDD_MODEL = "all-MiniLM-L6-v2"  # lightweight
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -24,7 +28,11 @@ class EmbeddingFactory:
 
     @staticmethod
     def get_embeddings(model_name: str = DEF_EMBEDD_MODEL):
-        return HuggingFaceEmbeddings(
-            model_name=model_name,
-            model_kwargs={"token": settings.HF_API_KEY, "device": DEVICE},
+        # == needs more ram for deployement
+        # return HuggingFaceEmbeddings(
+        #     model_name=model_name,
+        #     model_kwargs={"token": settings.HF_API_KEY, "device": DEVICE},
+        # )
+        return HuggingFaceInferenceAPIEmbeddings(
+            model_name=model_name, api_key=settings.HF_API_KEY
         )
