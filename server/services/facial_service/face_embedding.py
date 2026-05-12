@@ -6,7 +6,13 @@ import cv2
 class FaceEmbedder:
     def __init__(self):
         # buffalo_l includes both detection and recognition models
-        self.model = insightface.app.FaceAnalysis(name="buffalo_s")
+        self.model = insightface.app.FaceAnalysis(
+            name="buffalo_s",
+            providers=[
+                "CUDAExecutionProvider",
+                "CPUExecutionProvider",
+            ],
+        )
         # ctx_id=0 uses the first GPU
         self.model.prepare(ctx_id=-1, det_size=(640, 640))
 

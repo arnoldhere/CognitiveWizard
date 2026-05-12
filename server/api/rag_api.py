@@ -2,7 +2,7 @@ import logging
 import mimetypes
 import os
 import tempfile
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from api.auth_api import get_current_active_user
@@ -28,6 +28,7 @@ from services.chat_session_service import (
     get_chat_session,
     list_chat_sessions,
     rename_chat_session,
+    soft_delete_chat_session,
 )
 from services.data_cleanup_service import DataCleanupService
 from services.chat_message_store import fetch_chat_history

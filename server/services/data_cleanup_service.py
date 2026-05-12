@@ -4,8 +4,10 @@ Handles cleanup from MySQL, MongoDB, ChromaDB, and file storage.
 """
 
 import logging
+import os
 import shutil
 from pathlib import Path
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -51,9 +53,7 @@ class DataCleanupService:
         try:
             # 1. Get all chat sessions for this user to clean up associated data
             user_sessions = (
-                db.query(ChatSession)
-                .filter(ChatSession.user_id == user_id)
-                .all()
+                db.query(ChatSession).filter(ChatSession.user_id == user_id).all()
             )
 
             # 2. Delete MongoDB messages for all user sessions
@@ -76,7 +76,9 @@ class DataCleanupService:
                 )
                 cleanup_result["chromadb_vectors_deleted"] = cleaned_docs
             except Exception as e:
-                logger.warning(f"Failed to delete ChromaDB vectors for user {user_id}: {e}")
+                logger.warning(
+                    f"Failed to delete ChromaDB vectors for user {user_id}: {e}"
+                )
                 cleanup_result["errors"].append(f"ChromaDB cleanup failed: {str(e)}")
 
             # 4. Delete RAG uploaded files
@@ -126,9 +128,7 @@ class DataCleanupService:
             return cleanup_result
 
     @staticmethod
-    def cleanup_chat_session_data(
-        db: Session, user_id: int, session_id: str
-    ) -> dict:
+    def cleanup_chat_session_data(db: Session, user_id: int, session_id: str) -> dict:
         """
         Delete a chat session and ALL associated data:
         - MySQL: chat_session record
@@ -178,6 +178,8 @@ class DataCleanupService:
 
             # 3. Delete ChatSession record from MySQL (with verification)
             try:
+                from models.chat_session import ChatSession
+
                 session = (
                     db.query(ChatSession)
                     .filter(
