@@ -93,6 +93,15 @@ export async function fetchChatSessionHistory(session_id) {
   }
 }
 
+export async function deleteRagDocument(document_name) {
+  try {
+    const response = await API.delete(`/rag/documents/${encodeURIComponent(document_name)}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(toErrorMessage(error, "Failed to delete document."));
+  }
+}
+
 export async function fetchRagSource(sourceUrl) {
   try {
     const response = await API.get(sourceUrl, {

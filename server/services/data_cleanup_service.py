@@ -230,7 +230,7 @@ class DataCleanupService:
         """
         try:
             user_vectordb = langchain_rag_service._get_user_vectordb(user_id)
-            user_vectordb.delete(where={"user_id": user_id})
+            user_vectordb.delete(where={"user_id": {"$eq": user_id}})
             logger.info(f"Deleted ChromaDB RAG vectors for user {user_id}")
             return 1  # Chroma delete returns count, but we'll return 1 for success
         except Exception as e:

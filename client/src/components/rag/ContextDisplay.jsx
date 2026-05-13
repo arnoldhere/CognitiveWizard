@@ -1,10 +1,53 @@
+import { useState } from "react";
 import ErrorMessage from "../utils/ErrorMessage";
+import { deleteRagDocument } from "../../services/rag";
 import "../../styles/ContextDisplay.css";
 
 export default function ContextDisplay({ status, loading, error, onRefresh }) {
   const isReady = Boolean(status?.ready_for_rag);
   const recentChunks = status?.recent_chunks ?? [];
   const uploadedDocuments = status?.uploaded_documents ?? [];
+  const [deleteError, setDeleteError] = useState("");
+  const [deletingDocuments, setDeletingDocuments] = useState(new Set());
+  const [optimisticDeletedDocuments, setOptimisticDeletedDocuments] = useState(new Set());
+
+  const handleDeleteDocument = async (documentName) => {
+    const confirmed = window.confirm(
+      `Delete '${documentName}' from your knowledge base? This will remove the stored embeddings, metadata, and uploaded file.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleteError("");
+    setDeletingDocuments((prev) => new Set(prev).add(documentName));
+    setOptimisticDeletedDocuments((prev) => new Set(prev).add(documentName));
+
+    try {
+      await deleteRagDocument(documentName);
+      if (onRefresh) {
+        await onRefresh();
+      }
+      setOptimisticDeletedDocuments(new Set());
+    } catch (err) {
+      setOptimisticDeletedDocuments((prev) => {
+        const next = new Set(prev);
+        next.delete(documentName);
+        return next;
+      });
+      setDeleteError(err.message || "Failed to delete document.");
+    } finally {
+      setDeletingDocuments((prev) => {
+        const next = new Set(prev);
+        next.delete(documentName);
+        return next;
+      });
+    }
+  };
+
+  const visibleDocuments = uploadedDocuments.filter(
+    (doc) => !optimisticDeletedDocuments.has(doc),
+  );
 
   return (
     <section className="rag-panel context-display">
@@ -40,11 +83,23 @@ export default function ContextDisplay({ status, loading, error, onRefresh }) {
 
       <div className="context-uploads">
         <h3>Upload History</h3>
-        {uploadedDocuments.length ? (
+        {visibleDocuments.length ? (
           <ul className="document-list">
-            {uploadedDocuments.map((doc, index) => (
+            {visibleDocuments.map((doc, index) => (
               <li key={`${doc}-${index}`} className="document-item">
                 <span className="doc-name">{doc}</span>
+                <button
+                  type="button"
+                  className="doc-delete"
+                  onClick={() => handleDeleteDocument(doc)}
+                  disabled={deletingDocuments.has(doc) || optimisticDeletedDocuments.has(doc)}
+                  aria-label={`Delete ${doc}`}
+                >
+                  <span className="doc-delete-icon" aria-hidden="true">
+                    🗑
+                  </span>
+                  <span>{optimisticDeletedDocuments.has(doc) ? "Deleting..." : "Delete"}</span>
+                </button>
               </li>
             ))}
           </ul>
@@ -52,6 +107,8 @@ export default function ContextDisplay({ status, loading, error, onRefresh }) {
           <p className="context-placeholder">No documents uploaded yet.</p>
         )}
       </div>
+
+      {deleteError ? <ErrorMessage message={deleteError} /> : null}
 
       <div className="context-recent">
         <h3>Recent Chunks</h3>

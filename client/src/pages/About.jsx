@@ -86,7 +86,7 @@ export default function About() {
                         </div>
                         <h2>Secure & Private</h2>
                         <p>
-                            Your data is protected with JWT authentication and encrypted storage.
+                            Your data is protected with Strong authentication with Role-based Access Control and encrypted storage.
                             Study with confidence knowing your progress and personal information
                             remain secure.
                         </p>

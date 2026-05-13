@@ -31,7 +31,7 @@ class ChatSessionHistoryItem(BaseModel):
     role: str
     content: str
     created_at: datetime
-    item_metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class ChatSessionHistoryResponse(BaseModel):

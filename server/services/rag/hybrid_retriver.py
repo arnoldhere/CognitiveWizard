@@ -31,10 +31,7 @@ class HybridRetriever:
         """
         if hasattr(self.vectordb, "similarity_search_with_relevance_scores"):
             results = self.vectordb.similarity_search_with_relevance_scores(query, k=k)
-            return [
-                (doc, self._normalize_score(score))
-                for doc, score in results
-            ]
+            return [(doc, self._normalize_score(score)) for doc, score in results]
 
         if hasattr(self.vectordb, "similarity_search_with_score"):
             results = self.vectordb.similarity_search_with_score(query, k=k)

@@ -4,12 +4,16 @@ import { askRagQuestion, fetchChatSessionHistory, fetchRagSource } from "../../s
 import "../../styles/ChatWindow.css";
 
 function createMessage(sender, text, extra = {}) {
+  const normalizedSender = sender === "assistant" ? "bot" : sender;
   return {
     id: crypto.randomUUID(),
-    sender,
+    sender: normalizedSender,
     text,
     createdAt: new Date().toISOString(),
     tokenUsage: extra.tokenUsage || null,
+    sources: extra.metadata?.sources ?? extra.sources ?? [],
+    modeUsed: extra.metadata?.mode_used ?? extra.modeUsed,
+    warning: extra.metadata?.warning ?? extra.warning,
     ...extra,
   };
 }
@@ -134,7 +138,7 @@ function MessageBubble({ message, onOpenSource }) {
       {message.warning ? (
         <small className="chat-warning">{message.warning}</small>
       ) : null}
-      {message.sender === "bot" ? (
+      {message.sources?.length ? (
         <MessageSources sources={message.sources} onOpenSource={onOpenSource} />
       ) : null}
       <div className="message-footer">

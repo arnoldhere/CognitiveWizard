@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from langchain_core.documents import Document
 from services.chat_message_store import store_chat_message
 from services.chat_session_service import update_chat_session_activity
@@ -21,7 +22,11 @@ from models.rag_document import RAGDocument
 from services.rag.chains.v1_rag_chain import build_retrieval_qa_chain
 from services.rag.hybrid_retriver import HybridRetriever
 from services.rag.memory.chat_memory import get_memory
-from services.rag.source_files import build_source_url, resolve_source_url
+from services.rag.source_files import (
+    build_source_url,
+    get_user_source_path,
+    resolve_source_url,
+)
 from config.vector_store.vectordb import VectorDBFactory
 from utils.preprocess.embedder import EmbeddingFactory
 
@@ -249,33 +254,6 @@ class LangChainRAGService:
                     if memory is not None and answer:
                         memory.add_user_message(query)
                         memory.add_ai_message(answer)
-                        if session_id and user_id:
-                            try:
-                                store_chat_message(
-                                    session_id,
-                                    int(user_id),
-                                    "user",
-                                    query,
-                                )
-                                store_chat_message(
-                                    session_id,
-                                    int(user_id),
-                                    "assistant",
-                                    answer,
-                                )
-                                if db is not None:
-                                    update_chat_session_activity(
-                                        db,
-                                        session_id=session_id,
-                                        user_id=int(user_id),
-                                        last_message_at=datetime.datetime.utcnow(),
-                                        increment_messages=2,
-                                    )
-                            except Exception:
-                                logger.warning(
-                                    "Failed to persist chat history for session %s",
-                                    session_id,
-                                )
                 except Exception as e:
                     logger.warning(
                         f"LangChain RAG chain failed: {e}. Falling back to basic generation."
@@ -290,6 +268,40 @@ class LangChainRAGService:
             logger.exception(f"Error in query processing: {e}")
             answer = f"Error processing query: {str(e)}"
             mode_used = "error"
+
+        # Persist the full chat turn if the session exists
+        if session_id and user_id and answer:
+            try:
+                store_chat_message(
+                    session_id,
+                    int(user_id),
+                    "user",
+                    query,
+                )
+                store_chat_message(
+                    session_id,
+                    int(user_id),
+                    "assistant",
+                    answer,
+                    metadata={
+                        "sources": sources,
+                        "mode_used": mode_used,
+                        "warning": warning if warning else None,
+                    },
+                )
+                if db is not None:
+                    update_chat_session_activity(
+                        db,
+                        session_id=session_id,
+                        user_id=int(user_id),
+                        last_message_at=datetime.datetime.utcnow(),
+                        increment_messages=2,
+                    )
+            except Exception:
+                logger.warning(
+                    "Failed to persist chat history for session %s",
+                    session_id,
+                )
 
         return {
             "answer": answer,
@@ -308,28 +320,106 @@ class LangChainRAGService:
             "token_usage": token_usage,
         }
 
-    def status(self, user_id: Optional[str] = None):
+    def status(self, user_id: Optional[str] = None, db: Optional[Session] = None):
         """Get the status of the user's knowledge base."""
         self._ensure_user_loaded(user_id)
 
-        if not user_id or user_id not in self._chunk_store:
-            recent_chunks = []
+        recent_chunks = []
+        if not user_id:
             docs_ingested = 0
             uploaded_documents = []
+            chunks_ingested = 0
+        elif db is not None:
+            uploaded_documents = self._get_uploaded_documents_from_db(user_id, db)
+            docs_ingested = len(uploaded_documents)
+            chunks_ingested = (
+                db.query(func.count(RAGDocument.id))
+                .filter(RAGDocument.user_id == int(user_id))
+                .scalar()
+                or 0
+            )
+            recent_rows = (
+                db.query(RAGDocument.snippet)
+                .filter(RAGDocument.user_id == int(user_id))
+                .order_by(RAGDocument.created_at.desc())
+                .limit(3)
+                .all()
+            )
+            recent_chunks = [row[0] for row in reversed(recent_rows)]
+        elif user_id not in self._chunk_store:
+            docs_ingested = 0
+            uploaded_documents = []
+            chunks_ingested = 0
         else:
             recent_chunks = [
                 item["snippet"] for item in self._chunk_store[user_id][-3:]
             ]
             docs_ingested = self._documents_ingested.get(user_id, 0)
             uploaded_documents = self._user_documents.get(user_id, [])
+            chunks_ingested = len(self._chunk_store.get(user_id, []))
 
         return {
             "ready_for_rag": self.has_knowledge_base(user_id),
             "documents_ingested": docs_ingested,
-            "chunks_ingested": len(self._chunk_store.get(user_id, [])),
+            "chunks_ingested": chunks_ingested,
             "recent_chunks": recent_chunks,
             "uploaded_documents": uploaded_documents,
         }
+
+    def delete_uploaded_document(
+        self,
+        user_id: str,
+        document_name: str,
+        db: Optional[Session] = None,
+    ) -> bool:
+        """Delete a specific uploaded document from the LangChain RAG knowledge base."""
+        try:
+            user_vectordb = self._get_user_vectordb(user_id)
+            user_vectordb.delete(
+                where={
+                    "$and": [
+                        {"title": {"$eq": document_name}},
+                        {"user_id": {"$eq": user_id}},
+                    ]
+                }
+            )
+
+            if db is not None:
+                db.query(RAGDocument).filter(
+                    RAGDocument.user_id == int(user_id),
+                    RAGDocument.document_name == document_name,
+                ).delete(synchronize_session=False)
+
+            file_path = get_user_source_path(str(user_id), document_name)
+            if file_path.exists():
+                file_path.unlink()
+
+            removed_document = False
+            if user_id in self._user_documents:
+                removed_document = document_name in self._user_documents[user_id]
+                self._user_documents[user_id] = [
+                    doc for doc in self._user_documents[user_id] if doc != document_name
+                ]
+
+            if removed_document and user_id in self._documents_ingested:
+                self._documents_ingested[user_id] = max(
+                    0, self._documents_ingested[user_id] - 1
+                )
+
+            if user_id in self._chunk_store:
+                self._chunk_store[user_id] = [
+                    chunk
+                    for chunk in self._chunk_store[user_id]
+                    if chunk.get("title") != document_name
+                ]
+
+            self._persist_user_state(user_id)
+            return True
+        except Exception as e:
+            logger.exception(
+                f"Failed to delete document {document_name} for user {user_id}: {e}"
+            )
+            return False
 
     def has_knowledge_base(self, user_id: Optional[str] = None) -> bool:
         """Check if the user has any ingested documents."""
@@ -509,6 +599,25 @@ class LangChainRAGService:
                 db.rollback()
             except Exception:
                 pass
+
+    def _get_uploaded_documents_from_db(
+        self, user_id: str, db: Session
+    ) -> List[str]:
+        """Return the set of document titles stored for a user in the RAG metadata DB."""
+        try:
+            rows = (
+                db.query(RAGDocument.document_name)
+                .filter(RAGDocument.user_id == int(user_id))
+                .distinct()
+                .order_by(RAGDocument.document_name)
+                .all()
+            )
+            return [row[0] for row in rows]
+        except Exception as exc:
+            logger.warning(
+                f"Failed to load RAG uploaded document names from DB for user {user_id}: {exc}"
+            )
+            return []
 
     def _load_user_state(self, user_id: str) -> None:
         """Load user state from disk."""

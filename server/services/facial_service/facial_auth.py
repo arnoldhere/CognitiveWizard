@@ -58,7 +58,6 @@ async def delete_user_face_data(db: Session, user_id: int):
     - Face embeddings from MySQL
     - Face vectors from ChromaDB
     - Stored face image files
-    - RAG uploaded documents
     Args:
         db: Database session
         user_id: ID of the user whose face data to delete
@@ -78,11 +77,6 @@ async def delete_user_face_data(db: Session, user_id: int):
         for embedding in face_embeddings:
             chroma_service.delete_vector(embedding.vector_id, src="face")
             vector_ids_deleted.append(embedding.vector_id)
-
-        # Delete RAG uploaded files
-        upload_path = f"media/rag_uploads/{user_id}"
-        if os.path.exists(upload_path):
-            shutil.rmtree(upload_path)  # removes entire folder and contents
 
         # Delete face image file
         face_image_path = f"media/faces/{user_id}.jpg"

@@ -226,7 +226,7 @@ async def delete_profile(
         # 2. Delete all user data comprehensively
         cleanup_result = DataCleanupService.cleanup_user_data(db, current_user.id)
 
-        # 3. Delete facial recognition data (also handles RAG uploads)
+        # 3. Delete facial recognition data (also handles RAG uploads and other related data)
         face_deletion_result = await delete_user_face_data(db, current_user.id)
 
         # 4. Delete user record from database

@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from api.auth_api import get_current_active_user
 from config.db import get_db
+from models.rag_document import RAGDocument
 from models.user import User
 from schemas.chat_schema import (
     ChatSessionCreateRequest,
@@ -162,7 +163,7 @@ def rag_status(
     db: Session = Depends(get_db),
 ):
     user_id = str(current_user.id)
-    payload = langchain_rag_service.status(user_id=user_id)
+    payload = langchain_rag_service.status(user_id=user_id, db=db)
     payload["chat_limit_info"] = chat_limit_service.get_user_status(db, current_user)
     return RAGStatusResponse(**payload)
 
@@ -174,7 +175,7 @@ def rag_status_langchain(
 ):
     """Get the status of the user's LangChain RAG knowledge base."""
     user_id = str(current_user.id)
-    payload = langchain_rag_service.status(user_id=user_id)
+    payload = langchain_rag_service.status(user_id=user_id, db=db)
     payload["chat_limit_info"] = chat_limit_service.get_user_status(db, current_user)
     return RAGStatusResponse(**payload)
 
@@ -480,3 +481,33 @@ def chat_langchain(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate LangChain RAG response.",
         ) from exc
+
+
+@router.delete("/documents/{document_name}")
+def delete_rag_document(
+    document_name: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a specific uploaded document from the user's knowledge base."""
+    try:
+        deleted_service = langchain_rag_service.delete_uploaded_document(
+            str(current_user.id), document_name, db=db
+        )
+
+        if deleted_service:
+            db.commit()
+            return {"message": f"Document '{document_name}' deleted successfully."}
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to delete document {document_name}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete document.",
+        )
