@@ -600,9 +600,7 @@ class LangChainRAGService:
             except Exception:
                 pass
 
-    def _get_uploaded_documents_from_db(
-        self, user_id: str, db: Session
-    ) -> List[str]:
+    def _get_uploaded_documents_from_db(self, user_id: str, db: Session) -> List[str]:
         """Return the set of document titles stored for a user in the RAG metadata DB."""
         try:
             rows = (
