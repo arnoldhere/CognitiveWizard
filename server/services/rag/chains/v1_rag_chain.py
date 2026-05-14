@@ -29,14 +29,19 @@ def _doc_text(doc: Any) -> str:
 
 
 def format_docs(docs: List[Any]) -> str:
-    """Format retrieved documents for the prompt."""
+    """
+    Format retrieved documents for prompt context.
+    Removes artificial document numbering to avoid
+    LLM hallucinating references like 'Document 1'.
+    """
     if not docs:
         return "No relevant documents found."
 
     formatted = []
-    for i, doc in enumerate(docs, 1):
-        text = _doc_text(doc)
-        formatted.append(f"Document {i}:\n{text}")
+    for doc in docs:
+        text = _doc_text(doc).strip()
+        if text:
+            formatted.append(text)
 
     return "\n\n".join(formatted)
 
