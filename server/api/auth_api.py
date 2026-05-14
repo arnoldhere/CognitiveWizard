@@ -1,3 +1,4 @@
+import shutil, os
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -225,6 +226,14 @@ async def delete_profile(
 
         # 2. Delete all user data comprehensively
         cleanup_result = DataCleanupService.cleanup_user_data(db, current_user.id)
+        # remove rag uploads & vectors from disk and chromadb, and all chat sessions from mongodb
+        rag_upload_path = f"vectorDB/chroma/rag_user_vectors/{current_user.id}"
+        if os.path.exists(rag_upload_path):
+            shutil.rmtree(rag_upload_path)
+        else:
+            logger.warning(
+                f"RAG upload path {rag_upload_path} does not found for user {current_user.id}"
+            )
 
         # 3. Delete facial recognition data (also handles RAG uploads and other related data)
         face_deletion_result = await delete_user_face_data(db, current_user.id)
