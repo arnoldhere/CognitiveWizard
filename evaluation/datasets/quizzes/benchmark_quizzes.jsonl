@@ -1,0 +1,45 @@
+{
+  "id": "quiz_001",
+  "source_text": "Edge computing reduces latency by processing data closer to the source rather than in distant data centers.",
+  "expected_questions": ["What role does edge computing play?", "How does edge computing work?"],
+  "expected_answer": "Edge computing processes data near the source to reduce latency.",
+  "difficulty": "easy",
+  "blooms_taxonomy": "understand",
+  "category": "definition"
+}
+{
+  "id": "quiz_002",
+  "source_text": "Augmented reality overlays digital content on physical reality, while virtual reality creates fully immersive virtual environments.",
+  "expected_questions": ["How is AR different from VR?", "Compare AR and VR."],
+  "expected_answer": "AR overlays digital on physical world; VR creates fully immersive virtual world.",
+  "difficulty": "medium",
+  "blooms_taxonomy": "understand",
+  "category": "comparison"
+}
+{
+  "id": "quiz_003",
+  "source_text": "Blockchain creates distributed ledgers that enable trustless transactions in metaverse environments.",
+  "expected_questions": ["What enables trustless transactions in the metaverse?", "Explain blockchain's role."],
+  "expected_answer": "Blockchain distributed ledgers enable trustless transactions.",
+  "difficulty": "medium",
+  "blooms_taxonomy": "understand",
+  "category": "definition"
+}
+{
+  "id": "quiz_004",
+  "source_text": "The metaverse combines AR, VR, and IoT technologies to create immersive, interconnected digital experiences.",
+  "expected_questions": ["What technologies combine to create the metaverse?", "Name the key metaverse technologies."],
+  "expected_answer": "AR, VR, and IoT technologies combine to create the metaverse.",
+  "difficulty": "easy",
+  "blooms_taxonomy": "remember",
+  "category": "definition"
+}
+{
+  "id": "quiz_005",
+  "source_text": "Why is real-time latency critical in the metaverse? Because users need immediate feedback for natural interactions and immersive experiences.",
+  "expected_questions": ["Why is low latency important in the metaverse?", "What does latency affect?"],
+  "expected_answer": "Low latency enables immediate feedback for natural and immersive user interactions.",
+  "difficulty": "medium",
+  "blooms_taxonomy": "understand",
+  "category": "reasoning"
+}

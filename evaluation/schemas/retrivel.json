@@ -1,0 +1,17 @@
+{
+    "id": "ret_001",
+    "document": "jsms-1537.pdf",
+    "query": "What is extended reality?",
+    "expected_chunk_ids": [
+        "chunk_24",
+        "chunk_25"
+    ],
+    "expected_keywords": [
+        "XR",
+        "digital twin",
+        "physical world",
+        "virtual world"
+    ],
+    "difficulty": "easy",
+    "category": "retrieval"
+}

@@ -1,0 +1,8 @@
+{
+    "id": "quiz_001",
+    "source_text": "Edge computing reduces latency in metaverse systems.",
+    "expected_question": "What is the role of edge computing in the metaverse?",
+    "expected_answer": "Reducing latency by processing data closer to the source.",
+    "difficulty": "easy",
+    "blooms_taxonomy": "understanding"
+}

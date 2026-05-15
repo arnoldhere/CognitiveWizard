@@ -16,6 +16,8 @@ export default function QuizForm({ onSubmit, disabled = false }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    // default mode inference api
+    setMode("api")
     onSubmit({
       topic,
       difficulty,
@@ -56,25 +58,6 @@ export default function QuizForm({ onSubmit, disabled = false }) {
           </TextField>
         </Grid>
 
-        {/* Quiz Mode */}
-        <Grid item xs={12} md={6}>
-          <TextField
-            select
-            fullWidth
-            label="Quiz Mode"
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            disabled={disabled}
-            helperText={
-              mode === "api"
-                ? "Uses the remote inference API for generation."
-                : "Uses the locally saved model for generation."
-            }
-          >
-            <MenuItem value="api">Inference API</MenuItem>
-            <MenuItem value="local">Local</MenuItem>
-          </TextField>
-        </Grid>
 
         {/* Questions */}
         <Grid item xs={12} md={6}>

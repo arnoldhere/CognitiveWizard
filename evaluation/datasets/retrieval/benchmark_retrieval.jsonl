@@ -1,0 +1,45 @@
+{
+  "id": "ret_001",
+  "document": "metaverse_guide.pdf",
+  "query": "What is extended reality?",
+  "expected_chunk_ids": ["chunk_24", "chunk_25"],
+  "expected_keywords": ["XR", "digital twin", "physical world", "virtual world"],
+  "difficulty": "easy",
+  "category": "retrieval"
+}
+{
+  "id": "ret_002",
+  "document": "metaverse_guide.pdf",
+  "query": "How do IoT and edge computing work together in the metaverse?",
+  "expected_chunk_ids": ["chunk_50", "chunk_51", "chunk_72"],
+  "expected_keywords": ["IoT", "edge computing", "latency", "data processing"],
+  "difficulty": "hard",
+  "category": "retrieval"
+}
+{
+  "id": "ret_003",
+  "document": "metaverse_guide.pdf",
+  "query": "What challenges does metaverse governance face?",
+  "expected_chunk_ids": ["chunk_89", "chunk_90", "chunk_91"],
+  "expected_keywords": ["governance", "regulation", "decentralized", "policy"],
+  "difficulty": "hard",
+  "category": "retrieval"
+}
+{
+  "id": "ret_004",
+  "document": "metaverse_guide.pdf",
+  "query": "What is blockchain in the metaverse?",
+  "expected_chunk_ids": ["chunk_60"],
+  "expected_keywords": ["blockchain", "ledger", "decentralized", "transaction"],
+  "difficulty": "medium",
+  "category": "retrieval"
+}
+{
+  "id": "ret_005",
+  "document": "metaverse_guide.pdf",
+  "query": "How does edge computing reduce latency?",
+  "expected_chunk_ids": ["chunk_72", "chunk_73"],
+  "expected_keywords": ["latency", "processing", "near source", "immersive"],
+  "difficulty": "medium",
+  "category": "retrieval"
+}

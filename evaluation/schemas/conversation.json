@@ -1,0 +1,22 @@
+{
+    "id": "conv_001",
+    "conversation": [
+        {
+            "role": "user",
+            "content": "What is augmented reality?"
+        },
+        {
+            "role": "assistant",
+            "content": "..."
+        },
+        {
+            "role": "user",
+            "content": "How is it different from VR?"
+        }
+    ],
+    "expected_behavior": [
+        "Should remember previous AR context",
+        "Should compare AR and VR correctly"
+    ],
+    "reference_answer": "AR overlays digital content on physical reality while VR creates fully immersive virtual environments."
+}
