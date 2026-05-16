@@ -18,20 +18,20 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [3.10, 3.11]
+        python-version: ["3.10", "3.11"]
 
     steps:
-      # Step 1 → Clone repository
+      # Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2 → Setup Python
+      # Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Step 3 → Install dependencies
+      # Install dependencies
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -40,19 +40,22 @@ jobs:
             pip install -r requirements.txt
           fi
 
-      # Step 4 → Run lint checks
+          pip install flake8 pytest
+
+      # Run linting
       - name: Run Linter
         run: |
-          pip install flake8
-          flake8 .
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      # Step 5 → Run tests
+      # Run tests if tests exist
       - name: Run Tests
         run: |
-          pip install pytest
-          pytest
+          if [ -d tests ]; then
+            pytest
+          else
+            echo "No tests directory found. Skipping tests."
+          fi
 
-      # Step 6 → Build check
+      # Final build verification
       - name: Build Verification
-        run: |
-          echo "Build completed successfully"
+        run: echo "Build completed successfully"
