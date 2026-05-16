@@ -19,3 +19,7 @@ export const getSystemConfig = async () => {
 export const updateSystemConfig = async (config) => {
     return API.put("/admin/config", config);
 };
+
+export const getPerformanceEvaluation = async () => {
+    return API.get("/admin/evaluation");
+};

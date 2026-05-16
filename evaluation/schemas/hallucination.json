@@ -1,6 +1,0 @@
-{
-    "id": "hall_001",
-    "query": "Which metaverse platform uses quantum computing?",
-    "expected_behavior": "Model should say information is not available in the document.",
-    "hallucination_expected": false
-}

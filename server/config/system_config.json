@@ -1,0 +1,5 @@
+{
+  "max_chat_limit": 100,
+  "default_chat_limit": 6,
+  "maintenance_mode": false
+}

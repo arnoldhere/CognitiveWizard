@@ -1,101 +1,271 @@
-import React, { useState, useEffect } from 'react';
-import { getDashboardStats, getAllUsers, updateUserStatus } from '../services/admin';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    Analytics,
+    CheckCircle,
+    ErrorOutlineOutlined,
+    Groups,
+    HealthAndSafety,
+    Refresh,
+    Save,
+    Settings,
+    ToggleOff,
+    ToggleOn,
+} from '@mui/icons-material';
+import {
+    getAllUsers,
+    getDashboardStats,
+    getPerformanceEvaluation,
+    getSystemConfig,
+    updateSystemConfig,
+    updateUserStatus,
+} from '../services/admin';
 import '../styles/AdminDashboard.css';
+
+const formatPercent = (value) => (
+    typeof value === 'number' ? `${Math.round(value * 100)}%` : 'NA'
+);
+
+const statusClass = (status = 'NA') => status.toLowerCase();
 
 const AdminDashboard = () => {
     const [stats, setStats] = useState({});
     const [users, setUsers] = useState([]);
+    const [config, setConfig] = useState({});
+    const [evaluation, setEvaluation] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [savingConfig, setSavingConfig] = useState(false);
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
 
-    useEffect(() => {
-        loadDashboard();
-    }, []);
-
-    const loadDashboard = async () => {
+    const loadDashboard = useCallback(async () => {
+        setLoading(true);
+        setError('');
         try {
-            const [statsRes, usersRes] = await Promise.all([
+            const [statsRes, usersRes, configRes, evaluationRes] = await Promise.allSettled([
                 getDashboardStats(),
-                getAllUsers()
+                getAllUsers(),
+                getSystemConfig(),
+                getPerformanceEvaluation(),
             ]);
-            setStats(statsRes.data);
-            setUsers(usersRes.data);
-        } catch (error) {
-            console.error('Error loading dashboard:', error);
+
+            if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
+            if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data);
+            if (configRes.status === 'fulfilled') setConfig(configRes.value.data);
+            if (evaluationRes.status === 'fulfilled') setEvaluation(evaluationRes.value.data);
+            if (evaluationRes.status === 'rejected') setEvaluation(null);
+
+            const failed = [statsRes, usersRes, configRes].some((result) => result.status === 'rejected');
+            if (failed) setError('Unable to load some admin data. Please refresh.');
+        } catch (loadError) {
+            console.error('Error loading dashboard:', loadError);
+            setError('Unable to load dashboard data.');
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadDashboard();
+    }, [loadDashboard]);
+
+    const kpis = useMemo(() => ([
+        { label: 'Total Users', value: stats.total_users ?? 0, icon: <Groups /> },
+        { label: 'Active Users', value: stats.active_users ?? 0, icon: <CheckCircle /> },
+        { label: 'Admins', value: stats.admin_users ?? 0, icon: <HealthAndSafety /> },
+        { label: 'New This Week', value: stats.recent_users ?? 0, icon: <Analytics /> },
+    ]), [stats]);
 
     const handleUserStatusChange = async (userId, isActive) => {
+        setError('');
         try {
             await updateUserStatus(userId, isActive);
-            setUsers(users.map(user =>
+            setUsers((currentUsers) => currentUsers.map((user) => (
                 user.id === userId ? { ...user, is_active: isActive } : user
-            ));
-        } catch (error) {
-            console.error('Error updating user status:', error);
+            )));
+        } catch (statusError) {
+            console.error('Error updating user status:', statusError);
+            setError('Unable to update user status.');
         }
     };
 
-    if (loading) return <div>Loading...</div>;
+    const handleConfigChange = (key, value) => {
+        setConfig((currentConfig) => ({ ...currentConfig, [key]: value }));
+    };
+
+    const handleConfigSubmit = async (event) => {
+        event.preventDefault();
+        setSavingConfig(true);
+        setMessage('');
+        setError('');
+        try {
+            const payload = {
+                max_chat_limit: Number(config.max_chat_limit) || 0,
+                default_chat_limit: Number(config.default_chat_limit) || 0,
+                maintenance_mode: Boolean(config.maintenance_mode),
+            };
+            const response = await updateSystemConfig(payload);
+            setConfig(response.data.config);
+            setMessage('System config saved.');
+        } catch (configError) {
+            console.error('Error saving config:', configError);
+            setError('Unable to save system config.');
+        } finally {
+            setSavingConfig(false);
+        }
+    };
+
+    if (loading) {
+        return <div className="admin-dashboard admin-loading">Loading admin dashboard...</div>;
+    }
 
     return (
         <div className="admin-dashboard">
-            <h1>Admin Dashboard</h1>
+            <header className="admin-header">
+                <div>
+                    <p className="admin-eyebrow">Admin Console</p>
+                    <h1>System Dashboard</h1>
+                </div>
+                <button className="icon-button" type="button" onClick={loadDashboard} title="Refresh dashboard">
+                    <Refresh />
+                </button>
+            </header>
 
-            <div className="stats-grid">
-                <div className="stat-card">
-                    <h3>Total Users</h3>
-                    <p>{stats.total_users}</p>
+            {(message || error) && (
+                <div className={`admin-alert ${error ? 'error' : 'success'}`}>
+                    {error || message}
                 </div>
-                <div className="stat-card">
-                    <h3>Active Users</h3>
-                    <p>{stats.active_users}</p>
-                </div>
-                <div className="stat-card">
-                    <h3>Admin Users</h3>
-                    <p>{stats.admin_users}</p>
-                </div>
-                <div className="stat-card">
-                    <h3>Recent Users (7 days)</h3>
-                    <p>{stats.recent_users}</p>
-                </div>
-            </div>
+            )}
 
-            <div className="users-section">
-                <h2>Users Management</h2>
-                <table className="users-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Email</th>
-                            <th>Full Name</th>
-                            <th>Role</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {users.map(user => (
-                            <tr key={user.id}>
-                                <td>{user.id}</td>
-                                <td>{user.email}</td>
-                                <td>{user.full_name || '-'}</td>
-                                <td>{user.role}</td>
-                                <td>{user.is_active ? 'Active' : 'Inactive'}</td>
-                                <td>
-                                    <button
-                                        onClick={() => handleUserStatusChange(user.id, !user.is_active)}
-                                        className={user.is_active ? 'deactivate' : 'activate'}
-                                    >
-                                        {user.is_active ? 'Deactivate' : 'Activate'}
-                                    </button>
-                                </td>
+            <section className="admin-kpi-grid">
+                {kpis.map((kpi) => (
+                    <article className="admin-kpi" key={kpi.label}>
+                        <div className="kpi-icon">{kpi.icon}</div>
+                        <div>
+                            <span>{kpi.label}</span>
+                            <strong>{kpi.value}</strong>
+                        </div>
+                    </article>
+                ))}
+            </section>
+
+            <section className="admin-main-grid">
+                <form className="admin-panel" onSubmit={handleConfigSubmit}>
+                    <div className="panel-title">
+                        <Settings />
+                        <h2>System Config</h2>
+                    </div>
+                    <label>
+                        Max Chat Limit
+                        <input
+                            type="number"
+                            min="0"
+                            value={config.max_chat_limit ?? ''}
+                            onChange={(event) => handleConfigChange('max_chat_limit', event.target.value)}
+                        />
+                    </label>
+                    <label>
+                        Default Chat Limit
+                        <input
+                            type="number"
+                            min="0"
+                            value={config.default_chat_limit ?? ''}
+                            onChange={(event) => handleConfigChange('default_chat_limit', event.target.value)}
+                        />
+                    </label>
+                    <label className="admin-toggle">
+                        <input
+                            type="checkbox"
+                            checked={Boolean(config.maintenance_mode)}
+                            onChange={(event) => handleConfigChange('maintenance_mode', event.target.checked)}
+                        />
+                        Maintenance Mode
+                    </label>
+                    <button className="admin-primary-button" type="submit" disabled={savingConfig}>
+                        <Save />
+                        {savingConfig ? 'Saving...' : 'Save Config'}
+                    </button>
+                </form>
+
+                <section className="admin-panel evaluation-panel">
+                    <div className="panel-title">
+                        <Analytics />
+                        <h2>RAG Performance Evaluation</h2>
+                    </div>
+                    {evaluation ? (
+                        <>
+                            <div className="evaluation-summary">
+                                <strong>{formatPercent(evaluation.overall_score)}</strong>
+                                <span>{evaluation.summary}</span>
+                            </div>
+                            <p className="evaluation-query">{evaluation.query}</p>
+                            <div className="evaluation-layers">
+                                {evaluation.layers.map((layer) => (
+                                    <div className="evaluation-layer" key={layer.name}>
+                                        <div>
+                                            <strong>{layer.name}</strong>
+                                            <span>{formatPercent(layer.score)}</span>
+                                        </div>
+                                        <span className={`status-pill ${statusClass(layer.status)}`}>
+                                            {layer.status}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="empty-state">
+                            <ErrorOutlineOutlined />
+                            <span>No evaluation report is available yet.</span>
+                        </div>
+                    )}
+                </section>
+            </section>
+
+            <section className="admin-panel users-panel">
+                <div className="panel-title">
+                    <Groups />
+                    <h2>User Management</h2>
+                </div>
+                <div className="table-wrap">
+                    <table className="users-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Email</th>
+                                <th>Full Name</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            {users.map((user) => (
+                                <tr key={user.id}>
+                                    <td>{user.id}</td>
+                                    <td>{user.email}</td>
+                                    <td>{user.full_name || '-'}</td>
+                                    <td>{user.role}</td>
+                                    <td>
+                                        <span className={`status-pill ${user.is_active ? 'pass' : 'fail'}`}>
+                                            {user.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button
+                                            className="icon-button table-action"
+                                            type="button"
+                                            onClick={() => handleUserStatusChange(user.id, !user.is_active)}
+                                            title={user.is_active ? 'Deactivate user' : 'Activate user'}
+                                        >
+                                            {user.is_active ? <ToggleOn /> : <ToggleOff />}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     );
 };

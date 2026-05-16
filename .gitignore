@@ -9,6 +9,7 @@ server/vectorDB
 *vectorDB/
 alembic.ini
 /server/migrations/versions/*
+!/server/migrations/versions/
 *tmp/
 .pytest*/
 tasks.txt

@@ -9,6 +9,9 @@ from schemas.auth_schema import UserRead, UserStatusUpdate
 from api.auth_api import require_role
 
 CONFIG_FILE = Path(__file__).resolve().parent.parent / "config" / "system_config.json"
+EVALUATION_REPORT_FILE = (
+    Path(__file__).resolve().parents[2] / "evaluation_output" / "evaluation_report.json"
+)
 DEFAULT_SYSTEM_CONFIG = {
     "max_chat_limit": 100,
     "default_chat_limit": 10,
@@ -108,3 +111,39 @@ def update_system_config(config: dict):
     current.update(config)
     _save_system_config(current)
     return {"message": "Config updated", "config": current}
+
+
+@router.get("/evaluation", dependencies=[Depends(require_role(["admin"]))])
+def get_performance_evaluation():
+    if not EVALUATION_REPORT_FILE.exists():
+        raise HTTPException(status_code=404, detail="Evaluation report not found")
+
+    try:
+        report = json.loads(EVALUATION_REPORT_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Evaluation report is not valid JSON.",
+        ) from exc
+
+    layer_scores = report.get("layer_scores", {})
+    kpi_status = report.get("kpi_status") or report.get("KPI_status", {})
+    detailed_results = report.get("detailed_results") or report.get("layer_results", {})
+    layers = [
+        {
+            "name": name,
+            "score": score,
+            "status": kpi_status.get(name, "NA"),
+            "metrics": detailed_results.get(name, {}),
+        }
+        for name, score in layer_scores.items()
+    ]
+
+    return {
+        "query": report.get("query"),
+        "timestamp": report.get("timestamp"),
+        "overall_score": report.get("overall_score"),
+        "summary": report.get("summary") or report.get("evaluation_summary"),
+        "layers": layers,
+        "raw_report": report,
+    }

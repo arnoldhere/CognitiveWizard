@@ -1,4 +1,6 @@
+import secrets
 import shutil, os
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -32,9 +34,6 @@ from utils.security import create_access_token, decode_access_token
 from models.user import User
 
 logger = logging.getLogger(__name__)
-
-# OTP storage (in production, use Redis)
-otp_store = {}
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -117,11 +116,10 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Generate OTP
-    import random
-
-    otp = str(random.randint(100000, 999999))
-    otp_store[request.email] = otp
+    otp = f"{secrets.randbelow(1_000_000):06d}"
+    user.otp = otp
+    user.otp_expires = datetime.utcnow() + timedelta(minutes=10)
+    db.commit()
 
     # Send email (placeholder)
     print(f"OTP for {request.email}: {otp}")  # In production, send email
@@ -131,21 +129,30 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
 
 @router.post("/reset-password")
 def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
-    if request.email not in otp_store or otp_store[request.email] != request.otp:
-        raise HTTPException(status_code=400, detail="Invalid OTP")
-
     user = get_user_by_email(db, request.email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Update password
+    expires_at = user.otp_expires
+    now = (
+        datetime.now(expires_at.tzinfo)
+        if expires_at and expires_at.tzinfo
+        else datetime.utcnow()
+    )
+    if (
+        not user.otp
+        or user.otp != request.otp
+        or not expires_at
+        or expires_at < now
+    ):
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
     from services.auth_service import hash_password
 
     user.hashed_password = hash_password(request.new_password)
+    user.otp = None
+    user.otp_expires = None
     db.commit()
-
-    # Clear OTP
-    del otp_store[request.email]
 
     return {"message": "Password reset successfully"}
 
