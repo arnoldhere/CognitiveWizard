@@ -1,0 +1,66 @@
+{
+  "query": "Compare edge computing and cloud computing",
+  "timestamp": "2026-05-15T18:45:44.951702",
+  "overall_score": 0.6668018386453016,
+  "layer_scores": {
+    "retrieval": 0.8549301972870469,
+    "generation": 0.5957456626061277,
+    "memory": 0.625,
+    "hallucination": 0.8333333333333334,
+    "quiz": 0.425
+  },
+  "kpi_status": {
+    "retrieval": "WARN",
+    "generation": "FAIL",
+    "memory": "FAIL",
+    "hallucination": "PASS",
+    "quiz": "PASS"
+  },
+  "summary": "\ud83d\udd34 POOR: Overall score 66.7% - Significant issues detected",
+  "detailed_results": {
+    "retrieval": {
+      "recall_at_5": 1.0,
+      "precision_at_5": 0.5,
+      "mrr": 1.0,
+      "ndcg": 0.9197207891481876,
+      "latency_ms": 0.0
+    },
+    "generation": {
+      "faithfulness": 0.4444444444444444,
+      "context_utilization": 0.35714285714285715,
+      "answer_relevance": 0.8,
+      "semantic_similarity": 0.5813953488372093,
+      "hallucination_rate": 0.0,
+      "unsupported_claims": []
+    },
+    "memory": {
+      "context_retention": 0.0,
+      "follow_up_accuracy": 1.0,
+      "consistency": 1.0,
+      "memory_recall": 0.5
+    },
+    "hallucination": {
+      "hallucination_rate": 0.0,
+      "unsupported_claim_ratio": 0.0,
+      "citation_correctness": 0.5,
+      "refusal_accuracy": 1.0
+    },
+    "product": {
+      "status": "Phase 2 - Not yet implemented"
+    },
+    "quiz": {
+      "generation_success": 0.0,
+      "question_accuracy": 1.0,
+      "difficulty_alignment": 0.7,
+      "duplicate_rate": 0.0,
+      "blooms_coverage": {
+        "remember": 1.0,
+        "understand": 0.0,
+        "apply": 0.0,
+        "analyze": 0.0,
+        "evaluate": 0.0,
+        "create": 0.0
+      }
+    }
+  }
+}

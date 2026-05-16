@@ -90,7 +90,7 @@ The platform provides Quiz and Summarization engine, RAG powered chatbot and mor
 * Quiz generation success rate
 
 ---
-
+2
 ## 🚀 Future Enhancements
 
 * Voice-based quizzes
