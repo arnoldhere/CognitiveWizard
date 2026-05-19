@@ -42,6 +42,5 @@ python-multipart
 pymysql
 gunicorn
 pillow
-# for RAG evaluation
 ragas
 datasets

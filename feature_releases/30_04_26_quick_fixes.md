@@ -27,7 +27,3 @@ This file summarizes recent bug fixes and test-related changes applied to the Co
 
 - Syntax checks performed on all modified backend files; no errors found.
 - Manual review of frontend logic for bug fixes.
-
----
-
-For more details, see the commit history or contact the development team.

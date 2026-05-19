@@ -57,34 +57,11 @@ mysql -u root -p
 python -m uvicorn main:app --reload
 ```
 
-## Frontend Setup
-
 ### Prerequisites
 - Node.js 16+
 - npm or yarn
-
-### Installation
-
-```bash
-cd client
-npm install
-```
-
-### Environment Configuration
-
-Create `.env` in `/client`:
-
-```env
-VITE_BACKEND_BASE_URL=http://localhost:8000
-```
-
-### Development Server
-
-```bash
-npm run dev
-```
-
-The app will be available at `http://localhost:5173`
+- pip
+- python 3.10^
 
 ---
 

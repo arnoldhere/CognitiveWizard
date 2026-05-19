@@ -6,7 +6,7 @@ from config.hf_inference import HFClientManager
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL_MODE = "local"
+DEFAULT_MODEL_MODE = "api"
 
 
 def _build_chunk_prompt(text: str, mode: str) -> str:
