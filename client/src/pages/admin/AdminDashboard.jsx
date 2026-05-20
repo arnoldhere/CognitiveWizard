@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Analytics,
     CheckCircle,
-    ErrorOutlineOutlined,
+    Dashboard,
     Groups,
     HealthAndSafety,
+    Insights,
+    ManageAccounts,
     Refresh,
     Save,
     Settings,
@@ -29,6 +31,7 @@ const AdminDashboard = () => {
     const [savingConfig, setSavingConfig] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [activeSection, setActiveSection] = useState('overview');
 
     const loadDashboard = useCallback(async () => {
         setLoading(true);
@@ -64,6 +67,13 @@ const AdminDashboard = () => {
         { label: 'Admins', value: stats.admin_users ?? 0, icon: <HealthAndSafety /> },
         { label: 'New This Week', value: stats.recent_users ?? 0, icon: <Analytics /> },
     ]), [stats]);
+
+    const navItems = useMemo(() => ([
+        { key: 'overview', label: 'Overview', icon: <Dashboard /> },
+        { key: 'evaluation', label: 'RAG Evaluation', icon: <Insights /> },
+        { key: 'users', label: 'User Management', icon: <ManageAccounts /> },
+        { key: 'config', label: 'System Config', icon: <Settings /> },
+    ]), []);
 
     const handleUserStatusChange = async (userId, isActive) => {
         setError('');
@@ -109,124 +119,152 @@ const AdminDashboard = () => {
     }
 
     return (
-        <div className="admin-dashboard">
-            <header className="admin-header">
-                <div>
+        <div className="admin-dashboard-shell">
+            <aside className="admin-sidebar">
+                <div className="admin-sidebar-brand">
                     <p className="admin-eyebrow">Admin Console</p>
-                    <h1>System Dashboard</h1>
+                    <h2>CognitiveWizard</h2>
                 </div>
-                <button className="icon-button" type="button" onClick={loadDashboard} title="Refresh dashboard">
-                    <Refresh />
-                </button>
-            </header>
+                <nav className="admin-sidebar-nav">
+                    {navItems.map((item) => (
+                        <button
+                            key={item.key}
+                            className={`admin-nav-item ${activeSection === item.key ? 'active' : ''}`}
+                            type="button"
+                            onClick={() => setActiveSection(item.key)}
+                        >
+                            {item.icon}
+                            <span>{item.label}</span>
+                        </button>
+                    ))}
+                </nav>
+            </aside>
 
-            {(message || error) && (
-                <div className={`admin-alert ${error ? 'error' : 'success'}`}>
-                    {error || message}
-                </div>
-            )}
-
-            <section className="admin-kpi-grid">
-                {kpis.map((kpi) => (
-                    <article className="admin-kpi" key={kpi.label}>
-                        <div className="kpi-icon">{kpi.icon}</div>
-                        <div>
-                            <span>{kpi.label}</span>
-                            <strong>{kpi.value}</strong>
-                        </div>
-                    </article>
-                ))}
-            </section>
-
-            <section className="admin-main-grid">
-                <form className="admin-panel" onSubmit={handleConfigSubmit}>
-                    <div className="panel-title">
-                        <Settings />
-                        <h2>System Config</h2>
+            <div className="admin-dashboard">
+                <header className="admin-header">
+                    <div>
+                        <h1>System Dashboard</h1>
                     </div>
-                    <label>
-                        Max Chat Limit
-                        <input
-                            type="number"
-                            min="0"
-                            value={config.max_chat_limit ?? ''}
-                            onChange={(event) => handleConfigChange('max_chat_limit', event.target.value)}
-                        />
-                    </label>
-                    <label>
-                        Default Chat Limit
-                        <input
-                            type="number"
-                            min="0"
-                            value={config.default_chat_limit ?? ''}
-                            onChange={(event) => handleConfigChange('default_chat_limit', event.target.value)}
-                        />
-                    </label>
-                    <label className="admin-toggle">
-                        <input
-                            type="checkbox"
-                            checked={Boolean(config.maintenance_mode)}
-                            onChange={(event) => handleConfigChange('maintenance_mode', event.target.checked)}
-                        />
-                        Maintenance Mode
-                    </label>
-                    <button className="admin-primary-button" type="submit" disabled={savingConfig}>
-                        <Save />
-                        {savingConfig ? 'Saving...' : 'Save Config'}
+                    <button className="icon-button" type="button" onClick={loadDashboard} title="Refresh dashboard">
+                        <Refresh />
                     </button>
-                </form>
-            </section>
+                </header>
 
-            {/* RAG Evaluation Dashboard - New Component */}
-            <section className="admin-evaluation-section">
-                <RAGEvalDashboard />
-            </section>
+                {(message || error) && (
+                    <div className={`admin-alert ${error ? 'error' : 'success'}`}>
+                        {error || message}
+                    </div>
+                )}
 
-            <section className="admin-panel users-panel">
-                <div className="panel-title">
-                    <Groups />
-                    <h2>User Management</h2>
-                </div>
-                <div className="table-wrap">
-                    <table className="users-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Email</th>
-                                <th>Full Name</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map((user) => (
-                                <tr key={user.id}>
-                                    <td>{user.id}</td>
-                                    <td>{user.email}</td>
-                                    <td>{user.full_name || '-'}</td>
-                                    <td>{user.role}</td>
-                                    <td>
-                                        <span className={`status-pill ${user.is_active ? 'pass' : 'fail'}`}>
-                                            {user.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button
-                                            className="icon-button table-action"
-                                            type="button"
-                                            onClick={() => handleUserStatusChange(user.id, !user.is_active)}
-                                            title={user.is_active ? 'Deactivate user' : 'Activate user'}
-                                        >
-                                            {user.is_active ? <ToggleOn /> : <ToggleOff />}
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                {(activeSection === 'overview' || activeSection === 'users' || activeSection === 'config') && (
+                    <section className="admin-kpi-grid">
+                        {kpis.map((kpi) => (
+                            <article className="admin-kpi" key={kpi.label}>
+                                <div className="kpi-icon">{kpi.icon}</div>
+                                <div>
+                                    <span>{kpi.label}</span>
+                                    <strong>{kpi.value}</strong>
+                                </div>
+                            </article>
+                        ))}
+                    </section>
+                )}
+
+                {(activeSection === 'overview' || activeSection === 'config') && (
+                    <section className="admin-main-grid">
+                        <form className="admin-panel" onSubmit={handleConfigSubmit}>
+                            <div className="panel-title">
+                                <Settings />
+                                <h2>System Config</h2>
+                            </div>
+                            <label>
+                                Max Chat Limit
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={config.max_chat_limit ?? ''}
+                                    onChange={(event) => handleConfigChange('max_chat_limit', event.target.value)}
+                                />
+                            </label>
+                            <label>
+                                Default Chat Limit
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={config.default_chat_limit ?? ''}
+                                    onChange={(event) => handleConfigChange('default_chat_limit', event.target.value)}
+                                />
+                            </label>
+                            <label className="admin-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(config.maintenance_mode)}
+                                    onChange={(event) => handleConfigChange('maintenance_mode', event.target.checked)}
+                                />
+                                Maintenance Mode
+                            </label>
+                            <button className="admin-primary-button" type="submit" disabled={savingConfig}>
+                                <Save />
+                                {savingConfig ? 'Saving...' : 'Save Config'}
+                            </button>
+                        </form>
+                    </section>
+                )}
+
+                {(activeSection === 'overview' || activeSection === 'evaluation') && (
+                    <section className="admin-evaluation-section">
+                        <RAGEvalDashboard />
+                    </section>
+                )}
+
+                {(activeSection === 'overview' || activeSection === 'users') && (
+                    <section className="admin-panel users-panel">
+                        <div className="panel-title">
+                            <Groups />
+                            <h2>User Management</h2>
+                        </div>
+                        <div className="table-wrap">
+                            <table className="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Email</th>
+                                        <th>Full Name</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {users.map((user) => (
+                                        <tr key={user.id}>
+                                            <td>{user.id}</td>
+                                            <td>{user.email}</td>
+                                            <td>{user.full_name || '-'}</td>
+                                            <td>{user.role}</td>
+                                            <td>
+                                                <span className={`status-pill ${user.is_active ? 'pass' : 'fail'}`}>
+                                                    {user.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button
+                                                    className="icon-button table-action"
+                                                    type="button"
+                                                    onClick={() => handleUserStatusChange(user.id, !user.is_active)}
+                                                    title={user.is_active ? 'Deactivate user' : 'Activate user'}
+                                                >
+                                                    {user.is_active ? <ToggleOn /> : <ToggleOff />}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                )}
+            </div>
         </div>
     );
 };

@@ -32,7 +32,7 @@ from ragas.metrics import (
     answer_relevancy,
 )
 from providers.llm_provider import Provider
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)
 

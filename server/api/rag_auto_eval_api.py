@@ -12,7 +12,11 @@ This endpoint internally:
   3. Calls the evaluate pipeline directly
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+import json
+import logging
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from config.db import get_db
 from models.rag_log import RAGQueryLog
@@ -34,7 +38,7 @@ async def auto_evaluate(
     db: Session = Depends(get_db),
     _admin=Depends(require_role(["admin"])),
     evaluator: RAGEvaluator = Depends(get_evaluator),
-    limit: int = SAMPLE_LIMIT,
+    limit: int = Query(default=SAMPLE_LIMIT, ge=1, le=500),
 ):
     """
     One-click evaluation endpoint.
@@ -59,24 +63,43 @@ async def auto_evaluate(
     # ── build qa_pairs list ───────────────────────────────────────────────────
     qa_pairs = []
     for log in logs:
+        contexts = log.contexts if isinstance(log.contexts, list) else []
+        if isinstance(log.contexts, str):
+            try:
+                parsed = json.loads(log.contexts)
+                if isinstance(parsed, list):
+                    contexts = parsed
+            except json.JSONDecodeError:
+                contexts = [log.contexts]
+
         qa_pairs.append(
             {
                 "question": log.question,
                 "answer": log.answer,
-                "contexts": log.contexts if isinstance(log.contexts, list) else [],
+                "contexts": contexts,
                 # ground_truth: use stored value or fall back to answer itself
                 # (faithfulness still meaningful; recall degrades gracefully)
-                "ground_truth": log.ground_truth or log.answer,
-                "retrieval_ms": log.retrieval_ms,
-                "generation_ms": log.generation_ms,
-                "total_ms": log.total_ms,
+                "ground_truth": getattr(log, "ground_truth", None) or log.answer,
+                "retrieval_ms": (
+                    log.latency_retrieval_ms
+                    if log.latency_retrieval_ms is not None
+                    else getattr(log, "retrieval_ms", None)
+                ),
+                "generation_ms": (
+                    log.latency_generation_ms
+                    if log.latency_generation_ms is not None
+                    else getattr(log, "generation_ms", None)
+                ),
+                "total_ms": (
+                    log.latency_total_ms
+                    if log.latency_total_ms is not None
+                    else getattr(log, "total_ms", None)
+                ),
             }
         )
 
     # ── delegate to shared evaluation background task ─────────────────────────
     import api.rag_evaluation_api as eval_mod
-    import json, logging
-    from datetime import datetime
     from api.rag_evaluation_api import REPORT_CACHE_PATH
 
     if eval_mod._eval_running:

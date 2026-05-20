@@ -18,3 +18,4 @@ tasks.txt
 docker-compose.yml
 .agents/
 .codex/
+samples/

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
@@ -21,108 +21,117 @@ import FaceLogin from "./pages/FaceLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ForgotPassword from "./pages/ForgotPassword";
 
+function AppRoutes() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
+
+  return (
+    <div className="app-shell">
+      {!isAdminRoute && <Navbar />}
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+
+          {/* Chatbot Route - Accessible to all */}
+          <Route path="/chatbot" element={
+            <ProtectedRoute>
+              <ChatbotPage />
+            </ProtectedRoute>
+          } />
+          {/* Protected Routes - Require Authentication */}
+          <Route
+            path="/quiz"
+            element={
+              <ProtectedRoute>
+                <QuizPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quick-study"
+            element={
+              <ProtectedRoute>
+                <SummarizerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/face-register"
+            element={
+              <ProtectedRoute>
+                <FaceRegister />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/face-login"
+            element={
+              <PublicRoute>
+                <FaceLogin />
+              </PublicRoute>
+            }
+          />
+
+          {/* Admin Route - Require Admin Role */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Public Routes - Redirect if Authenticated */}
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <PublicRoute>
+                <Signup />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            }
+          />
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+      {!isAdminRoute && <Footer />}
+    </div>
+  );
+}
+
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <BrowserRouter>
-          <div className="app-shell">
-            <Navbar />
-            <main className="main-content">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-
-                {/* Chatbot Route - Accessible to all */}
-                <Route path="/chatbot" element={
-                  <ProtectedRoute>
-                    <ChatbotPage />
-                  </ProtectedRoute>
-                } />
-                {/* Protected Routes - Require Authentication */}
-                <Route
-                  path="/quiz"
-                  element={
-                    <ProtectedRoute>
-                      <QuizPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/quick-study"
-                  element={
-                    <ProtectedRoute>
-                      <SummarizerPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/face-register"
-                  element={
-                    <ProtectedRoute>
-                      <FaceRegister />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/face-login"
-                  element={
-                    <PublicRoute>
-                      <FaceLogin />
-                    </PublicRoute>
-                  }
-                />
-
-                {/* Admin Route - Require Admin Role */}
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Public Routes - Redirect if Authenticated */}
-                <Route
-                  path="/login"
-                  element={
-                    <PublicRoute>
-                      <Login />
-                    </PublicRoute>
-                  }
-                />
-                <Route
-                  path="/signup"
-                  element={
-                    <PublicRoute>
-                      <Signup />
-                    </PublicRoute>
-                  }
-                />
-                <Route
-                  path="/forgot-password"
-                  element={
-                    <PublicRoute>
-                      <ForgotPassword />
-                    </PublicRoute>
-                  }
-                />
-
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
+          <AppRoutes />
         </BrowserRouter>
       </AuthProvider>
     </ErrorBoundary>

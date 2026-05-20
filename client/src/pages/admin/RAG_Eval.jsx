@@ -188,10 +188,10 @@ export default function RAGEvalDashboard() {
         setStatus("running");
         setError(null);
         try {
-            await API.post("/rag-eval-auto/auto-evaluate");
+            await API.post("/rag-eval-auto/auto-evaluate?limit=50");
             pollRef.current = setInterval(pollReport, 3000);
         } catch (e) {
-            setError(e.message);
+            setError(e?.response?.data?.detail || e.message);
             setStatus("error");
         }
     };
