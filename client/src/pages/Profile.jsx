@@ -33,7 +33,7 @@ import {
     TextField,
     CircularProgress,
 } from "@mui/material";
-import { Person, Email, AdminPanelSettings, History, Delete } from "@mui/icons-material";
+import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber } from "@mui/icons-material";
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -590,7 +590,7 @@ export default function Profile() {
                                         {plan.description}
                                     </Typography>
                                     <Typography variant="h4" color="primary" sx={{ fontWeight: "bold" }}>
-                                        ₹{plan.amount_inr}
+                                        INR {plan.amount_inr}
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                                         per month
@@ -699,7 +699,8 @@ export default function Profile() {
                 <DialogContent sx={{ pt: 2 }}>
                     <Alert severity="error" sx={{ mb: 2 }}>
                         <Typography variant="body2" fontWeight={600}>
-                            ⚠️ This action is irreversible!
+                            <WarningAmber fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
+                            This action is irreversible!
                         </Typography>
                         <Typography variant="body2" sx={{ mt: 1 }}>
                             Deleting your profile will:
@@ -778,7 +779,7 @@ export default function Profile() {
                                 {selectedPlan.name} Plan
                             </Typography>
                             <Typography variant="body1" sx={{ mb: 1 }}>
-                                Amount: ₹{selectedPlan.amount_inr}
+                                Amount: INR {selectedPlan.amount_inr}
                             </Typography>
                             <Typography variant="body1" sx={{ mb: 2 }}>
                                 Daily Limit: {selectedPlan.daily_chat_limit} chats

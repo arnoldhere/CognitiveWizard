@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import {
+  FileDownload,
+  InsertChartOutlined,
+  Refresh,
+  RocketLaunch,
+} from '@mui/icons-material';
 import ErrorMessage from '../utils/ErrorMessage';
 import '../../styles/RAGEvalDashboard.css';
 
@@ -72,7 +78,7 @@ export default function RAGEvalDashboard() {
         throw new Error('Evaluation request failed');
       }
 
-      const data = await response.json();
+      await response.json();
       
       // Poll for completion
       let attempts = 0;
@@ -174,7 +180,10 @@ export default function RAGEvalDashboard() {
                 Evaluating...
               </>
             ) : (
-              '🚀 Run Evaluation'
+              <>
+                <RocketLaunch fontSize="small" />
+                Run Evaluation
+              </>
             )}
           </button>
           <button
@@ -182,14 +191,16 @@ export default function RAGEvalDashboard() {
             onClick={exportMetrics}
             disabled={!reportData}
           >
-            📥 Export JSON
+            <FileDownload fontSize="small" />
+            Export JSON
           </button>
           <button
             className="btn-refresh"
             onClick={fetchReport}
             disabled={evaluating}
           >
-            🔄 Refresh
+            <Refresh fontSize="small" />
+            Refresh
           </button>
         </div>
       </div>
@@ -199,7 +210,7 @@ export default function RAGEvalDashboard() {
 
       {!reportData ? (
         <div className="eval-empty-state">
-          <div className="empty-icon">📊</div>
+          <InsertChartOutlined className="empty-icon" />
           <p>No evaluation data available yet.</p>
           <p className="empty-hint">Click "Run Evaluation" to analyze recent queries.</p>
         </div>
@@ -259,7 +270,7 @@ export default function RAGEvalDashboard() {
                   <div className="stat-row">
                     <span>Range:</span>
                     <strong>
-                      {(stats.min * 100).toFixed(1)}% – {(stats.max * 100).toFixed(1)}%
+                      {(stats.min * 100).toFixed(1)}% - {(stats.max * 100).toFixed(1)}%
                     </strong>
                   </div>
                   {stats.stdev > 0 && (
@@ -292,7 +303,7 @@ export default function RAGEvalDashboard() {
                     <div className="latency-metric">
                       <span className="latency-label">Range</span>
                       <span className="latency-value">
-                        {stats.min_ms.toFixed(2)}–{stats.max_ms.toFixed(2)}ms
+                        {stats.min_ms.toFixed(2)}-{stats.max_ms.toFixed(2)}ms
                       </span>
                     </div>
                   </div>
@@ -318,14 +329,14 @@ export default function RAGEvalDashboard() {
  */
 function formatMetricName(metric) {
   const names = {
-    faithfulness: '📝 Faithfulness',
-    context_precision: '🎯 Context Precision',
-    context_recall: '🔍 Context Recall',
-    answer_relevancy: '💡 Answer Relevancy',
-    hallucination_rate: '⚠️ Hallucination Rate',
-    context_retrieval_ratio: '📊 Retrieval Ratio',
-    context_awareness: '👁️ Context Awareness',
-    answer_quality: '✨ Answer Quality',
+    faithfulness: 'Faithfulness',
+    context_precision: 'Context Precision',
+    context_recall: 'Context Recall',
+    answer_relevancy: 'Answer Relevancy',
+    hallucination_rate: 'Hallucination Rate',
+    context_retrieval_ratio: 'Retrieval Ratio',
+    context_awareness: 'Context Awareness',
+    answer_quality: 'Answer Quality',
   };
   return names[metric] || metric.replace(/_/g, ' ');
 }
@@ -335,9 +346,9 @@ function formatMetricName(metric) {
  */
 function formatLatencyType(type) {
   const types = {
-    retrieval: '🔍 Retrieval',
-    generation: '✍️ Generation',
-    total: '⏱️ Total',
+    retrieval: 'Retrieval',
+    generation: 'Generation',
+    total: 'Total',
   };
   return types[type] || type;
 }

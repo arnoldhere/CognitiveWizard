@@ -15,6 +15,8 @@ import {
   Security,
   Quiz,
   Psychology,
+  Bolt,
+  RocketLaunch,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
@@ -26,7 +28,7 @@ export default function Home() {
   return (
     <Box sx={{ py: { xs: 4, md: 10 }, position: "relative", overflow: "hidden" }}>
 
-      {/* 🧙 Animated Wizard (Top Right) */}
+      {/* Animated accent icon */}
       <MotionDiv
         initial={{ y: -30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -49,11 +51,12 @@ export default function Home() {
       <Container maxWidth="lg">
         <Grid container spacing={5} alignItems="center">
 
-          {/* 🟣 LEFT CONTENT */}
+          {/* Left content */}
           <Grid item xs={12} md={7}>
 
             <Chip
-              label="CognitiveWizard ⚡ AI Learning"
+              icon={<Bolt />}
+              label="CognitiveWizard AI Learning"
               sx={{
                 mb: 2,
                 background: "linear-gradient(45deg, #6366f1, #a855f7)",
@@ -92,7 +95,7 @@ export default function Home() {
             >
               CognitiveWizard uses AI to generate personalized quizzes,
               analyze your performance, and help you retain concepts faster.
-              No more passive studying — only active learning.
+              No more passive studying - only active learning.
             </Typography>
 
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
@@ -102,7 +105,7 @@ export default function Home() {
                   to="/quiz"
                   variant="contained"
                   size="large"
-                  startIcon={<AutoAwesome />}
+                  startIcon={<RocketLaunch />}
                   sx={{
                     px: 4,
                     py: 1.5,
@@ -111,7 +114,7 @@ export default function Home() {
                     borderRadius: "12px",
                   }}
                 >
-                  Generate Quiz 🚀
+                  Generate Quiz
                 </Button>
               ) : (
                 <>
@@ -151,7 +154,7 @@ export default function Home() {
             </Box>
           </Grid>
 
-          {/* 🔵 RIGHT CARD */}
+          {/* Right card */}
           <Grid item xs={12} md={5}>
             <motion.div
               whileHover={{ scale: 1.03 }}
@@ -183,7 +186,8 @@ export default function Home() {
                   </Typography>
 
                   <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
-                    Turn Learning into Action ⚡
+                    <Bolt sx={{ verticalAlign: "middle", mr: 0.5 }} />
+                    Turn Learning into Action
                   </Typography>
 
                   <Typography

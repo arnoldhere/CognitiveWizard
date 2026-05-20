@@ -5,6 +5,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SecurityIcon from '@mui/icons-material/Security';
 import DevicesIcon from '@mui/icons-material/Devices';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import SchoolIcon from '@mui/icons-material/School';
 import '../styles/About.css';
 
 export default function About() {
@@ -13,11 +14,11 @@ export default function About() {
             <div className="about-card card card-surface">
                 {/* Animated Wizard */}
                 <div className="wizard-animation">
-                    <div className="wizard-hat">🧙‍♂️</div>
+                    <div className="wizard-hat"><SchoolIcon /></div>
                     <div className="sparkles">
-                        <span>✨</span>
-                        <span>✨</span>
-                        <span>✨</span>
+                        <span><AutoAwesomeIcon /></span>
+                        <span><AutoAwesomeIcon /></span>
+                        <span><AutoAwesomeIcon /></span>
                     </div>
                 </div>
 

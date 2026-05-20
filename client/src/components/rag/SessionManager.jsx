@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check, Close, Edit } from "@mui/icons-material";
 import ErrorMessage from "../utils/ErrorMessage";
 import "../../styles/SessionManager.css";
 
@@ -82,7 +83,7 @@ export default function SessionManager({
                                                 onClick={handleSaveEdit}
                                                 title="Save"
                                             >
-                                                ✓
+                                                <Check fontSize="small" />
                                             </button>
                                             <button
                                                 type="button"
@@ -90,7 +91,7 @@ export default function SessionManager({
                                                 onClick={handleCancelEdit}
                                                 title="Cancel"
                                             >
-                                                ×
+                                                <Close fontSize="small" />
                                             </button>
                                         </div>
                                     </div>
@@ -103,7 +104,7 @@ export default function SessionManager({
                                         >
                                             <span className="session-title">{session.title}</span>
                                             <span className="session-meta">
-                                                {session.message_count ?? 0} messages • {session.last_message_at ? new Date(session.last_message_at).toLocaleString() : "new"}
+                                                {session.message_count ?? 0} messages | {session.last_message_at ? new Date(session.last_message_at).toLocaleString() : "new"}
                                             </span>
                                         </button>
                                         <div className="session-item-actions">
@@ -113,7 +114,7 @@ export default function SessionManager({
                                                 onClick={() => handleStartEdit(session)}
                                                 title="Rename chat"
                                             >
-                                                ✎
+                                                <Edit fontSize="small" />
                                             </button>
                                             <button
                                                 type="button"
@@ -121,7 +122,7 @@ export default function SessionManager({
                                                 onClick={() => onDeleteSession(session.session_id)}
                                                 title="Archive chat"
                                             >
-                                                ×
+                                                <Close fontSize="small" />
                                             </button>
                                         </div>
                                     </>

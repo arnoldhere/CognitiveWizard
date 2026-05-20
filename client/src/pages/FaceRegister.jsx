@@ -84,7 +84,7 @@ const FaceRegistration = () => {
             setStatus("Hold Still...Sending to backend...");
             const data = await sendFaceData(user.id, blob);
             if (data?.message) {
-                setStatus(`✅ Success: ${data.message}`);
+                setStatus(`Success: ${data.message}`);
             } else {
                 console.error("Server error:", data);
                 setStatus(`Error: ${data.detail || data.error || "Registration failed"}`);

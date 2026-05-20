@@ -459,7 +459,7 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
   const resetAtLabel = formatResetTime(chatLimitInfo?.reset_time);
   const planName = chatLimitInfo?.subscription_name || "Free";
   const planLimit = chatLimitInfo?.subscription_daily_limit ?? chatLimitInfo?.max_per_day ?? 5;
-  const planBadgeLabel = `${planName} • ${planLimit} chats/day`;
+  const planBadgeLabel = `${planName} | ${planLimit} chats/day`;
   const remainingLabel = `${chatLimitInfo?.messages_remaining ?? 0} remaining today`;
 
   return (

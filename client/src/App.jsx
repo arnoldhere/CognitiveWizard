@@ -18,7 +18,7 @@ import ErrorBoundary from "./components/utils/ErrorBoundary";
 import SummarizerPage from "./pages/Summarize";
 import FaceRegister from "./pages/FaceRegister";
 import FaceLogin from "./pages/FaceLogin";
-import AdminDashboard from "./pages/AdminDashboard";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {

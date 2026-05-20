@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Delete } from "@mui/icons-material";
 import ErrorMessage from "../utils/ErrorMessage";
 import { deleteRagDocument } from "../../services/rag";
 import "../../styles/ContextDisplay.css";
@@ -96,7 +97,7 @@ export default function ContextDisplay({ status, loading, error, onRefresh }) {
                   aria-label={`Delete ${doc}`}
                 >
                   <span className="doc-delete-icon" aria-hidden="true">
-                    🗑
+                    <Delete fontSize="small" />
                   </span>
                   <span>{optimisticDeletedDocuments.has(doc) ? "Deleting..." : "Delete"}</span>
                 </button>

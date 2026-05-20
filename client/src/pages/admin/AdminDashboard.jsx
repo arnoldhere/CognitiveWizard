@@ -14,25 +14,17 @@ import {
 import {
     getAllUsers,
     getDashboardStats,
-    getPerformanceEvaluation,
     getSystemConfig,
     updateSystemConfig,
     updateUserStatus,
-} from '../services/admin';
-import RAGEvalDashboard from '../components/admin/RAGEvalDashboard';
-import '../styles/AdminDashboard.css';
-
-const formatPercent = (value) => (
-    typeof value === 'number' ? `${Math.round(value * 100)}%` : 'NA'
-);
-
-const statusClass = (status = 'NA') => status.toLowerCase();
+} from '../../services/admin';
+import RAGEvalDashboard from './RAG_Eval';
+import '../../styles/AdminDashboard.css';
 
 const AdminDashboard = () => {
     const [stats, setStats] = useState({});
     const [users, setUsers] = useState([]);
     const [config, setConfig] = useState({});
-    const [evaluation, setEvaluation] = useState(null);
     const [loading, setLoading] = useState(true);
     const [savingConfig, setSavingConfig] = useState(false);
     const [message, setMessage] = useState('');
@@ -42,18 +34,15 @@ const AdminDashboard = () => {
         setLoading(true);
         setError('');
         try {
-            const [statsRes, usersRes, configRes, evaluationRes] = await Promise.allSettled([
+            const [statsRes, usersRes, configRes] = await Promise.allSettled([
                 getDashboardStats(),
                 getAllUsers(),
                 getSystemConfig(),
-                getPerformanceEvaluation(),
             ]);
 
             if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
             if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data);
             if (configRes.status === 'fulfilled') setConfig(configRes.value.data);
-            if (evaluationRes.status === 'fulfilled') setEvaluation(evaluationRes.value.data);
-            if (evaluationRes.status === 'rejected') setEvaluation(null);
 
             const failed = [statsRes, usersRes, configRes].some((result) => result.status === 'rejected');
             if (failed) setError('Unable to load some admin data. Please refresh.');

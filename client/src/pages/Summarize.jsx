@@ -46,14 +46,14 @@ const parseSummaryContent = (text) => {
         if (!trimmed) return;
 
         if (
-            /^[\s]*[-•*]\s/.test(trimmed) ||
+            /^[\s]*[-\u2022*]\s/.test(trimmed) ||
             /^\d+[.)]\s/.test(trimmed)
         ) {
             const items = trimmed.split(/\n/).filter((i) => i.trim());
             sections.push({
                 type: "list",
                 items: items.map((item) =>
-                    item.replace(/^[\s]*[-•*\d.)]\s+/, "").trim()
+                    item.replace(/^[\s]*[-\u2022*\d.)]\s+/, "").trim()
                 ),
             });
         } else {
@@ -253,7 +253,7 @@ const SummaryDisplay = ({ summary, mode }) => {
                         color="text.secondary"
                         fontWeight={600}
                     >
-                        {summary.split(" ").length} words • {sections.length}{" "}
+                        {summary.split(" ").length} words | {sections.length}{" "}
                         sections
                     </Typography>
                     <Button
