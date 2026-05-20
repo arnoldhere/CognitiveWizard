@@ -14,9 +14,11 @@ class Provider:
         provider: str = "huggingface",
         model_name: Optional[str] = None,
         temperature: float = 0.5,
+        max_new_tokens: Optional[int] = 512,
     ):
         self.provider = provider.lower()
         self.temperature = temperature
+        self.max_new_tokens = max_new_tokens
         self.model_name = model_name
 
         self.llm = self._initialize_provider()
@@ -27,6 +29,7 @@ class Provider:
                 model=self.model_name or settings.OPENAI_DEF_MODEL,
                 temperature=self.temperature,
                 api_key=settings.OPENAI_API_KEY,
+                max_new_tokens=self.max_new_tokens,
             )
 
         elif self.provider == "anthropic":
@@ -34,6 +37,7 @@ class Provider:
                 model=self.model_name or settings.ANTHROPIC_DEF_MODEL,
                 temperature=self.temperature,
                 api_key=settings.ANTHROPIC_API_KEY,
+                max_new_tokens=self.max_new_tokens,
             )
 
         elif self.provider == "huggingface":
@@ -42,6 +46,7 @@ class Provider:
                 temperature=self.temperature,
                 huggingfacehub_api_token=settings.HF_API_KEY,
                 task="conversational",
+                max_new_tokens=self.max_new_tokens,
             )
             return ChatHuggingFace(llm=endpoint)
         else:

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.auth_api import router as auth_router
 from api.quiz_api import router as quiz_router
 from api.rag_api import router as rag_router
+from api.rag_evaluation import router as rag_evaluation_router
 from api.summarization_api import router as summarization_router
 from api.admin_api import router as admin_router
 from api.subscription_api import router as subscription_router
@@ -60,6 +61,7 @@ app.include_router(auth_router)
 app.include_router(quiz_router)
 app.include_router(summarization_router)
 app.include_router(rag_router)
+app.include_router(rag_evaluation_router)
 app.include_router(admin_router)
 app.include_router(subscription_router)
 

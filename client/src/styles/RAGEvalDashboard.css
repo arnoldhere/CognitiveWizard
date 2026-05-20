@@ -1,0 +1,400 @@
+/**
+ * RAG Evaluation Dashboard Styles
+ * 
+ * Layout: Header + Overall Score + Metrics Grid + Latency Cards + Footer
+ * Color scheme: Green (excellent) → Yellow (fair) → Red (poor)
+ */
+
+.eval-dashboard {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ===================== HEADER ===================== */
+.eval-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.eval-title-section h2 {
+  font-size: 1.8rem;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+  font-weight: 700;
+}
+
+.eval-description {
+  color: #6b7280;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.eval-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-evaluate,
+.btn-export,
+.btn-refresh {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-evaluate {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.btn-evaluate:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.btn-export,
+.btn-refresh {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-export:hover:not(:disabled),
+.btn-refresh:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.btn-evaluate:disabled,
+.btn-export:disabled,
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===================== LOADING & EMPTY STATE ===================== */
+.eval-loading {
+  text-align: center;
+  padding: 48px 24px;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.eval-empty-state {
+  text-align: center;
+  padding: 64px 24px;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  color: #6b7280;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.eval-empty-state p {
+  margin: 8px 0;
+}
+
+.empty-hint {
+  font-size: 0.9rem;
+  color: #9ca3af;
+}
+
+/* ===================== OVERALL SCORE ===================== */
+.eval-overall {
+  background: linear-gradient(135deg, #f0f9ff, #f0fdf4);
+  border: 2px solid #d1d5db;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.overall-score-display {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.score-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.score-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  height: 140px;
+  background: white;
+  border-radius: 50%;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.overall-details h3 {
+  font-size: 1.3rem;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.overall-queries {
+  color: #6b7280;
+  font-size: 0.95rem;
+  margin: 0 0 12px 0;
+}
+
+.quality-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 20px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* ===================== METRICS GRID ===================== */
+.eval-metrics-grid {
+  margin-bottom: 32px;
+}
+
+.grid-title {
+  font-size: 1.2rem;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+}
+
+.eval-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #d1d5db;
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.metric-header h4 {
+  font-size: 0.95rem;
+  color: #1f2937;
+  margin: 0;
+  font-weight: 600;
+}
+
+.metric-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.8rem;
+  min-width: 50px;
+  text-align: center;
+}
+
+.metric-stats {
+  display: grid;
+  gap: 8px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 4px 0;
+}
+
+.stat-row span {
+  color: #6b7280;
+}
+
+.stat-row strong {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+/* ===================== LATENCY SECTION ===================== */
+.eval-latency-section {
+  margin-bottom: 32px;
+}
+
+.eval-latency-section h3 {
+  font-size: 1.2rem;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+}
+
+.latency-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.latency-card {
+  background: linear-gradient(135deg, #fef3c7, #fef08a);
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.latency-card h4 {
+  font-size: 0.95rem;
+  color: #92400e;
+  margin: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.latency-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 0.85rem;
+}
+
+.latency-label {
+  color: #78350f;
+}
+
+.latency-value {
+  font-weight: 700;
+  color: #1f2937;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+/* ===================== FOOTER ===================== */
+.eval-footer {
+  text-align: center;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 768px) {
+  .eval-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .eval-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .btn-evaluate,
+  .btn-export,
+  .btn-refresh {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .overall-score-display {
+    flex-direction: column;
+    text-align: center;
+    gap: 24px;
+  }
+
+  .score-circle {
+    margin: 0 auto;
+  }
+
+  .eval-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .latency-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .eval-dashboard {
+    padding: 16px;
+  }
+
+  .eval-overall {
+    padding: 20px;
+  }
+
+  .score-circle {
+    width: 120px;
+    height: 120px;
+  }
+
+  .score-value {
+    width: 100px;
+    height: 100px;
+    font-size: 1.8rem;
+  }
+
+  .eval-header {
+    margin-bottom: 20px;
+  }
+
+  .eval-title-section h2 {
+    font-size: 1.4rem;
+  }
+}

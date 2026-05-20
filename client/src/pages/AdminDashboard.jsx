@@ -19,6 +19,7 @@ import {
     updateSystemConfig,
     updateUserStatus,
 } from '../services/admin';
+import RAGEvalDashboard from '../components/admin/RAGEvalDashboard';
 import '../styles/AdminDashboard.css';
 
 const formatPercent = (value) => (
@@ -185,40 +186,11 @@ const AdminDashboard = () => {
                         {savingConfig ? 'Saving...' : 'Save Config'}
                     </button>
                 </form>
+            </section>
 
-                <section className="admin-panel evaluation-panel">
-                    <div className="panel-title">
-                        <Analytics />
-                        <h2>RAG Performance Evaluation</h2>
-                    </div>
-                    {evaluation ? (
-                        <>
-                            <div className="evaluation-summary">
-                                <strong>{formatPercent(evaluation.overall_score)}</strong>
-                                <span>{evaluation.summary}</span>
-                            </div>
-                            <p className="evaluation-query">{evaluation.query}</p>
-                            <div className="evaluation-layers">
-                                {evaluation.layers.map((layer) => (
-                                    <div className="evaluation-layer" key={layer.name}>
-                                        <div>
-                                            <strong>{layer.name}</strong>
-                                            <span>{formatPercent(layer.score)}</span>
-                                        </div>
-                                        <span className={`status-pill ${statusClass(layer.status)}`}>
-                                            {layer.status}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="empty-state">
-                            <ErrorOutlineOutlined />
-                            <span>No evaluation report is available yet.</span>
-                        </div>
-                    )}
-                </section>
+            {/* RAG Evaluation Dashboard - New Component */}
+            <section className="admin-evaluation-section">
+                <RAGEvalDashboard />
             </section>
 
             <section className="admin-panel users-panel">

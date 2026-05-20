@@ -87,6 +87,8 @@ class Settings:
     OPENAI_DEF_MODEL: str = os.getenv("OPENAI_DEF_MODEL")
     HF_DEF_MODEL: str = os.getenv("HF_DEF_MODEL")
     DEF_LLM_PROVIDER: str = os.getenv("DEF_LLM_PROVIDER")
+    RAG_EVAL_LLM: str = os.getenv("RAG_EVAL_LLM")
+    DEF_EMBEDD_MODEL = str = os.getenv("DEF_EMBEDD_MODEL")
 
     @property
     def SQLALCHEMY_DATABASE_URL(self):

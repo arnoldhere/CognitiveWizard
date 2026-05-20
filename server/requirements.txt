@@ -44,3 +44,4 @@ gunicorn
 pillow
 ragas
 datasets
+deepeval
