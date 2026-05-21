@@ -15,12 +15,13 @@ class Provider:
         model_name: Optional[str] = None,
         temperature: float = 0.5,
         max_new_tokens: Optional[int] = 512,
+        mode: Optional[str] = "inference",
     ):
         self.provider = provider.lower()
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
         self.model_name = model_name
-
+        self.mode = mode
         self.llm = self._initialize_provider()
 
     def _initialize_provider(self):
@@ -41,14 +42,34 @@ class Provider:
             )
 
         elif self.provider == "huggingface":
-            endpoint = HuggingFaceEndpoint(
-                repo_id=self.model_name or settings.HF_DEF_MODEL,
-                temperature=self.temperature,
-                huggingfacehub_api_token=settings.HF_API_KEY,
-                task="conversational",
-                max_new_tokens=self.max_new_tokens,
-            )
-            return ChatHuggingFace(llm=endpoint)
+            if self.mode == "chat":
+                # -------------------------
+                # CHAT MODE
+                # -------------------------
+                # OpenAI-compatible HF Router
+                return ChatOpenAI(
+                    model=self.model_name or settings.HF_DEF_MODEL,
+                    temperature=self.temperature,
+                    api_key=settings.HF_API_KEY,
+                    base_url="https://router.huggingface.co/v1",
+                    max_tokens=self.max_new_tokens,
+                )
+            elif self.mode == "inference":
+                # -------------------------
+                # INFERENCE MODE
+                # -------------------------
+                endpoint = HuggingFaceEndpoint(
+                    repo_id=self.model_name or settings.HF_DEF_MODEL,
+                    temperature=self.temperature,
+                    huggingfacehub_api_token=settings.HF_API_KEY,
+                    max_new_tokens=self.max_new_tokens,
+                    task="text-generation",
+                )
+
+                return ChatHuggingFace(llm=endpoint)
+            else:
+                raise ValueError(f"Unsupported HF mode: {self.mode}")
+
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 

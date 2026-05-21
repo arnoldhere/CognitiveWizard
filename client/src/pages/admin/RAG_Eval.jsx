@@ -144,6 +144,95 @@ function LatencyPanel({ latency }) {
     );
 }
 
+function DatasetPanel({ dataset }) {
+    const summary = dataset?.summary;
+    if (!summary) return null;
+
+    const renderBars = (title, values) => {
+        const entries = Object.entries(values || {});
+        const max = Math.max(...entries.map(([, value]) => value), 1);
+        return (
+            <div style={{ minWidth: 220, flex: 1 }}>
+                <h4 style={{ margin: "0 0 10px", color: "#cbd5e1", fontSize: 12, textTransform: "uppercase" }}>{title}</h4>
+                {entries.map(([label, value]) => (
+                    <div key={label} style={{ marginBottom: 9 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>
+                            <span>{label}</span>
+                            <strong>{value}</strong>
+                        </div>
+                        <div style={{ height: 7, borderRadius: 4, background: "rgba(148,163,184,0.12)", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${(value / max) * 100}%`, background: "#38bdf8" }} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    return (
+        <div style={{
+            background: "rgba(15,23,42,0.6)",
+            border: "1.5px solid rgba(148,163,184,0.15)",
+            borderRadius: 14,
+            padding: "18px 20px",
+            marginBottom: 20,
+        }}>
+            <h3 style={{ margin: "0 0 6px", fontSize: 14, color: "#e2e8f0" }}>
+                Golden Dataset Coverage
+            </h3>
+            <p style={{ margin: "0 0 16px", color: "#64748b", fontSize: 12 }}>
+                {summary.sample_count} samples | {summary.negative_cases} negative cases | {dataset.mode} mode
+            </p>
+            <div style={{ display: "flex", gap: 22, flexWrap: "wrap" }}>
+                {renderBars("Sources", summary.sources)}
+                {renderBars("Query Types", summary.query_types)}
+                {renderBars("Difficulty", summary.difficulties)}
+            </div>
+        </div>
+    );
+}
+
+function BreakdownPanel({ breakdowns }) {
+    const byType = breakdowns?.by_query_type;
+    if (!byType) return null;
+    const rows = Object.entries(byType).map(([label, value]) => ({
+        label,
+        score: value.metrics?.answer_generation_quality ?? 0,
+        sampleCount: value.sample_count,
+    }));
+
+    return (
+        <div style={{
+            background: "rgba(15,23,42,0.6)",
+            border: "1.5px solid rgba(148,163,184,0.15)",
+            borderRadius: 14,
+            padding: "18px 20px",
+            marginTop: 20,
+        }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>
+                Quality by Query Type
+            </h3>
+            {rows.map((row) => (
+                <div key={row.label} style={{ marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 10 }}>
+                        <span style={{ fontSize: 12, color: "#cbd5e1" }}>{row.label.replace(/_/g, " ")}</span>
+                        <span style={{ fontSize: 12, color: "#818cf8", fontWeight: 700 }}>
+                            {Math.round(row.score * 100)}% | {row.sampleCount}
+                        </span>
+                    </div>
+                    <div style={{ height: 8, borderRadius: 4, background: "rgba(148,163,184,0.12)", overflow: "hidden" }}>
+                        <div style={{
+                            height: "100%",
+                            width: `${Math.min(row.score * 100, 100)}%`,
+                            background: row.score >= 0.8 ? "#22c55e" : row.score >= 0.6 ? "#f59e0b" : "#ef4444",
+                        }} />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 
 export default function RAGEvalDashboard() {
     const [status, setStatus] = useState("idle");
@@ -226,7 +315,7 @@ export default function RAGEvalDashboard() {
                             RAG Evaluation Dashboard
                         </h1>
                         <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>
-                            RAGAS-powered | 8 metrics | CognitiveWizard Admin
+                            RAGAS-powered | golden dataset default | CognitiveWizard Admin
                             {report && <span style={{ marginLeft: 12, color: "#475569" }}>
                                 Last run: {new Date(report.evaluated_at).toLocaleString()}
                                 {" "}({report.sample_count} samples)
@@ -306,13 +395,14 @@ export default function RAGEvalDashboard() {
                     }}>
                         <InsertChartOutlined sx={{ fontSize: 48, marginBottom: "12px" }} />
                         <p style={{ fontSize: 15, margin: 0 }}>
-                            Click <strong style={{ color: "#818cf8" }}>Run Evaluation</strong> to compute all 8 RAG metrics from recent chatbot interactions.
+                            Click <strong style={{ color: "#818cf8" }}>Run Evaluation</strong> to compute RAG metrics on the curated golden dataset.
                         </p>
                     </div>
                 )}
 
                 {report?.metrics && (
                     <>
+                        <DatasetPanel dataset={report.dataset} />
                         <div style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
@@ -329,6 +419,7 @@ export default function RAGEvalDashboard() {
                         </div>
 
                         <LatencyPanel latency={report.latency} />
+                        <BreakdownPanel breakdowns={report.breakdowns} />
                     </>
                 )}
             </div>

@@ -16,19 +16,19 @@ import json
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from config.db import get_db
 from models.rag_log import RAGQueryLog
+from services.rag_golden_dataset import load_golden_dataset
 from services.rag_evaluator import RAGEvaluator
 from api.auth_api import require_role
 from api.rag_evaluation_api import EvaluationStatusResponse
 from depedencies.get_evaluator import get_evaluator
-from fastapi import BackgroundTasks
 
 router = APIRouter(prefix="/rag-eval-auto", tags=["RAG Auto Evaluation"])
 
-# Default sample window: last 50 queries
+# Default sample window: first 50 golden samples or last 50 query logs.
 SAMPLE_LIMIT = 50
 
 
@@ -39,19 +39,58 @@ async def auto_evaluate(
     _admin=Depends(require_role(["admin"])),
     evaluator: RAGEvaluator = Depends(get_evaluator),
     limit: int = Query(default=SAMPLE_LIMIT, ge=1, le=500),
+    dataset: str = Query(default="golden", pattern="^(golden|logs)$"),
 ):
     """
     One-click evaluation endpoint.
-    Pulls recent RAG query logs from DB and runs full evaluation pipeline.
-    No need to manually supply qa_pairs — the DB has them all.
+    Defaults to the curated golden dataset. Use dataset=logs to evaluate recent
+    RAG query logs from DB.
     """
+    dataset_metadata = None
+    if dataset == "golden":
+        try:
+            qa_pairs, dataset_metadata = load_golden_dataset(limit=limit)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    else:
+        qa_pairs = _build_qa_pairs_from_logs(db, limit)
 
-    # ── fetch recent logged queries ──────────────────────────────────────────
+    # ── delegate to shared evaluation background task ─────────────────────────
+    import api.rag_evaluation_api as eval_mod
+    from api.rag_evaluation_api import REPORT_CACHE_PATH
+
+    if eval_mod._eval_running:
+        raise HTTPException(status_code=409, detail="Evaluation already in progress")
+
+    eval_mod._eval_running = True
+
+    async def _run():
+        try:
+            report = await evaluator.evaluate_pipeline(qa_pairs)
+            report["dataset"] = {
+                "mode": dataset,
+                **(dataset_metadata or {"name": "recent_rag_query_logs"}),
+            }
+            eval_mod._latest_report = report
+            REPORT_CACHE_PATH.write_text(json.dumps(report, indent=2))
+        except Exception as exc:
+            logging.getLogger(__name__).error(
+                "Auto-eval failed: %s", exc, exc_info=True
+            )
+            eval_mod._latest_report = {
+                "error": str(exc),
+                "evaluated_at": datetime.utcnow().isoformat() + "Z",
+            }
+        finally:
+            eval_mod._eval_running = False
+
+    background.add_task(_run)
+    return EvaluationStatusResponse(status="running")
+
+
+def _build_qa_pairs_from_logs(db: Session, limit: int) -> list[dict]:
     logs: list[RAGQueryLog] = (
-        db.query(RAGQueryLog)
-        .order_by(RAGQueryLog.created_at.desc())
-        .limit(limit)
-        .all()
+        db.query(RAGQueryLog).order_by(RAGQueryLog.created_at.desc()).limit(limit).all()
     )
 
     if not logs:
@@ -63,6 +102,9 @@ async def auto_evaluate(
     # ── build qa_pairs list ───────────────────────────────────────────────────
     qa_pairs = []
     for log in logs:
+        if not log.question or not log.answer:
+            continue
+
         contexts = log.contexts if isinstance(log.contexts, list) else []
         if isinstance(log.contexts, str):
             try:
@@ -71,6 +113,12 @@ async def auto_evaluate(
                     contexts = parsed
             except json.JSONDecodeError:
                 contexts = [log.contexts]
+
+        contexts = [
+            str(context).strip() for context in contexts if str(context).strip()
+        ]
+        if not contexts:
+            continue
 
         qa_pairs.append(
             {
@@ -98,30 +146,12 @@ async def auto_evaluate(
             }
         )
 
-    # ── delegate to shared evaluation background task ─────────────────────────
-    import api.rag_evaluation_api as eval_mod
-    from api.rag_evaluation_api import REPORT_CACHE_PATH
-
-    if eval_mod._eval_running:
-        raise HTTPException(status_code=409, detail="Evaluation already in progress")
-
-    eval_mod._eval_running = True
-
-    async def _run():
-        try:
-            report = await evaluator.evaluate_pipeline(qa_pairs)
-            eval_mod._latest_report = report
-            REPORT_CACHE_PATH.write_text(json.dumps(report, indent=2))
-        except Exception as exc:
-            logging.getLogger(__name__).error(
-                "Auto-eval failed: %s", exc, exc_info=True
-            )
-            eval_mod._latest_report = {
-                "error": str(exc),
-                "evaluated_at": datetime.utcnow().isoformat() + "Z",
-            }
-        finally:
-            eval_mod._eval_running = False
-
-    background.add_task(_run)
-    return EvaluationStatusResponse(status="running")
+    if not qa_pairs:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "No evaluable RAG logs found. Ask the chatbot questions that return "
+                "retrieved contexts, then run evaluation again."
+            ),
+        )
+    return qa_pairs

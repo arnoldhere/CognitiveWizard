@@ -79,11 +79,11 @@ export default function RAGEvalDashboard() {
       }
 
       await response.json();
-      
+
       // Poll for completion
       let attempts = 0;
       const maxAttempts = 30;
-      
+
       const pollReport = () => {
         attempts++;
         if (attempts >= maxAttempts) {
@@ -166,7 +166,7 @@ export default function RAGEvalDashboard() {
             Comprehensive evaluation of retrieval-augmented generation performance
           </p>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="eval-actions">
           <button
@@ -246,7 +246,7 @@ export default function RAGEvalDashboard() {
           {/* Metrics Grid */}
           <div className="eval-metrics-grid">
             <h3 className="grid-title">Detailed Metrics</h3>
-            
+
             {reportData.metrics_summary && Object.entries(reportData.metrics_summary).map(([metric, stats]) => (
               <div key={metric} className="metric-card">
                 <div className="metric-header">

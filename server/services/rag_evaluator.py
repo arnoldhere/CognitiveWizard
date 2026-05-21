@@ -17,22 +17,12 @@ Metrics evaluated
 """
 
 import time
+import os
 import asyncio
 import logging
+import math
 from typing import Optional
 from datetime import datetime
-
-# ── third-party ──────────────────────────────────────────────────────────────
-from datasets import Dataset
-from ragas import evaluate
-from ragas.metrics import (
-    faithfulness,
-    context_precision,
-    context_recall,
-    answer_relevancy,
-)
-from providers.llm_provider import Provider
-from langchain_huggingface import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +30,7 @@ logger = logging.getLogger(__name__)
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 
-def _build_ragas_dataset(qa_pairs: list[dict]) -> Dataset:
+def _build_ragas_dataset(qa_pairs: list[dict]):
     """
     Convert raw QA triplets into the HuggingFace Dataset format RAGAS expects.
 
@@ -50,13 +40,32 @@ def _build_ragas_dataset(qa_pairs: list[dict]) -> Dataset:
         contexts   : list[str]    (retrieved document chunks)
         ground_truth: str         (reference / expected answer)
     """
-    return Dataset.from_list(qa_pairs)
+    from datasets import Dataset
+
+    rows = []
+    for item in qa_pairs:
+        contexts = item.get("contexts") or []
+        row = {
+            **item,
+            # Keep both legacy and current RAGAS column names so the evaluator
+            # remains tolerant across ragas package versions.
+            "question": item.get("question", ""),
+            "answer": item.get("answer", ""),
+            "contexts": contexts,
+            "ground_truth": item.get("ground_truth", ""),
+            "user_input": item.get("question", ""),
+            "response": item.get("answer", ""),
+            "retrieved_contexts": contexts,
+            "reference": item.get("ground_truth", ""),
+        }
+        rows.append(row)
+
+    return Dataset.from_list(rows)
 
 
 def _compute_context_retrieval_ratio(qa_pairs: list[dict]) -> float:
     """
-    Context Retrieval Ratio = (chunks that contain ground-truth keywords)
-                              / (total chunks retrieved)
+    Context Retrieval Ratio = (chunks that contain ground-truth keywords)/ (total chunks retrieved)
 
     Simple keyword-overlap heuristic — replace with BM25 or semantic
     similarity if you want a more rigorous implementation.
@@ -110,10 +119,41 @@ class RAGEvaluator:
         embed_model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         hf_token: Optional[str] = None,
     ):
-        # LLM used by RAGAS for faithfulness / relevancy scoring
-        self.llm = Provider().get_llm()
-        # Embeddings used for context precision / recall
-        self.embeddings = HuggingFaceEmbeddings(model_name=embed_model_name)
+        self.llm_model_name = self._normalize_model_name(llm_model_name)
+        self.embed_model_name = self._normalize_model_name(embed_model_name)
+        self.hf_token = hf_token
+        self._llm = None
+        self._embeddings = None
+
+    @staticmethod
+    def _normalize_model_name(model_name: Optional[str]) -> Optional[str]:
+        if not model_name:
+            return model_name
+        return model_name.strip().strip('"').strip("'")
+
+    def _get_ragas_clients(self):
+        """
+        Lazily create evaluator dependencies so the API can start even when
+        optional RAGAS packages or model credentials are not configured.
+        """
+        if self._llm is None:
+            from config.settings import settings
+            from providers.llm_provider import Provider
+
+            self._llm = Provider(
+                provider=settings.DEF_LLM_PROVIDER or "huggingface",
+                model_name=self.llm_model_name,
+                temperature=0.0,
+            ).get_llm()
+
+        if self._embeddings is None:
+            if self.hf_token and "HF_API_KEY" not in os.environ:
+                os.environ["HF_API_KEY"] = self.hf_token
+            from langchain_huggingface import HuggingFaceEmbeddings
+
+            self._embeddings = HuggingFaceEmbeddings(model_name=self.embed_model_name)
+
+        return self._llm, self._embeddings
 
     # ── public entry point ────────────────────────────────────────────────────
 
@@ -143,7 +183,16 @@ class RAGEvaluator:
         # ── 1-4: RAGAS core metrics ───────────────────────────────────────────
         ragas_start = time.perf_counter()
 
+        from ragas import evaluate
+        from ragas.metrics import (
+            faithfulness,
+            context_precision,
+            context_recall,
+            answer_relevancy,
+        )
+
         dataset = _build_ragas_dataset(qa_pairs)
+        llm, embeddings = self._get_ragas_clients()
 
         # Run synchronous RAGAS evaluate in a thread so we don't block the
         # async FastAPI event loop.
@@ -156,8 +205,8 @@ class RAGEvaluator:
                 context_recall,
                 answer_relevancy,
             ],
-            llm=self.llm,
-            embeddings=self.embeddings,
+            llm=llm,
+            embeddings=embeddings,
         )
 
         ragas_elapsed = round(time.perf_counter() - ragas_start, 3)
@@ -166,10 +215,11 @@ class RAGEvaluator:
         # gives per-row scores; mean() gives aggregate)
         scores_df = ragas_result.to_pandas()
 
-        faithfulness_score = round(float(scores_df["faithfulness"].mean()), 4)
-        ctx_precision_score = round(float(scores_df["context_precision"].mean()), 4)
-        ctx_recall_score = round(float(scores_df["context_recall"].mean()), 4)
-        answer_rel_score = round(float(scores_df["answer_relevancy"].mean()), 4)
+        faithfulness_score = _safe_mean(scores_df, "faithfulness")
+        ctx_precision_score = _safe_mean(scores_df, "context_precision")
+        ctx_recall_score = _safe_mean(scores_df, "context_recall")
+        answer_rel_score = _safe_mean(scores_df, "answer_relevancy")
+        per_sample = _build_per_sample_scores(qa_pairs, scores_df)
 
         # ── 5: Hallucination Rate = 1 − faithfulness ──────────────────────────
         hallucination_rate = round(1.0 - faithfulness_score, 4)
@@ -206,6 +256,8 @@ class RAGEvaluator:
 
         # ── score interpretation ──────────────────────────────────────────────
         report["interpretation"] = _interpret_scores(report["metrics"])
+        report["per_sample"] = per_sample
+        report["breakdowns"] = _build_breakdowns(per_sample)
 
         logger.info("RAG evaluation complete: %s", report["metrics"])
         return report
@@ -216,10 +268,88 @@ class RAGEvaluator:
 
 def _extract_latency(qa_pairs: list[dict], key: str) -> Optional[float]:
     """Average a latency field injected by the chatbot pipeline."""
-    values = [p[key] for p in qa_pairs if key in p]
+    values = [p[key] for p in qa_pairs if p.get(key) is not None]
     if not values:
         return None
     return round(sum(values) / len(values), 2)
+
+
+def _safe_mean(scores_df, column: str) -> float:
+    """Return a stable 0-1 metric value even when RAGAS emits NaN values."""
+    if column not in scores_df:
+        return 0.0
+    value = float(scores_df[column].mean())
+    if math.isnan(value):
+        return 0.0
+    return round(max(0.0, min(1.0, value)), 4)
+
+
+def _score_at(scores_df, column: str, index: int) -> float:
+    if column not in scores_df:
+        return 0.0
+    value = float(scores_df[column].iloc[index])
+    if math.isnan(value):
+        return 0.0
+    return round(max(0.0, min(1.0, value)), 4)
+
+
+def _build_per_sample_scores(qa_pairs: list[dict], scores_df) -> list[dict]:
+    rows = []
+    for index, item in enumerate(qa_pairs):
+        faithfulness_score = _score_at(scores_df, "faithfulness", index)
+        answer_relevancy_score = _score_at(scores_df, "answer_relevancy", index)
+        rows.append(
+            {
+                "id": item.get("id") or f"sample-{index + 1}",
+                "source_file": item.get("source_file"),
+                "query_type": item.get("query_type", "unknown"),
+                "difficulty": item.get("difficulty", "unknown"),
+                "is_negative": bool(item.get("is_negative", False)),
+                "faithfulness": faithfulness_score,
+                "context_precision": _score_at(scores_df, "context_precision", index),
+                "context_recall": _score_at(scores_df, "context_recall", index),
+                "answer_relevancy": answer_relevancy_score,
+                "hallucination_rate": round(1.0 - faithfulness_score, 4),
+                "answer_generation_quality": round(
+                    (answer_relevancy_score * 0.5 + faithfulness_score * 0.5), 4
+                ),
+            }
+        )
+    return rows
+
+
+def _build_breakdowns(per_sample: list[dict]) -> dict:
+    metric_keys = [
+        "faithfulness",
+        "context_precision",
+        "context_recall",
+        "answer_relevancy",
+        "hallucination_rate",
+        "answer_generation_quality",
+    ]
+
+    def group_by(key: str) -> dict:
+        grouped: dict[str, list[dict]] = {}
+        for row in per_sample:
+            group = str(row.get(key) or "unknown")
+            grouped.setdefault(group, []).append(row)
+
+        return {
+            group: {
+                "sample_count": len(rows),
+                "metrics": {
+                    metric: round(sum(row[metric] for row in rows) / len(rows), 4)
+                    for metric in metric_keys
+                },
+            }
+            for group, rows in grouped.items()
+        }
+
+    return {
+        "by_source": group_by("source_file"),
+        "by_query_type": group_by("query_type"),
+        "by_difficulty": group_by("difficulty"),
+    }
 
 
 def _interpret_scores(metrics: dict) -> dict:

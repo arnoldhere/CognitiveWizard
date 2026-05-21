@@ -27,6 +27,7 @@ class Settings:
     # HF configurations
     # ===========
     HF_API_KEY: str = os.getenv("HF_API_KEY", "")
+    HUGGINGFACEHUB_API_TOKEN: str = os.getenv("HF_API_KEY", os.getenv("HF_API_KEY", ""))
     HF_BASE_URL: str = os.getenv(
         "HF_BASE_URL", "https://router.huggingface.co/hf-inference/models"
     )
@@ -88,7 +89,7 @@ class Settings:
     HF_DEF_MODEL: str = os.getenv("HF_DEF_MODEL")
     DEF_LLM_PROVIDER: str = os.getenv("DEF_LLM_PROVIDER")
     RAG_EVAL_LLM: str = os.getenv("RAG_EVAL_LLM")
-    DEF_EMBEDD_MODEL = str = os.getenv("DEF_EMBEDD_MODEL")
+    DEF_EMBEDD_MODEL: str = os.getenv("DEF_EMBEDD_MODEL", "")
 
     @property
     def SQLALCHEMY_DATABASE_URL(self):
