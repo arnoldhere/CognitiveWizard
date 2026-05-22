@@ -469,8 +469,24 @@ class LangChainRAGService:
                 ).delete(synchronize_session=False)
 
             file_path = get_user_source_path(str(user_id), document_name)
-            if file_path.exists():
-                file_path.unlink()
+            # to enforce a canonical path containment check in delete_uploaded_document right before file operations: resolve the candidate path and ensure it is within the expected user upload directory, then only delete if it is a regular file.
+            user_base_dir = (
+                Path(settings.MEDIA_DIR) / "rag_uploads" / str(user_id)
+            ).resolve()
+            resolved_filepath = file_path.resolve()
+            try:
+                resolved_filepath.relative_to(user_base_dir)
+            except ValueError:
+                logger.warning(
+                    "Blocked delete outside user upload directory. user_id=%s document_name=%s path=%s",
+                    user_id,
+                    document_name,
+                    resolved_filepath,
+                )
+                return False
+
+            if resolved_filepath.exists() and resolved_filepath.is_file():
+                resolved_filepath.unlink()
 
             removed_document = False
             if user_id in self._user_documents:

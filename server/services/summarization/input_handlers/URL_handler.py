@@ -2,6 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from services.summarization.preprocess.text_cleaner import TextCleaner
+import ipaddress
+import socket
 
 
 def _is_valid_url(url: str) -> bool:
@@ -9,6 +11,41 @@ def _is_valid_url(url: str) -> bool:
     try:
         parsed = urlparse(url)
         return parsed.scheme in ["http", "https"] and bool(parsed.netloc)
+    except:
+        return False
+
+
+# security measure to prevent CSRF-SSRF attacks
+def _is_public_destination(url: str) -> bool:
+    """Allow only URLs that resolve to globally routable IP addresses."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        if hostname.lower() == "localhost":
+            return False
+
+        # If hostname is already an IP literal, validate directly.
+        try:
+            ip = ipaddress.ip_address(hostname)
+            return ip.is_global
+        except ValueError:
+            pass
+
+        # Resolve DNS and ensure all resolved addresses are global.
+        addrinfo = socket.getaddrinfo(
+            hostname, parsed.port or 80, proto=socket.IPPROTO_TCP
+        )
+        resolved_ips = {info[4][0] for info in addrinfo}
+        if not resolved_ips:
+            return False
+        for resolved_ip in resolved_ips:
+            ip = ipaddress.ip_address(resolved_ip)
+            if not ip.is_global:
+                return False
+
+        return True
     except:
         return False
 
@@ -21,6 +58,8 @@ def extract_text(url: str) -> str:
         # Validate URL
         if not _is_valid_url(url):
             raise ValueError(f"Invalid URL format: {url}")
+        if not _is_public_destination(url):
+            raise ValueError("URL points to a non-public or restricted destination")
 
         # Enhanced headers for better access
         HEADERS = {

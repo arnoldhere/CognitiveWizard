@@ -36,7 +36,15 @@ def persist_uploaded_file(temp_file_path: str, user_id: str, filename: str) -> s
 
 
 def get_user_source_path(user_id: str, filename: str) -> Path:
-    return RAG_UPLOAD_DIR / str(user_id) / safe_filename(filename)
+    user_dir = (RAG_UPLOAD_DIR / str(user_id)).resolve()
+    candidate = (user_dir / safe_filename(filename)).resolve()
+    try:
+        candidate.relative_to(user_dir)
+    except ValueError:
+        # Keep behavior non-breaking: return an in-scope path that will not match
+        # a real uploaded document, allowing callers to return 404.
+        return user_dir / "document"
+    return candidate
 
 
 def resolve_source_url(user_id: Optional[str], title: Optional[str]) -> Optional[str]:
