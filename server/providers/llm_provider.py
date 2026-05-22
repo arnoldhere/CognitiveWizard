@@ -6,6 +6,7 @@ from langchain_huggingface import ChatHuggingFace
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_huggingface import HuggingFaceEndpoint
+from config.hf_inference import HFClientManager
 
 
 class Provider:
@@ -33,6 +34,16 @@ class Provider:
                 max_new_tokens=self.max_new_tokens,
             )
 
+        elif self.provider == "inference":
+            client = HFClientManager.get_client()
+            res = client.text_generation(
+                model=self.model_name or settings.HF_DEF_MODEL,
+                temperature=self.temperature,
+                max_new_tokens=self.max_new_tokens,
+                hf_token=settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN,
+            )
+            return res
+
         elif self.provider == "anthropic":
             return ChatAnthropic(
                 model=self.model_name or settings.ANTHROPIC_DEF_MODEL,
@@ -42,33 +53,25 @@ class Provider:
             )
 
         elif self.provider == "huggingface":
-            if self.mode == "chat":
-                # -------------------------
-                # CHAT MODE
-                # -------------------------
-                # OpenAI-compatible HF Router
-                return ChatOpenAI(
-                    model=self.model_name or settings.HF_DEF_MODEL,
-                    temperature=self.temperature,
-                    api_key=settings.HF_API_KEY,
-                    base_url="https://router.huggingface.co/v1",
-                    max_tokens=self.max_new_tokens,
+            hf_model = (
+                (self.model_name or settings.HF_DEF_MODEL or "")
+                .strip()
+                .strip('"')
+                .strip("'")
+            )
+            if not hf_model:
+                raise ValueError(
+                    "HuggingFace model must be configured for huggingface provider"
                 )
-            elif self.mode == "inference":
-                # -------------------------
-                # INFERENCE MODE
-                # -------------------------
-                endpoint = HuggingFaceEndpoint(
-                    repo_id=self.model_name or settings.HF_DEF_MODEL,
-                    temperature=self.temperature,
-                    huggingfacehub_api_token=settings.HF_API_KEY,
-                    max_new_tokens=self.max_new_tokens,
-                    task="text-generation",
-                )
-
-                return ChatHuggingFace(llm=endpoint)
-            else:
-                raise ValueError(f"Unsupported HF mode: {self.mode}")
+            hf_token = settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN
+            endpoint = HuggingFaceEndpoint(
+                repo_id=hf_model,
+                temperature=self.temperature,
+                huggingfacehub_api_token=hf_token,
+                task="conversational",
+                max_new_tokens=self.max_new_tokens,
+            )
+            return ChatHuggingFace(llm=endpoint)
 
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")

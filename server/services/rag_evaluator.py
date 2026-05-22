@@ -24,6 +24,8 @@ import math
 from typing import Optional
 from datetime import datetime
 
+from config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -115,9 +117,9 @@ class RAGEvaluator:
 
     def __init__(
         self,
-        llm_model_name: str = "mistralai/Mistral-7B-Instruct-v0.2",
-        embed_model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-        hf_token: Optional[str] = None,
+        llm_model_name: str = settings.RAG_EVAL_LLM,
+        embed_model_name: str = settings.DEF_EMBEDD_MODEL,
+        hf_token: Optional[str] = settings.HF_API_KEY,
     ):
         self.llm_model_name = self._normalize_model_name(llm_model_name)
         self.embed_model_name = self._normalize_model_name(embed_model_name)
@@ -147,8 +149,8 @@ class RAGEvaluator:
             ).get_llm()
 
         if self._embeddings is None:
-            if self.hf_token and "HF_API_KEY" not in os.environ:
-                os.environ["HF_API_KEY"] = self.hf_token
+            if self.hf_token:
+                os.environ.setdefault("HF_API_KEY", self.hf_token)
             from langchain_huggingface import HuggingFaceEmbeddings
 
             self._embeddings = HuggingFaceEmbeddings(model_name=self.embed_model_name)
@@ -196,18 +198,59 @@ class RAGEvaluator:
 
         # Run synchronous RAGAS evaluate in a thread so we don't block the
         # async FastAPI event loop.
-        ragas_result = await asyncio.to_thread(
-            evaluate,
-            dataset,
-            metrics=[
-                faithfulness,
-                context_precision,
-                context_recall,
-                answer_relevancy,
-            ],
-            llm=llm,
-            embeddings=embeddings,
-        )
+        try:
+            ragas_result = await asyncio.to_thread(
+                evaluate,
+                dataset,
+                metrics=[
+                    faithfulness,
+                    context_precision,
+                    context_recall,
+                    answer_relevancy,
+                ],
+                llm=llm,
+                embeddings=embeddings,
+            )
+        except Exception as exc:
+            from huggingface_hub.utils import BadRequestError
+
+            error_text = str(exc).lower()
+            if (
+                isinstance(exc, BadRequestError)
+                or "model_not_supported" in error_text
+                or "not supported by any provider" in error_text
+                or "payment required" in error_text
+                or "402" in error_text
+            ):
+                fallback_model = (
+                    settings.HF_DEF_MODEL or "meta-llama/Llama-3.1-8B-Instruct:cerebras"
+                )
+                fallback_model = self._normalize_model_name(fallback_model)
+                if fallback_model and fallback_model != self.llm_model_name:
+                    logger.warning(
+                        "Evaluation model %s unsupported; retrying with fallback %s",
+                        self.llm_model_name,
+                        fallback_model,
+                    )
+                    self.llm_model_name = fallback_model
+                    self._llm = None
+                    llm, embeddings = self._get_ragas_clients()
+                    ragas_result = await asyncio.to_thread(
+                        evaluate,
+                        dataset,
+                        metrics=[
+                            faithfulness,
+                            context_precision,
+                            context_recall,
+                            answer_relevancy,
+                        ],
+                        llm=llm,
+                        embeddings=embeddings,
+                    )
+                else:
+                    raise
+            else:
+                raise
 
         ragas_elapsed = round(time.perf_counter() - ragas_start, 3)
 

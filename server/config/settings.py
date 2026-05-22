@@ -27,7 +27,7 @@ class Settings:
     # HF configurations
     # ===========
     HF_API_KEY: str = os.getenv("HF_API_KEY", "")
-    HUGGINGFACEHUB_API_TOKEN: str = os.getenv("HF_API_KEY", os.getenv("HF_API_KEY", ""))
+    HUGGINGFACEHUB_API_TOKEN: str = os.getenv("HF_API_KEY")
     HF_BASE_URL: str = os.getenv(
         "HF_BASE_URL", "https://router.huggingface.co/hf-inference/models"
     )

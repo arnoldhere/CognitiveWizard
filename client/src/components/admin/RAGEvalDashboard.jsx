@@ -177,7 +177,7 @@ export default function RAGEvalDashboard() {
             {evaluating ? (
               <>
                 <span className="spinner"></span>
-                Evaluating...
+                Evaluating... (may take time)
               </>
             ) : (
               <>
