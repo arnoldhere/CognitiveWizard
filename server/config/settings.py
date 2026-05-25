@@ -27,7 +27,9 @@ class Settings:
     # HF configurations
     # ===========
     HF_API_KEY: str = os.getenv("HF_API_KEY", "")
-    HUGGINGFACEHUB_API_TOKEN: str = os.getenv("HF_API_KEY")
+    HUGGINGFACEHUB_API_TOKEN: str = os.getenv(
+        "HUGGINGFACEHUB_API_TOKEN", os.getenv("HF_API_KEY", "")
+    )
     HF_BASE_URL: str = os.getenv(
         "HF_BASE_URL", "https://router.huggingface.co/hf-inference/models"
     )
@@ -80,6 +82,16 @@ class Settings:
     # admin credentials
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL")
     ADMIN_PASS: str = os.getenv("ADMIN_PASS")
+
+    def __post_init__(self):
+        if not self.JWT_SECRET_KEY:
+            raise ValueError(
+                "JWT_SECRET_KEY environment variable is required for authentication"
+            )
+        if not self.DATABASE_URL:
+            raise ValueError(
+                "DATABASE_URL environment variable is required for database access"
+            )
 
     # ===========
     # LLM & Models - API configs

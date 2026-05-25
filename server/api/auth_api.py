@@ -82,7 +82,7 @@ def signup(user_details: UserCreate, db: Session = Depends(get_db)):
         email=user_details.email,
         password=user_details.password,
         full_name=user_details.full_name,
-        role=user_details.role or "user",
+        role="user",
     )
     return user
 
@@ -90,15 +90,10 @@ def signup(user_details: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, credentials.email, credentials.password)
-    exists = db.query(User).filter(User.email == credentials.email).first()
-    if not exists:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
         )
 
     access_token = create_access_token({"sub": user.email, "role": user.role})
@@ -113,18 +108,15 @@ def read_current_user(current_user: User = Depends(get_current_active_user)):
 @router.post("/forgot-password")
 def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = get_user_by_email(db, request.email)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    if user:
+        otp = f"{secrets.randbelow(1_000_000):06d}"
+        user.otp = otp
+        user.otp_expires = datetime.utcnow() + timedelta(minutes=10)
+        db.commit()
+        logger.debug("Generated OTP for password reset for email %s", request.email)
+        # In production, send the OTP via email rather than logging it.
 
-    otp = f"{secrets.randbelow(1_000_000):06d}"
-    user.otp = otp
-    user.otp_expires = datetime.utcnow() + timedelta(minutes=10)
-    db.commit()
-
-    # Send email (placeholder)
-    print(f"OTP for {request.email}: {otp}")  # In production, send email
-
-    return {"message": "OTP sent to email"}
+    return {"message": "If the email exists, a password reset code has been sent."}
 
 
 @router.post("/reset-password")
@@ -139,12 +131,7 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
         if expires_at and expires_at.tzinfo
         else datetime.utcnow()
     )
-    if (
-        not user.otp
-        or user.otp != request.otp
-        or not expires_at
-        or expires_at < now
-    ):
+    if not user.otp or user.otp != request.otp or not expires_at or expires_at < now:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     from services.auth_service import hash_password
@@ -168,7 +155,11 @@ async def register_face(
 ):
     contents = await image.read()
 
-    print(f"Registering face for user {userid} with image size {len(contents)} bytes")
+    logger.debug(
+        "Registering face for user %s with image size %d bytes",
+        userid,
+        len(contents),
+    )
     res = await register_face_service(contents, userid, db)
     if not res or "error" in res:
         raise HTTPException(
@@ -260,10 +251,10 @@ async def delete_profile(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Error deleting profile for user {current_user.id}: {e}")
+        logger.error("Error deleting profile for user %s: %s", current_user.id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete profile: {str(e)}",
+            detail="Failed to delete profile. Please try again later.",
         )
 
 
@@ -283,7 +274,11 @@ async def face_login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=result["error"]
         )
-    print(f"Detected User Id {result['user_id']} with score {result['confidence']}")
+    logger.debug(
+        "Detected user id %s with confidence %s",
+        result["user_id"],
+        result["confidence"],
+    )
 
     user = get_user_by_id(db, result["user_id"])
     if not user:

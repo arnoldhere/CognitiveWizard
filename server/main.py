@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 def create_admin_if_not_exists():
+    if not settings.ADMIN_EMAIL or not settings.ADMIN_PASS:
+        logger.warning(
+            "Admin user not created because ADMIN_EMAIL or ADMIN_PASS is not configured."
+        )
+        return
+
     db = next(get_db())
     try:
         existing_admin = get_user_by_email(db, settings.ADMIN_EMAIL)
@@ -32,11 +38,11 @@ def create_admin_if_not_exists():
                 full_name="System Administrator",
                 role="admin",
             )
-            logger.info(f"Admin user created: {admin.email}")
+            logger.info("Admin user created: %s", admin.email)
         else:
             logger.info("Admin user already exists")
     except Exception as e:
-        logger.error(f"Error creating admin user: {e}")
+        logger.error("Error creating admin user: %s", e)
     finally:
         db.close()
 

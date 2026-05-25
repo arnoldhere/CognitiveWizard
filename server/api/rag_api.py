@@ -490,14 +490,22 @@ def delete_rag_document(
     db: Session = Depends(get_db),
 ):
     """Delete a specific uploaded document from the user's knowledge base."""
+    canonical_document_name = safe_filename(document_name)
+    if not canonical_document_name or canonical_document_name != document_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid document name.",
+        )
     try:
         deleted_service = langchain_rag_service.delete_uploaded_document(
-            str(current_user.id), document_name, db=db
+            str(current_user.id), canonical_document_name, db=db
         )
 
         if deleted_service:
             db.commit()
-            return {"message": f"Document '{document_name}' deleted successfully."}
+            return {
+                "message": f"Document '{canonical_document_name}' deleted successfully."
+            }
 
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -506,7 +514,7 @@ def delete_rag_document(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Failed to delete document {document_name}: {e}")
+        logger.exception(f"Failed to delete document {canonical_document_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete document.",

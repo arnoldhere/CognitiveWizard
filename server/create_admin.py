@@ -8,6 +8,12 @@ from config.settings import settings
 def create_admin_user():
     db = SessionLocal()
     try:
+        if not settings.ADMIN_EMAIL or not settings.ADMIN_PASS:
+            print(
+                "ADMIN_EMAIL and ADMIN_PASS must be configured to create an admin user."
+            )
+            return
+
         # Check if admin already exists
         existing_admin = get_user_by_email(db, settings.ADMIN_EMAIL)
         if existing_admin:
@@ -18,7 +24,7 @@ def create_admin_user():
         admin = create_user(
             db,
             email=settings.ADMIN_EMAIL,
-            password=settings.ADMIN_PASSWORD,
+            password=settings.ADMIN_PASS,
             full_name="System Administrator",
             role="admin",
         )
