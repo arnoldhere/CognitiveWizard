@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -19,6 +19,8 @@ class User(Base):
     subscription_plan = Column(String(50), nullable=True)
     daily_chat_limit = Column(Integer, nullable=True)
     chat_limit_reset_at = Column(DateTime(timezone=True), nullable=True)
+    phone = Column(String(30), nullable=True)
+    dob = Column(Date, nullable=True)
     otp = Column(String(10), nullable=True)
     otp_expires = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

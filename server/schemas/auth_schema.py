@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr
@@ -8,10 +8,19 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: Optional[str] = None
+    phone: Optional[str] = None
+    dob: Optional[date] = None
     role: Optional[str] = "user"
 
 
 class UserRead(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    dob: Optional[date] = None
+    role: str
+    is_active: bool
     id: int
     email: EmailStr
     full_name: Optional[str] = None
@@ -67,6 +76,12 @@ class ResetPasswordRequest(BaseModel):
     email: EmailStr
     otp: str
     new_password: str
+
+
+class UserUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    dob: Optional[date] = None
 
 
 class UserStatusUpdate(BaseModel):

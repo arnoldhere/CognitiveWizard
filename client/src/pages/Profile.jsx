@@ -11,6 +11,7 @@ import {
     getSubscriptionPlans,
     createSubscriptionOrder,
     confirmSubscriptionPayment,
+    updateProfile,
 } from "../services/api";
 import QuizResultsHistory from "../components/quiz/QuizResultsHistory";
 import {
@@ -33,7 +34,7 @@ import {
     TextField,
     CircularProgress,
 } from "@mui/material";
-import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber } from "@mui/icons-material";
+import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, Face2Outlined } from "@mui/icons-material";
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -66,6 +67,15 @@ export default function Profile() {
     const [deletePassword, setDeletePassword] = useState("");
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
+
+    const [profileForm, setProfileForm] = useState({
+        full_name: user?.full_name || "",
+        phone: user?.phone || "",
+        dob: user?.dob || "",
+    });
+    const [profileLoading, setProfileLoading] = useState(false);
+    const [profileError, setProfileError] = useState(null);
+    const [profileSuccess, setProfileSuccess] = useState(null);
 
     const [faceLoginStatus, setFaceLoginStatus] = useState(null);
     const [faceLoading, setFaceLoading] = useState(true);
@@ -103,6 +113,28 @@ export default function Profile() {
             setLoading(false);
         }
     }, []);
+
+    const handleSaveProfile = async () => {
+        setProfileLoading(true);
+        setProfileError(null);
+        setProfileSuccess(null);
+
+        try {
+            const payload = {
+                full_name: profileForm.full_name || null,
+                phone: profileForm.phone || null,
+                dob: profileForm.dob || null,
+            };
+            await updateProfile(payload);
+            await refreshUser();
+            setProfileSuccess("Your profile has been updated.");
+        } catch (err) {
+            console.error("Error updating profile:", err);
+            setProfileError(err.response?.data?.detail || "Unable to update profile.");
+        } finally {
+            setProfileLoading(false);
+        }
+    };
 
     const handleDeleteProfile = async () => {
         if (!deletePassword.trim()) {
@@ -188,6 +220,16 @@ export default function Profile() {
             loadSubscriptionPlans();
         }
     }, [user, loadFaceLoginStatus, loadSubscriptionPlans]);
+
+    useEffect(() => {
+        if (user) {
+            setProfileForm({
+                full_name: user.full_name || "",
+                phone: user.phone || "",
+                dob: user.dob || "",
+            });
+        }
+    }, [user]);
 
     const handleRemoveFaceSetup = async () => {
         const confirmed = window.confirm(
@@ -403,8 +445,132 @@ export default function Profile() {
                                 {user.role}
                             </Typography>
                         </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <SettingsEthernet sx={{ mr: 1, color: 'primary.main' }} />
+                                <Typography variant="subtitle2" fontWeight={600}>
+                                    Phone
+                                </Typography>
+                            </Box>
+                            <Typography variant="body1" color="text.secondary">
+                                {user.phone || "Not provided"}
+                            </Typography>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <Face2Outlined sx={{ mr: 1, color: 'primary.main' }} />
+                                <Typography variant="subtitle2" fontWeight={600}>
+                                    Date of Birth
+                                </Typography>
+                            </Box>
+                            <Typography variant="body1" color="text.secondary">
+                                {user.dob || "Not provided"}
+                            </Typography>
+                        </Grid>
                     </Grid>
                     <Divider sx={{ my: 4 }} />
+
+                    <Box sx={{ mb: 4 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                Edit profile details
+                            </Typography>
+                        </Box>
+
+                        {profileSuccess && (
+                            <Alert severity="success" sx={{ mb: 2 }}>
+                                {profileSuccess}
+                            </Alert>
+                        )}
+                        {profileError && (
+                            <Alert severity="error" sx={{ mb: 2 }}>
+                                {profileError}
+                            </Alert>
+                        )}
+
+                        <Paper
+                            elevation={1}
+                            sx={{
+                                p: 3,
+                                borderRadius: 3,
+                                background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+                            }}
+                        >
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Email"
+                                        type="email"
+                                        value={user?.email || ""}
+                                        disabled
+                                        variant="outlined"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Full Name"
+                                        type="text"
+                                        value={profileForm.full_name}
+                                        onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })}
+                                        variant="outlined"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Phone"
+                                        type="tel"
+                                        value={profileForm.phone}
+                                        onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                                        variant="outlined"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Date of birth"
+                                        type="date"
+                                        value={profileForm.dob || ""}
+                                        onChange={(e) => setProfileForm({ ...profileForm, dob: e.target.value })}
+                                        InputLabelProps={{ shrink: true }}
+                                        variant="outlined"
+                                    />
+                                </Grid>
+                            </Grid>
+                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 3 }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={handleSaveProfile}
+                                    disabled={profileLoading}
+                                    sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}
+                                >
+                                    {profileLoading ? 'Saving...' : 'Save changes'}
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => {
+                                        setProfileSuccess(null);
+                                        setProfileError(null);
+                                        if (user) {
+                                            setProfileForm({
+                                                full_name: user.full_name || "",
+                                                phone: user.phone || "",
+                                                dob: user.dob || "",
+                                            });
+                                        }
+                                    }}
+                                    disabled={profileLoading}
+                                    sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}
+                                >
+                                    Cancel
+                                </Button>
+                            </Box>
+                        </Paper>
+                    </Box>
 
                     {/* Security Section */}
                     <Box>

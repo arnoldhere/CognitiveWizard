@@ -132,3 +132,8 @@ export const deleteProfile = async (password) => {
   });
   return res.data;
 };
+
+export const updateProfile = async (payload) => {
+  const res = await API.patch("/auth/profile", payload);
+  return res.data;
+};

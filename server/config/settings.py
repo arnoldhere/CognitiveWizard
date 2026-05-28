@@ -51,11 +51,15 @@ class Settings:
     DB_PORT: str = os.getenv("DB_PORT", "3306")
     DB_NAME: str = os.getenv("DB_NAME", "cognitive_wizard")
     DATABASE_URL: str = os.getenv("DATABASE_URL")
+    MONGO_URI: str = os.getenv("MONGO_URI", "")
+    MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "")
+
+    # ===========
+    # Redis Configs
+    # ===========
     REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = os.getenv("REDIS_PORT", 6379)
     REDIS_DB_INDEX: int = os.getenv("REDIS_DB_INDEX", 0)
-    MONGO_URI: str = os.getenv("MONGO_URI", "")
-    MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "")
 
     # ===========
     # Middlewares & Authentication configurations
@@ -102,6 +106,21 @@ class Settings:
     DEF_LLM_PROVIDER: str = os.getenv("DEF_LLM_PROVIDER")
     RAG_EVAL_LLM: str = os.getenv("RAG_EVAL_LLM")
     DEF_EMBEDD_MODEL: str = os.getenv("DEF_EMBEDD_MODEL", "")
+
+    # ===========
+    # AUTH Configs
+    # ===========
+    AUTH_OTP_EXPIRY: int = os.getenv("AUTH_OTP_EXPIRY", 300)  # expiry in seconds
+    SMTP_HOST: str | None = os.getenv("SMTP_HOST")
+    SMTP_PORT: int | None = os.getenv("SMTP_PORT") and int(os.getenv("SMTP_PORT"))
+    SMTP_USERNAME: str | None = os.getenv("SMTP_USERNAME")
+    SMTP_PASSWORD: str | None = os.getenv("SMTP_PASSWORD")
+    SMTP_FROM_EMAIL: str | None = os.getenv("SMTP_FROM_EMAIL")
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
 
     @property
     def SQLALCHEMY_DATABASE_URL(self):

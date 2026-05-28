@@ -1,14 +1,15 @@
-import secrets
 import shutil, os
-from datetime import datetime, timedelta
+from datetime import datetime
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import logging
 from config.db import get_db
+from config.settings import settings
 from schemas.auth_schema import (
     UserCreate,
     UserRead,
+    UserUpdateRequest,
     LoginRequest,
     Token,
     FaceLoginResponse,
@@ -22,7 +23,9 @@ from services.auth_service import (
     get_user_by_email,
     get_user_by_id,
     verify_password,
+    hash_password,
 )
+from utils.email_utils import send_password_reset_email
 from services.facial_service.facial_auth import login_with_face
 from services.facial_service.facial_auth import register as register_face_service
 from services.facial_service.facial_auth import (
@@ -82,6 +85,8 @@ def signup(user_details: UserCreate, db: Session = Depends(get_db)):
         email=user_details.email,
         password=user_details.password,
         full_name=user_details.full_name,
+        phone=user_details.phone,
+        dob=user_details.dob,
         role="user",
     )
     return user
@@ -105,43 +110,160 @@ def read_current_user(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 
-@router.post("/forgot-password")
-def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    user = get_user_by_email(db, request.email)
-    if user:
-        otp = f"{secrets.randbelow(1_000_000):06d}"
-        user.otp = otp
-        user.otp_expires = datetime.utcnow() + timedelta(minutes=10)
-        db.commit()
-        logger.debug("Generated OTP for password reset for email %s", request.email)
-        # In production, send the OTP via email rather than logging it.
+@router.patch("/profile", response_model=UserRead)
+def update_profile(
+    request: UserUpdateRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    if request.full_name is not None:
+        current_user.full_name = request.full_name
+    if request.phone is not None:
+        current_user.phone = request.phone
+    if request.dob is not None:
+        current_user.dob = request.dob
 
-    return {"message": "If the email exists, a password reset code has been sent."}
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: ForgotPasswordRequest, db: Session = Depends(get_db)
+):
+    from utils.generate_otp import generate_otp
+    from providers.redis_store import redis_client
+
+    try:
+        # Validate email format
+        if not request.email or "@" not in request.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please provide a valid email address.",
+            )
+
+        # Check if user exists
+        user = get_user_by_email(db, request.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No account found with this email address.",
+            )
+
+        # Generate and store OTP
+        otp = generate_otp()
+        OTP_EXP = settings.AUTH_OTP_EXPIRY
+        await redis_client.set(
+            name=f"reset_password_otp:{request.email}", value=otp, ex=OTP_EXP
+        )
+        logger.debug("Generated OTP for password reset for email %s", request.email)
+
+        # Attempt to send email
+        email_sent = False
+        try:
+            send_password_reset_email(user.email, otp)
+            email_sent = True
+            logger.debug("Password reset OTP sent to %s via email", user.email)
+        except Exception as exc:
+            logger.warning(
+                "Unable to send password reset OTP email for %s: %s",
+                user.email,
+                exc,
+            )
+            # Still allow flow but log warning
+            logger.info("OTP stored in Redis for manual retrieval: %s", otp)
+
+        return {
+            "message": "A password reset code has been sent to your email.",
+            "email_sent": email_sent,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Error in forgot_password: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while processing your request. Please try again later.",
+        )
 
 
 @router.post("/reset-password")
-def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
-    user = get_user_by_email(db, request.email)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    from providers.redis_store import redis_client
 
-    expires_at = user.otp_expires
-    now = (
-        datetime.now(expires_at.tzinfo)
-        if expires_at and expires_at.tzinfo
-        else datetime.utcnow()
-    )
-    if not user.otp or user.otp != request.otp or not expires_at or expires_at < now:
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    try:
+        # Validate email format
+        if not request.email or "@" not in request.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please provide a valid email address.",
+            )
 
-    from services.auth_service import hash_password
+        # Validate OTP is provided and not empty
+        if not request.otp or not request.otp.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please enter the OTP sent to your email.",
+            )
 
-    user.hashed_password = hash_password(request.new_password)
-    user.otp = None
-    user.otp_expires = None
-    db.commit()
+        # Validate new password is provided and meets requirements
+        if not request.new_password or not request.new_password.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please provide a new password.",
+            )
 
-    return {"message": "Password reset successfully"}
+        if len(request.new_password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters long.",
+            )
+
+        # Check if user exists
+        user = get_user_by_email(db, request.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No account found with this email address.",
+            )
+
+        # Validate OTP from Redis
+        stored_otp = await redis_client.get(f"reset_password_otp:{request.email}")
+        if not stored_otp:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OTP has expired. Please request a new one.",
+            )
+
+        if stored_otp != request.otp:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid OTP. Please check and try again.",
+            )
+
+        # Update password in database
+        user.hashed_password = hash_password(request.new_password)
+        db.commit()
+        logger.debug("Password reset successfully for user %s", user.email)
+
+        # Remove OTP from Redis
+        await redis_client.delete(f"reset_password_otp:{request.email}")
+
+        return {
+            "message": "Password reset successfully. You can now login with your new password."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("Error in reset_password: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while resetting your password. Please try again later.",
+        )
 
 
 # =============

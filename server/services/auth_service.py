@@ -31,12 +31,16 @@ def create_user(
     email: str,
     password: str,
     full_name: str | None = None,
+    phone: str | None = None,
+    dob=None,
     role: str = "user",
 ):
     hashed_password = hash_password(password)
     user = User(
         email=email,
         full_name=full_name,
+        phone=phone,
+        dob=dob,
         hashed_password=hashed_password,
         role=role,
     )

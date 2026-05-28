@@ -41,7 +41,6 @@ The platform provides Quiz and Summarization engine, RAG powered chatbot and mor
 * Input: topic, difficulty
 * Output: MCQs or subjective questions
 * Powered by transformer models
-* **NEW**: Robust parsing and validation with auto-fix
 
 ### 2. Summarization Engine
 
@@ -90,7 +89,7 @@ The platform provides Quiz and Summarization engine, RAG powered chatbot and mor
 * Quiz generation success rate
 
 ---
-2
+
 ## 🚀 Future Enhancements
 
 * Voice-based quizzes
