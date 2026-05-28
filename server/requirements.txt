@@ -11,6 +11,7 @@ kafka-python
 python-dotenv
 sqlalchemy
 pymysql
+cryptography
 passlib[bcrypt]
 python-jose[cryptography]
 certifi
