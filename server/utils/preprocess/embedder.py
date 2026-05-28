@@ -5,7 +5,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 # Config
 # ==========================
 
-DEF_EMBEDD_MODEL = "BAAI/bge-m3"
+DEF_EMBEDD_MODEL = "all-MiniLM-L6-v2"
 # EMBEDDING_MODEL_MODE = "local"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

@@ -20,7 +20,7 @@ async def register(image_bytes, userid, db: Session):
     img = decode_image(image_bytes)
 
     # Get embedding using the consolidated service
-    embedding, bbox = embedder.process_image(img)
+    embedding, bbox = await embedder.process_image(img)
 
     if embedding is None:
         return {"error": "No face detected or embedding failed"}
@@ -123,7 +123,7 @@ async def login_with_face(image, db: Session):
     image = decode_image(image)
 
     # Get embedding using the consolidated service
-    embedding, bbox = embedder.process_image(image)
+    embedding, bbox = await embedder.process_image(image)
 
     if embedding is None:
         return {"error": "No face detected or embedding failed"}
