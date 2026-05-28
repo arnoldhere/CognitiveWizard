@@ -46,7 +46,6 @@ export default function Navbar() {
                                 {showProfile && (
                                     <div className="profile-dropdown">
                                         <Link to="/profile">Profile</Link>
-                                        {user.role === 'admin' && <Link to="/admin">Admin Dashboard</Link>}
                                         <Link to="/login" onClick={logout}>
                                             Logout
                                         </Link>

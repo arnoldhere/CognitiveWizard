@@ -6,7 +6,6 @@ from api.rag_api import router as rag_router
 from api.rag_evaluation_api import router as rag_evaluation_router
 from api.rag_auto_eval_api import router as rag_auto_router
 from api.summarization_api import router as summarization_router
-from api.admin_api import router as admin_router
 from api.subscription_api import router as subscription_router
 from config.db import Base, engine
 from config.settings import settings
@@ -20,36 +19,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def create_admin_if_not_exists():
-    if not settings.ADMIN_EMAIL or not settings.ADMIN_PASS:
-        logger.warning(
-            "Admin user not created because ADMIN_EMAIL or ADMIN_PASS is not configured."
-        )
-        return
-
-    db = next(get_db())
-    try:
-        existing_admin = get_user_by_email(db, settings.ADMIN_EMAIL)
-        if not existing_admin:
-            admin = create_user(
-                db,
-                email=settings.ADMIN_EMAIL,
-                password=settings.ADMIN_PASS,
-                full_name="System Administrator",
-                role="admin",
-            )
-            logger.info("Admin user created: %s", admin.email)
-        else:
-            logger.info("Admin user already exists")
-    except Exception as e:
-        logger.error("Error creating admin user: %s", e)
-    finally:
-        db.close()
-
-
-# Create tables and admin user
+# Create tables
 Base.metadata.create_all(bind=engine)
-create_admin_if_not_exists()
 
 app = FastAPI(
     title="Cognitive Wizard Backend",
@@ -68,7 +39,6 @@ app.include_router(auth_router)
 app.include_router(quiz_router)
 app.include_router(summarization_router)
 app.include_router(rag_router)
-app.include_router(admin_router)
 app.include_router(subscription_router)
 app.include_router(rag_evaluation_router)
 app.include_router(rag_auto_router)
