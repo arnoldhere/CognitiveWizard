@@ -1,119 +1,199 @@
 import logging
 from typing import List, Tuple, Optional
+
+from config.settings import settings
+from langchain_core.messages import HumanMessage, SystemMessage
+from providers.llm_provider import Provider
 from services.summarization.preprocess.chunker import TextChunker
 from services.summarization.preprocess.text_cleaner import TextCleaner
-from config.hf_inference import HFClientManager
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL_MODE = "api"
 
+VALID_MODES = ["concise", "brief", "summary", "detailed"]
+VALID_MODEL_MODES = ["api"]
 
+
+# =========================================================
+# PROMPT BUILDERS
+# =========================================================
 def _build_chunk_prompt(text: str, mode: str) -> str:
-    """Build prompt for individual chunk summarization with mode-specific instructions."""
-    mode_instructions = {
-        "concise": "Provide an ultra-brief summary (2-3 sentences) capturing only the essential core concepts.",
-        "brief": "Provide a concise summary capturing the main points and key information in 1-2 paragraphs.",
-        "summary": "Provide a balanced summary covering the main topics and important details in 2-3 paragraphs.",
-        "detailed": "Provide a comprehensive summary with key details, examples, and necessary context, maintaining the richness of the original content and give a clear understanding of the chunk in 3-4 paragraphs.",
-    }
-    instruction = mode_instructions.get(mode, mode_instructions["brief"])
-    return f"""You are a helpfull Summarization engine. {instruction}
+    """
+    Build prompt for individual chunk summarization.
+    """
 
-Content to summarize:
+    mode_instructions = {
+        "concise": (
+            "Provide an ultra-brief summary (2-3 sentences) "
+            "capturing only the essential core concepts."
+        ),
+        "brief": (
+            "Provide a concise summary capturing the main points "
+            "and key information in 1-2 paragraphs."
+        ),
+        "summary": (
+            "Provide a balanced summary covering the main topics "
+            "and important details in 2-3 paragraphs."
+        ),
+        "detailed": (
+            "Provide a comprehensive summary with key details, "
+            "examples, and necessary context while maintaining "
+            "clarity and coherence."
+        ),
+    }
+
+    instruction = mode_instructions.get(mode, mode_instructions["brief"])
+
+    return f"""
+You are an advanced AI summarization engine.
+
+Task:
+{instruction}
+
+Content:
 {text}
 
-Summary:"""
+Summary:
+""".strip()
 
 
 def _build_final_prompt(partial_summaries: List[str], mode: str) -> str:
-    """Build prompt for final summary consolidation with mode-specific instructions."""
+    """
+    Build prompt for final summary synthesis.
+    """
+
     combined_text = "\n\n".join(
-        f"Summary {i+1}: {summary}" for i, summary in enumerate(partial_summaries)
+        f"Summary {i + 1}: {summary}" for i, summary in enumerate(partial_summaries)
     )
+
     mode_instructions = {
-        "concise": "Create an ultra-brief overall summary (2-3 sentences) distilling only the absolutely essential information from all partial summaries.",
-        "brief": "Create a concise overall summary capturing the most important information from all the partial summaries in 1-2 paragraphs.",
-        "summary": "Create a balanced final summary integrating the key topics and important details from all partial summaries in 2-3 paragraphs.",
-        "detailed": "Create a comprehensive final summary that integrates and synthesizes information from all partial summaries, maintaining important details and context, you may provide graphical representations(from the source) if needed",
+        "concise": (
+            "Create an ultra-brief final summary containing only "
+            "the most essential information."
+        ),
+        "brief": (
+            "Create a concise final summary integrating the key "
+            "points from all partial summaries."
+        ),
+        "summary": (
+            "Create a balanced final summary integrating important "
+            "topics and details from all partial summaries."
+        ),
+        "detailed": (
+            "Create a comprehensive final summary synthesizing all "
+            "important information, context, and examples."
+        ),
     }
+
     instruction = mode_instructions.get(mode, mode_instructions["brief"])
-    return f"""{instruction}
+
+    return f"""
+{instruction}
 
 Partial Summaries:
 {combined_text}
 
-Final Summary:"""
+Final Summary:
+""".strip()
 
 
+# =========================================================
+# VALIDATION
+# =========================================================
 def _validate_input(
-    text: str, mode: str, model_mode: str = DEFAULT_MODEL_MODE
+    text: str,
+    mode: str,
+    model_mode: str = DEFAULT_MODEL_MODE,
 ) -> Tuple[bool, str]:
-    # """Validate input parameters."""
+    """
+    Validate user input.
+    """
+
     if not text or not text.strip():
         return False, "Input text cannot be empty"
 
-    if len(text.strip()) < 50:
+    stripped = text.strip()
+
+    if len(stripped) < 50:
         return (
             False,
-            "Input text is too short for meaningful summarization (minimum 50 characters)",
+            "Input text is too short for meaningful summarization "
+            "(minimum 50 characters)",
         )
 
-    if len(text.strip()) > 500000:  # ~100k words limit
-        return False, "Input text is too long (maximum 500,000 characters)"
-
-    if mode not in ["concise", "brief", "summary", "detailed"]:
+    if len(stripped) > 500000:
         return (
             False,
-            f"Invalid mode '{mode}'. Must be one of: concise, brief, summary, detailed",
+            "Input text exceeds maximum allowed size " "(500,000 characters)",
         )
 
-    if model_mode not in ["api", "local"]:
-        return False, f"Invalid model mode '{model_mode}'. Must be 'api' or 'local'"
+    if mode not in VALID_MODES:
+        return (
+            False,
+            f"Invalid mode '{mode}'. " f"Valid modes: {', '.join(VALID_MODES)}",
+        )
+
+    if model_mode not in VALID_MODEL_MODES:
+        return (
+            False,
+            f"Invalid model mode '{model_mode}'. "
+            f"Valid modes: {', '.join(VALID_MODEL_MODES)}",
+        )
 
     return True, ""
 
 
-# ==============
-# summarization engine using Hugging face platform
-# ==============
+# =========================================================
+# GENERATION ENGINE
+# =========================================================
 def _generate_summary_with_client(
-    client, prompt: str, model_mode: Optional[str] = None
+    client,
+    prompt: str,
+    model_mode: Optional[str] = None,
 ) -> str:
+    """
+    Generate summary using the HuggingFace LangChain endpoint.
+    """
+
     model_mode = model_mode or DEFAULT_MODEL_MODE
 
     try:
-        if model_mode == "api":
-            response = client.chat_completion(
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=1024,
-                temperature=0.3,
-            )
+        if model_mode != "api":
+            raise ValueError(f"Unsupported model mode: {model_mode}")
 
-            return response.choices[0].message.get("content", "").strip()
+        response = client.generate(
+            [
+                [
+                    SystemMessage(
+                        content="You are an advanced AI summarization engine."
+                    ),
+                    HumanMessage(content=prompt),
+                ]
+            ]
+        )
 
-        elif model_mode == "local":
-            response = client(
-                prompt,
-                max_new_tokens=512,
-                temperature=0.3,
-                do_sample=False,  # deterministic
-            )
+        if not response or not getattr(response, "generations", None):
+            raise ValueError("Empty response from HuggingFace LangChain client")
 
-            if isinstance(response, list) and response:
-                generated = response[0].get("generated_text", "")
-                return generated[len(prompt) :].strip()
+        content = response.generations[0][0].text.strip()
 
-            return str(response).strip()
+        if not content:
+            raise ValueError("Empty summary generated")
 
-        else:
-            raise ValueError(f"Unsupported model_mode: {model_mode}")
+        return content
 
     except Exception as e:
-        logger.error(f"Error generating summary with {model_mode}: {str(e)}")
+        logger.error(
+            f"Error during summary generation " f"(mode={model_mode}): {str(e)}",
+            exc_info=True,
+        )
         raise
 
 
+# =========================================================
+# MAIN SUMMARIZATION FUNCTION
+# =========================================================
 def Summarization(
     text: str,
     mode: str = "brief",
@@ -122,101 +202,140 @@ def Summarization(
 ) -> Tuple[bool, str]:
 
     try:
-        # -------------------------
-        # 1. Validate input
-        # -------------------------
-        is_valid, error_msg = _validate_input(text, mode, model_mode)
+
+        # =====================================================
+        # 1. VALIDATE INPUT
+        # =====================================================
+        is_valid, error_msg = _validate_input(
+            text,
+            mode,
+            model_mode,
+        )
+
         if not is_valid:
-            logger.warning(f"Input validation failed: {error_msg}")
+            logger.warning(f"Validation failed: {error_msg}")
             return False, error_msg
 
         logger.info(
-            f"Starting summarization: mode={mode}, model_mode={model_mode}, text_length={len(text)}"
+            f"Starting summarization | "
+            f"mode={mode} | "
+            f"model_mode={model_mode} | "
+            f"text_length={len(text)}"
         )
 
-        # -------------------------
-        # 2. Load correct client
-        # -------------------------
-        client = HFClientManager.get_client(mode=model_mode)
+        # =====================================================
+        # 2. LOAD MODEL CLIENT
+        # =====================================================
+        model_name = settings.HF_DEF_MODEL or settings.QUIZ_GENERATOR_MODEL
+        if not model_name:
+            return False, "No Hugging Face model configured for summarization"
 
-        # Safety checks (important)
-        if model_mode == "api" and not hasattr(client, "chat_completion"):
-            return False, "Invalid API client provided"
+        client = Provider(
+            provider="huggingface",
+            model_name=model_name,
+            temperature=0.3,
+            max_new_tokens=512,
+        ).get_llm()
 
-        if model_mode == "local" and not callable(client):
-            return False, "Invalid local model (must be callable)"
+        if client is None:
+            return False, "Failed to initialize model client"
 
-        # -------------------------
-        # 3. Clean text
-        # -------------------------
+        # =====================================================
+        # 3. CLEAN TEXT
+        # =====================================================
         cleaned_text = TextCleaner.clean(text)
-        if len(cleaned_text) < 50:
-            return False, "Text too short after cleaning"
 
-        # -------------------------
-        # 4. Chunk text
-        # -------------------------
+        if not cleaned_text or len(cleaned_text) < 50:
+            return (False, "Text too short after preprocessing")
+
+        # =====================================================
+        # 4. CHUNK TEXT
+        # =====================================================
         chunks = TextChunker.chunk(cleaned_text)
 
         if not chunks:
-            return False, "Chunking failed"
+            return False, "Chunk generation failed"
 
         if len(chunks) > max_chunks:
-            logger.warning(f"Too many chunks ({len(chunks)}), limiting to {max_chunks}")
+
+            logger.warning(
+                f"Chunk limit exceeded "
+                f"({len(chunks)} chunks). "
+                f"Limiting to {max_chunks}."
+            )
+
             chunks = chunks[:max_chunks]
 
-        logger.debug(f"{len(chunks)} chunks created")
+        logger.info(f"Generated {len(chunks)} chunks")
 
-        # -------------------------
-        # 5. Define execution functions
-        # -------------------------
-        def summarize_chunk(prompt: str) -> str:
-            if model_mode == "api":
-                response = client.chat_completion(
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=1024,
-                    temperature=0.3,
-                )
-                return response.choices[0].message.get("content", "").strip()
-
-            elif model_mode == "local":
-                response = client(
-                    prompt,
-                    max_new_tokens=512,
-                    do_sample=False,  # deterministic output
-                    temperature=0.3,
-                )
-
-                if isinstance(response, list) and response:
-                    generated = response[0].get("generated_text", "")
-                    return generated[len(prompt) :].strip()
-
-                return str(response).strip()
-
-        # -------------------------
-        # 6. Summarization flow
-        # -------------------------
+        # =====================================================
+        # 5. SINGLE CHUNK FLOW
+        # =====================================================
         if len(chunks) == 1:
-            prompt = _build_chunk_prompt(chunks[0], mode)
-            final_summary = summarize_chunk(prompt)
 
+            prompt = _build_chunk_prompt(
+                chunks[0],
+                mode,
+            )
+
+            final_summary = _generate_summary_with_client(
+                client=client,
+                prompt=prompt,
+                model_mode=model_mode,
+            )
+
+        # =====================================================
+        # 6. MULTI-CHUNK FLOW
+        # =====================================================
         else:
+
             partial_summaries = []
 
-            for i, chunk in enumerate(chunks):
-                logger.debug(f"Processing chunk {i+1}/{len(chunks)}")
-                prompt = _build_chunk_prompt(chunk, mode)
-                summary = summarize_chunk(prompt)
+            for index, chunk in enumerate(chunks):
+
+                logger.info(f"Processing chunk " f"{index + 1}/{len(chunks)}")
+
+                prompt = _build_chunk_prompt(
+                    chunk,
+                    mode,
+                )
+
+                summary = _generate_summary_with_client(
+                    client=client,
+                    prompt=prompt,
+                    model_mode=model_mode,
+                )
+
                 partial_summaries.append(summary)
 
-            logger.debug("Merging partial summaries")
+            logger.info("Combining partial summaries")
 
-            final_prompt = _build_final_prompt(partial_summaries, mode)
-            final_summary = summarize_chunk(final_prompt)
+            final_prompt = _build_final_prompt(
+                partial_summaries,
+                mode,
+            )
+
+            final_summary = _generate_summary_with_client(
+                client=client,
+                prompt=final_prompt,
+                model_mode=model_mode,
+            )
+
+        # =====================================================
+        # 7. FINAL VALIDATION
+        # =====================================================
+        if not final_summary or not final_summary.strip():
+            return False, "Generated empty final summary"
 
         logger.info("Summarization completed successfully")
-        return True, final_summary
+
+        return True, final_summary.strip()
 
     except Exception as e:
-        logger.error(f"Summarization failed: {str(e)}", exc_info=True)
-        return False, f"Summarization failed: {str(e)}"
+
+        logger.error(
+            f"Summarization failed: {str(e)}",
+            exc_info=True,
+        )
+
+        return (False, f"Summarization failed: {str(e)}")

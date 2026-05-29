@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -7,7 +7,7 @@ class QuizRequest(BaseModel):
     topic: str
     difficulty: str
     num_questions: int = 5
-    mode: str = "api"
+    mode: Literal["api"] = "api"
 
 
 class QuizQuestion(BaseModel):

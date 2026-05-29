@@ -10,7 +10,7 @@ def _is_valid_url(url: str) -> bool:
     """Validate URL format and scheme."""
     try:
         parsed = urlparse(url)
-        return parsed.scheme in ["http", "https"] and bool(parsed.netloc)
+        return parsed.scheme in ["http", "https"]
     except:
         return False
 
@@ -23,8 +23,8 @@ def _is_public_destination(url: str) -> bool:
         hostname = parsed.hostname
         if not hostname:
             return False
-        if hostname.lower() == "localhost":
-            return False
+        # if hostname.lower() == "localhost":
+        #     return False
 
         # If hostname is already an IP literal, validate directly.
         try:

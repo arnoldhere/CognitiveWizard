@@ -7,6 +7,7 @@ import torch
 class HFClientManager:
     _clients = {}
     _pipelines = {}
+    hf_provider = settings.HF_PROVIDER
 
     @classmethod
     def get_client(cls, mode: str = "api"):
@@ -32,7 +33,9 @@ class HFClientManager:
     def _get_api_client(cls, model_name: str = settings.QUIZ_GENERATOR_MODEL):
         if model_name not in cls._clients:
             cls._clients[model_name] = InferenceClient(
-                model=model_name, token=settings.HF_API_KEY
+                model=model_name,
+                token=settings.HF_API_KEY,
+                provider=settings.HF_PROVIDER,
             )
         return cls._clients[model_name]
 
@@ -56,3 +59,15 @@ class HFClientManager:
             )
 
         return cls._pipelines[model_name]
+
+
+"""
+example usage for API clien
+"""
+# client = HFClientManager.get_client()
+# res = client.text_generation(
+#     prompt="What is the capital of France?",
+#     max_new_tokens=512,
+#     temperature=0.3,
+#     do_sample=False,
+# )

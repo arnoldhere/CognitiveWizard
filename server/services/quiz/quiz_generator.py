@@ -2,7 +2,10 @@ import json
 import logging
 import re
 from typing import List, Dict, Tuple
-from config.hf_inference import HFClientManager
+
+from config.settings import settings
+from langchain_core.messages import HumanMessage, SystemMessage
+from providers.llm_provider import Provider
 from utils.prompt_builder.quiz_prompt import build_quiz_prompt
 from . import quiz_validator
 
@@ -135,46 +138,41 @@ def generate_quiz(
             f"Generating quiz: topic={topic}, difficulty={difficulty}, num_questions={num_questions}"
         )
 
-        # Initialize the inference client
-        client = HFClientManager.get_client(mode=QUIZ_MODEL_MODE)
-        # logger.debug(f"Using model: {settings.QUIZ_GENERATOR_MODEL}")
-
         # Build the prompt
         prompt = build_quiz_prompt(topic, difficulty, num_questions)
         logger.debug(f"Prompt built, length: {len(prompt)}")
 
-        # Prepare messages
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are an AI quiz generator.\n"
-                    "Generate ONLY valid JSON.\n"
-                    "Do not include explanations, comments, or extra text.\n"
-                    "Follow the exact format strictly."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ]
-
         logger.debug("Sending request to model...")
 
-        if QUIZ_MODEL_MODE == "api":
-            res = client.chat_completion(
-                messages=messages,
-                max_tokens=2048,
-                temperature=1,
-            )
-            response_text = res.choices[0].message["content"]
-
-        else:
-            # LOCAL PIPELINE MODE
-            res = client(
-                messages,
-                return_full_text=False,
+        if QUIZ_MODEL_MODE != "api":
+            raise ValueError(
+                f"Unsupported quiz model mode: {QUIZ_MODEL_MODE}. Only 'api' is supported."
             )
 
-            response_text = res[0]["generated_text"]  #  correct
+        chat_client = Provider(
+            provider="huggingface",
+            model_name=settings.QUIZ_GENERATOR_MODEL,
+            temperature=1.0,
+            max_new_tokens=2048,
+        ).get_llm()
+
+        conversation = [
+            SystemMessage(
+                content=(
+                    "You are an AI quiz generator. Generate ONLY valid JSON. "
+                    "Do not include explanations, comments, or extra text. "
+                    "Follow the exact format strictly."
+                )
+            ),
+            HumanMessage(content=prompt),
+        ]
+
+        response = chat_client.generate([conversation])
+
+        if not response or not getattr(response, "generations", None):
+            raise ValueError("Empty response from HuggingFace LangChain client")
+
+        response_text = response.generations[0][0].text
         logger.debug(f"Received response of length {len(response_text)}")
         # print(f"Raw response: {response_text}...")  # Print first 500 chars
 
