@@ -1,16 +1,19 @@
 from collections import defaultdict
 import shutil
 import logging
-from utils.decode_image import decode_image
 from datetime import datetime
-import cv2
 import os
-from services.facial_service.face_embedding import embedder
-from utils.decode_image import normalize
-from config.chroma_index import chroma_service
+
+import cv2
 from sqlalchemy.orm import Session
+
+from config.chroma_index import chroma_service
+from config.settings import settings
 from models.face_embeddings import FaceEmbedding
+from services.facial_service.face_embedding import embedder
 from services.facial_service.get_user import get_user_by_vector_id
+from services.facial_service.liveness import verify_liveness
+from utils.decode_image import decode_image, normalize
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +22,23 @@ async def register(image_bytes, userid, db: Session):
     # Decode image
     img = decode_image(image_bytes)
 
+    if img is None:
+        return {"error": "Invalid face image format"}
+
     # Get embedding using the consolidated service
     embedding, bbox = await embedder.process_image(img)
 
     if embedding is None:
         return {"error": "No face detected or embedding failed"}
+    """
+    # can be added if needs to be sure the registered face is from a live person at registration time
+    live, live_score, live_message = verify_liveness(image_bytes, img, bbox)
+    logger.info(
+        f"Liveness check: live={live}, score={live_score:.4f}, message='{live_message}'"
+    )
+    if not live:
+        return {"error": f"Liveness check failed: {live_message}"}
+        """
 
     # Optional: Save cropped face if you still need to see it
     x1, y1, x2, y2 = bbox.astype(int)
@@ -113,20 +128,31 @@ async def user_has_face_data(db: Session, user_id: int):
     return count > 0
 
 
-async def login_with_face(image, db: Session):
+async def login_with_face(image_bytes, db: Session):
     """
     Authenticate user for login with face
     """
     # ========
     # decode the image
     # ========
-    image = decode_image(image)
+    image = decode_image(image_bytes)
+
+    if image is None:
+        return {"error": "Invalid face image format"}
 
     # Get embedding using the consolidated service
     embedding, bbox = await embedder.process_image(image)
 
     if embedding is None:
         return {"error": "No face detected or embedding failed"}
+
+    live, live_score, live_message = verify_liveness(image_bytes, image, bbox)
+    logger.info(
+        f"Liveness check: live={live}, score={live_score:.4f}, message='{live_message}'"
+    )
+    if not live:
+        return {"error": f"Liveness check failed: {live_message}"}
+
     # Optional: Save cropped face if you still need to see it
     x1, y1, x2, y2 = bbox.astype(int)
     face_crop = image[y1:y2, x1:x2]

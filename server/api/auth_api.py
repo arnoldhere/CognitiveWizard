@@ -307,6 +307,18 @@ async def register_face(
 ):
     contents = await image.read()
 
+    if image.content_type and image.content_type not in {"image/jpeg", "image/jpg", "image/png"}:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only JPEG and PNG face images are supported.",
+        )
+
+    if len(contents) > settings.FACE_LOGIN_MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Face image is too large. Please upload a smaller image.",
+        )
+
     logger.debug(
         "Registering face for user %s with image size %d bytes",
         userid,
@@ -421,6 +433,19 @@ async def face_login(
     Accepts a camera image and returns a JWT plus user profile data.
     """
     contents = await image.read()
+
+    if image.content_type and image.content_type not in {"image/jpeg", "image/jpg", "image/png"}:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only JPEG and PNG face images are supported.",
+        )
+
+    if len(contents) > settings.FACE_LOGIN_MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Face image is too large. Please upload a smaller image.",
+        )
+
     result = await login_with_face(contents, db)
     logger.info("Facial login attempt with confidence %s", result.get("confidence"))
 
