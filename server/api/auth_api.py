@@ -391,6 +391,7 @@ async def face_login(
     """
     contents = await image.read()
     result = await login_with_face(contents, db)
+    logger.info("Facial login attempt with confidence %s", result.get("confidence"))
 
     if "error" in result:
         raise HTTPException(
