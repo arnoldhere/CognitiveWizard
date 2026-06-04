@@ -21,8 +21,15 @@ export default function FaceLogin() {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [cameraReady, setCameraReady] = useState(false);
+    const [flashOverlay, setFlashOverlay] = useState(null);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
+
+    const challengeColors = [
+        "rgba(255,0,0,0.25)",
+        "rgba(0,255,0,0.25)",
+        "rgba(0,0,255,0.25)",
+    ];
 
     const from = location.state?.from?.pathname || "/quiz";
 
@@ -36,7 +43,13 @@ export default function FaceLogin() {
 
         const initCamera = async () => {
             try {
-                const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user",
+                        width: { min: 640 },
+                        height: { min: 480 },
+                    },
+                });
                 activeStream = mediaStream;
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream;
@@ -59,6 +72,13 @@ export default function FaceLogin() {
         };
     }, [from, isAuthenticated, navigate]);
 
+    const triggerFlash = async () => {
+        const color = challengeColors[Math.floor(Math.random() * challengeColors.length)];
+        setFlashOverlay(color);
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        setFlashOverlay(null);
+    };
+
     const captureAndLogin = async () => {
         if (!videoRef.current || !canvasRef.current) {
             setError("Unable to access video capture elements.");
@@ -67,6 +87,8 @@ export default function FaceLogin() {
 
         setLoading(true);
         setError(null);
+        setStatus("Applying capture challenge...");
+        await triggerFlash();
         setStatus("Capturing frame...");
 
         const video = videoRef.current;
@@ -178,6 +200,16 @@ export default function FaceLogin() {
                         muted
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
+                    {flashOverlay && (
+                        <Box
+                            sx={{
+                                position: "absolute",
+                                inset: 0,
+                                backgroundColor: flashOverlay,
+                                pointerEvents: "none",
+                            }}
+                        />
+                    )}
                     {!cameraReady && !error && (
                         <Box
                             sx={{

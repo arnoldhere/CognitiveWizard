@@ -10,6 +10,13 @@ const FaceRegistration = () => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const [status, setStatus] = useState('');
+    const [flashOverlay, setFlashOverlay] = useState(null);
+
+    const challengeColors = [
+        'rgba(255,0,0,0.25)',
+        'rgba(0,255,0,0.25)',
+        'rgba(0,0,255,0.25)',
+    ];
 
 
     // Initialize the camera when the component mounts
@@ -18,7 +25,13 @@ const FaceRegistration = () => {
 
         const initCamera = async () => {
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { min: 640 },
+                        height: { min: 480 },
+                    },
+                });
 
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream;
@@ -39,9 +52,18 @@ const FaceRegistration = () => {
     }, []);
 
 
+    const triggerFlash = async () => {
+        const color = challengeColors[Math.floor(Math.random() * challengeColors.length)];
+        setFlashOverlay(color);
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        setFlashOverlay(null);
+    };
+
     const captureAndRegister = async () => {
         if (!videoRef.current || !canvasRef.current) return;
 
+        setStatus("Starting anti-spoof challenge...");
+        await triggerFlash();
         setStatus("Capturing image...");
 
         const video = videoRef.current;
@@ -101,13 +123,26 @@ const FaceRegistration = () => {
             <h2>CognitiveWizard - Face Registration</h2>
 
             {/* Live Video Feed */}
-            <div style={{ margin: '20px auto', width: '640px', height: '480px', backgroundColor: '#000' }}>
+            <div style={{ position: 'relative', margin: '20px auto', width: '640px', height: '480px', backgroundColor: '#000' }}>
                 <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     style={{ width: '100%', height: '100%' }}
                 />
+                {flashOverlay && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: flashOverlay,
+                            pointerEvents: 'none',
+                        }}
+                    />
+                )}
             </div>
 
             {/* Hidden Canvas used for grabbing the image frame */}

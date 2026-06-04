@@ -107,6 +107,14 @@ class Settings:
     RAG_EVAL_LLM: str = os.getenv("RAG_EVAL_LLM")
     DEF_EMBEDD_MODEL: str = os.getenv("DEF_EMBEDD_MODEL", "")
 
+    # ==========
+    # Liveness detection settings
+    # ==========
+    LIVENESS_THRESHOLD: float = float(os.getenv("LIVENESS_THRESHOLD", "0.6"))
+    FACE_LOGIN_RATE_MAX: int = int(os.getenv("FACE_LOGIN_RATE_MAX", "5"))
+    FACE_LOGIN_RATE_WINDOW: int = int(os.getenv("FACE_LOGIN_RATE_WINDOW", "60"))
+    FACE_LOGIN_MAX_BYTES: int = int(os.getenv("FACE_LOGIN_MAX_BYTES", "5242880"))
+
     # ===========
     # AUTH Configs
     # ===========

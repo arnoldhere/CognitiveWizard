@@ -1,6 +1,15 @@
-import shutil, os
-from datetime import datetime
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+import shutil, os, time, threading
+from collections import deque
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import logging
@@ -38,6 +47,11 @@ from models.user import User
 
 logger = logging.getLogger(__name__)
 
+FACE_LOGIN_RATE_MAX = settings.FACE_LOGIN_RATE_MAX
+FACE_LOGIN_RATE_WINDOW = settings.FACE_LOGIN_RATE_WINDOW
+_login_attempts_lock = threading.Lock()
+_login_attempts: dict[str, deque[float]] = {}
+
 router = APIRouter(prefix="/auth", tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -71,6 +85,22 @@ def require_role(allowed_roles: list[str]):
         return current_user
 
     return role_checker
+
+
+def rate_limit_face_login(request: Request):
+    client_ip = getattr(request.client, "host", None) or "unknown"
+    now = time.time()
+
+    with _login_attempts_lock:
+        bucket = _login_attempts.setdefault(client_ip, deque())
+        while bucket and now - bucket[0] > FACE_LOGIN_RATE_WINDOW:
+            bucket.popleft()
+        if len(bucket) >= FACE_LOGIN_RATE_MAX:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many face login attempts. Please try again later.",
+            )
+        bucket.append(now)
 
 
 @router.post("/signup", response_model=UserRead)
@@ -384,6 +414,7 @@ async def delete_profile(
 async def face_login(
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
+    _: None = Depends(rate_limit_face_login),
 ):
     """
     Facial login endpoint.
