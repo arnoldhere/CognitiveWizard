@@ -10,15 +10,21 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from utils.prompt_builder.prompts.rag_prompt import RAG_PROMPT
 
+# ===========================
+# Helpers methods
+# ===========================
 
-def _get_default_llm():
-    from providers.llm_provider import llm
 
+def _get_default_llm(provider: Optional[str] = None):
+    from providers.llm.factory import get_llm_for_task
+    from providers.llm.tasks import TaskType
+
+    llm = get_llm_for_task(task=TaskType.RAG, provider=provider)
     return llm
 
 
 def _doc_text(doc: Any) -> str:
-    """Extract clean text from Chroma/LangChain documents and legacy dict rows."""
+    """Extract clean text from Chroma/LangChain Document, tuple, or legacy dict."""
     if isinstance(doc, tuple) and doc:
         return _doc_text(doc[0])
     if isinstance(doc, Document):
@@ -28,66 +34,68 @@ def _doc_text(doc: Any) -> str:
     return str(getattr(doc, "page_content", doc))
 
 
-def format_docs(docs: List[Any]) -> str:
-    """
-    Format retrieved documents for prompt context.
-    Removes artificial document numbering to avoid
-    LLM hallucinating references like 'Document 1'.
-    """
+def _format_docs(docs: List[Any]) -> str:
+    """Join document texts — no numbering to prevent hallucinated references."""
     if not docs:
         return "No relevant documents found."
-
-    formatted = []
-    for doc in docs:
-        text = _doc_text(doc).strip()
-        if text:
-            formatted.append(text)
-
-    return "\n\n".join(formatted)
+    return "\n\n".join(text for doc in docs if (text := _doc_text(doc).strip()))
 
 
-def build_v1_rag_chain(retriever, prompt: Optional[PromptTemplate] = None):
+def _format_history(chat_history: list) -> str:
+    """Normalize chat_history to a readable string for the prompt."""
+    if not chat_history:
+        return ""
+    if isinstance(chat_history[0], dict):
+        # [{"role": "user", "content": "..."}, ...]
+        return "\n".join(
+            f"{m['role'].capitalize()}: {m['content']}" for m in chat_history
+        )
+    # LangChain HumanMessage/AIMessage objects
+    return "\n".join(
+        f"{'User' if m.type == 'human' else 'Assistant'}: {m.content}"
+        for m in chat_history
+    )
+
+
+def _extract_query(x: Any) -> str:
+    return x.get("input", x) if isinstance(x, dict) else str(x)
+
+
+def _extract_history(x: Any) -> str:
+    history = x.get("chat_history", []) if isinstance(x, dict) else []
+    return _format_history(history)
+
+
+def build_v1_rag_chain(
+    retriever,
+    prompt: Optional[PromptTemplate] = None,
+    provider: Optional[str] = None,
+):
     """
-    Build a modern LangChain RAG chain using LCEL.
+    Minimal RAG chain — query in, answer string out.
 
     Args:
-        retriever: The retriever to use for document retrieval
-        prompt: The prompt template to use (defaults to RAG_PROMPT)
+        retriever : any LangChain-compatible retriever
+        prompt    : optional override (defaults to RAG_PROMPT)
+        provider  : optional provider override e.g. "openai", "anthropic"
 
     Returns:
-        A runnable chain that processes queries and returns answers
+        Runnable: accepts {"input": str, "chat_history": list} or plain str
     """
-
-    if prompt is None:
-        prompt = RAG_PROMPT
-    llm_instance = _get_default_llm()
-
-    # Create the RAG chain using LCEL
-    # This chain:
-    # 1. Takes input and retrieves documents
-    # 2. Formats the documents
-    # 3. Passes everything to the LLM
-    # 4. Parses the output
+    llm = _get_default_llm(provider)
+    prompt = prompt or RAG_PROMPT
 
     chain = (
         {
-            "context": RunnableLambda(
-                lambda x: (
-                    retriever.get_relevant_documents(x["input"])
-                    if isinstance(x, dict) and "input" in x
-                    else retriever.get_relevant_documents(x)
-                )
-            )
-            | RunnableLambda(format_docs),
-            "input": RunnableLambda(
-                lambda x: x.get("input", x) if isinstance(x, dict) else x
-            ),
-            "chat_history": RunnableLambda(
-                lambda x: x.get("chat_history", []) if isinstance(x, dict) else []
-            ),
+            # FIXED: retriever.invoke() — not deprecated get_relevant_documents()
+            "context": RunnableLambda(_extract_query)
+            | retriever
+            | RunnableLambda(_format_docs),
+            "input": RunnableLambda(_extract_query),
+            "chat_history": RunnableLambda(_extract_history),
         }
         | prompt
-        | llm_instance
+        | llm
         | StrOutputParser()
     )
 
@@ -95,43 +103,50 @@ def build_v1_rag_chain(retriever, prompt: Optional[PromptTemplate] = None):
 
 
 def build_retrieval_qa_chain(
-    retriever, llm_instance=None, prompt: Optional[PromptTemplate] = None
+    retriever,
+    prompt: Optional[PromptTemplate] = None,
+    provider: Optional[str] = None,
 ):
     """
-    Build a complete RAG QA chain with context awareness.
+    Full RAG QA chain — returns both answer and source documents.
     Args:
-        retriever: The retriever to use
-        llm_instance: The LLM to use (defaults to configured provider)
-        prompt: The prompt template (defaults to RAG_PROMPT)
+        retriever : any LangChain-compatible retriever
+        prompt    : optional override (defaults to RAG_PROMPT)
+        provider  : optional provider override
     Returns:
-        A chain that processes questions and returns answers with metadata
+        Runnable: accepts {"input": str, "chat_history": list}
+        Output  : {"answer": str, "source_docs": List[Document]}
     """
+    llm = _get_default_llm(provider)
+    prompt = prompt or RAG_PROMPT
 
-    if llm_instance is None:
-        llm_instance = _get_default_llm()
+    def _retrieve(x: dict) -> dict:
+        """Single retrieval call — result shared between answer + source branches."""
+        query = _extract_query(x)
+        history = _extract_history(x)
 
-    if prompt is None:
-        prompt = RAG_PROMPT
+        docs = retriever.invoke(query)
 
-    # Chain that also returns retrieved docs for source attribution
-    def retrieve_and_format(x):
-        query = x.get("input", x) if isinstance(x, dict) else x
-        chat_history = x.get("chat_history", []) if isinstance(x, dict) else []
-        if hasattr(retriever, "get_relevant_documents_with_scores"):
-            docs = retriever.get_relevant_documents_with_scores(query)
-        else:
-            docs = [(doc, 0.0) for doc in retriever.get_relevant_documents(query)]
         return {
             "input": query,
-            "chat_history": chat_history,
-            "context": format_docs(docs),
-            "original_docs": docs,
+            "chat_history": history,
+            "context": _format_docs(docs),
+            "source_docs": docs,
         }
 
-    qa_chain = RunnableLambda(retrieve_and_format) | {
-        "answer": prompt | llm_instance | StrOutputParser(),
-        "original_docs": RunnablePassthrough()
-        | RunnableLambda(lambda x: x.get("original_docs", [])),
-    }
+    # After _retrieve, the dict has all keys the prompt needs
+    # plus source_docs for attribution
+    answer_chain = prompt | llm | StrOutputParser()
 
-    return qa_chain
+    chain = (
+        RunnableLambda(_retrieve)
+        | RunnablePassthrough.assign(answer=answer_chain)
+        | RunnableLambda(
+            lambda x: {
+                "answer": x["answer"],
+                "source_docs": x["source_docs"],
+            }
+        )
+    )
+
+    return chain

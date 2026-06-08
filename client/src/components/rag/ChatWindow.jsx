@@ -379,6 +379,7 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
       setMessages((prev) => [
         ...prev,
         createMessage("bot", data.answer, {
+          createdAt: data.created_at ?? data.createdAt,
           modeUsed: data.mode_used,
           sources: data.sources ?? [],
           warning: data.warning ?? "",

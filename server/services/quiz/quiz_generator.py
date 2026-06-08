@@ -2,10 +2,9 @@ import json
 import logging
 import re
 from typing import List, Dict, Tuple
-
-from config.settings import settings
 from langchain_core.messages import HumanMessage, SystemMessage
-from providers.llm_provider import Provider
+from providers.llm.factory import get_llm_for_task
+from providers.llm.tasks import TaskType
 from utils.prompt_builder.quiz_prompt import build_quiz_prompt
 from . import quiz_validator
 
@@ -149,25 +148,17 @@ def generate_quiz(
                 f"Unsupported quiz model mode: {QUIZ_MODEL_MODE}. Only 'api' is supported."
             )
 
-        chat_client = Provider(
-            provider="huggingface",
-            model_name=settings.QUIZ_GENERATOR_MODEL,
-            temperature=1.0,
-            max_new_tokens=2048,
-        ).get_llm()
+        # Use factory pattern for task-specific text-generation configuration
+        llm = get_llm_for_task(TaskType.QUIZ, provider="huggingface")
 
-        conversation = [
-            SystemMessage(
-                content=(
-                    "You are an AI quiz generator. Generate ONLY valid JSON. "
-                    "Do not include explanations, comments, or extra text. "
-                    "Follow the exact format strictly."
-                )
-            ),
-            HumanMessage(content=prompt),
-        ]
+        prompt_text = (
+            "You are an AI quiz generator. Generate ONLY valid JSON. "
+            "Do not include explanations, comments, or extra text. "
+            "Follow the exact format strictly.\n\n"
+            f"{prompt}"
+        )
 
-        response = chat_client.generate([conversation])
+        response = llm.generate([prompt_text])
 
         if not response or not getattr(response, "generations", None):
             raise ValueError("Empty response from HuggingFace LangChain client")

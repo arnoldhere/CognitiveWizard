@@ -1,16 +1,15 @@
 import logging
 from typing import List, Tuple, Optional
-
 from config.settings import settings
 from langchain_core.messages import HumanMessage, SystemMessage
-from providers.llm_provider import Provider
+from providers.llm.factory import get_llm_for_task
+from providers.llm.tasks import TaskType
 from services.summarization.preprocess.chunker import TextChunker
 from services.summarization.preprocess.text_cleaner import TextCleaner
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL_MODE = "api"
-
 VALID_MODES = ["concise", "brief", "summary", "detailed"]
 VALID_MODEL_MODES = ["api"]
 
@@ -226,16 +225,9 @@ def Summarization(
         # =====================================================
         # 2. LOAD MODEL CLIENT
         # =====================================================
-        model_name = settings.HF_DEF_MODEL or settings.QUIZ_GENERATOR_MODEL
-        if not model_name:
-            return False, "No Hugging Face model configured for summarization"
-
-        client = Provider(
-            provider="huggingface",
-            model_name=model_name,
-            temperature=0.3,
-            max_new_tokens=512,
-        ).get_llm()
+        # Use factory pattern for task-specific LLM configuration
+        # Factory will use optimal temperature (0.3) and max_tokens (1024) for summarization
+        client = get_llm_for_task(TaskType.SUMMARIZE, provider="huggingface")
 
         if client is None:
             return False, "Failed to initialize model client"

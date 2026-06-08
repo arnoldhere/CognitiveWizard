@@ -131,9 +131,9 @@ class TestParseResponse:
 class TestGenerateQuiz:
     """Tests for main generate_quiz function"""
 
-    @patch("services.quiz.quiz_generator.Provider")
+    @patch("services.quiz.quiz_generator.get_llm_for_task")
     @patch("services.quiz.quiz_generator.build_quiz_prompt")
-    def test_generate_quiz_success(self, mock_prompt, mock_provider):
+    def test_generate_quiz_success(self, mock_prompt, mock_get_llm):
         """Test successful quiz generation"""
         # Setup mocks
         mock_prompt.return_value = "Mock prompt"
@@ -151,7 +151,7 @@ class TestGenerateQuiz:
 
         mock_client_instance = MagicMock()
         mock_client_instance.generate.return_value = mock_response
-        mock_provider.return_value.get_llm.return_value = mock_client_instance
+        mock_get_llm.return_value = mock_client_instance
 
         # Call function
         success, data = quiz_generator.generate_quiz("Python", "beginner", 2)
@@ -161,9 +161,9 @@ class TestGenerateQuiz:
         assert len(data) == 2
         assert data[0]["question"] == "Q"
 
-    @patch("services.quiz.quiz_generator.Provider")
+    @patch("services.quiz.quiz_generator.get_llm_for_task")
     @patch("services.quiz.quiz_generator.build_quiz_prompt")
-    def test_generate_quiz_invalid_response(self, mock_prompt, mock_provider):
+    def test_generate_quiz_invalid_response(self, mock_prompt, mock_get_llm):
         """Test handling of invalid LLM response"""
         mock_prompt.return_value = "Mock prompt"
 
@@ -173,7 +173,7 @@ class TestGenerateQuiz:
 
         mock_client_instance = MagicMock()
         mock_client_instance.generate.return_value = mock_response
-        mock_provider.return_value.get_llm.return_value = mock_client_instance
+        mock_get_llm.return_value = mock_client_instance
 
         # Call function
         success, data = quiz_generator.generate_quiz("Python", "beginner", 2)
@@ -182,12 +182,12 @@ class TestGenerateQuiz:
         assert success is False
         assert data == []
 
-    @patch("services.quiz.quiz_generator.Provider")
+    @patch("services.quiz.quiz_generator.get_llm_for_task")
     @patch("services.quiz.quiz_generator.build_quiz_prompt")
-    def test_generate_quiz_api_error(self, mock_prompt, mock_provider):
+    def test_generate_quiz_api_error(self, mock_prompt, mock_get_llm):
         """Test handling of API errors"""
         mock_prompt.return_value = "Mock prompt"
-        mock_provider.side_effect = Exception("API Error")
+        mock_get_llm.side_effect = Exception("API Error")
 
         # Call function
         success, data = quiz_generator.generate_quiz("Python", "beginner", 2)
@@ -196,9 +196,9 @@ class TestGenerateQuiz:
         assert success is False
         assert data == []
 
-    @patch("services.quiz.quiz_generator.Provider")
+    @patch("services.quiz.quiz_generator.get_llm_for_task")
     @patch("services.quiz.quiz_generator.build_quiz_prompt")
-    def test_generate_quiz_with_auto_fix(self, mock_prompt, mock_provider):
+    def test_generate_quiz_with_auto_fix(self, mock_prompt, mock_get_llm):
         """Test that auto-fix is applied"""
         mock_prompt.return_value = "Mock prompt"
 
@@ -219,7 +219,7 @@ class TestGenerateQuiz:
 
         mock_client_instance = MagicMock()
         mock_client_instance.generate.return_value = mock_response
-        mock_provider.return_value.get_llm.return_value = mock_client_instance
+        mock_get_llm.return_value = mock_client_instance
 
         # Call function
         success, data = quiz_generator.generate_quiz("Python", "beginner", 1)

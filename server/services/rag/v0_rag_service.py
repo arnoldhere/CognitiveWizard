@@ -1,6 +1,7 @@
 """Singleton service/orchestrator for RAG ingestion, retrieval and response generation."""
 
 from __future__ import annotations
+import datetime
 import json
 import logging
 import os
@@ -166,6 +167,7 @@ class RAGService:
             ],
             "warning": warning,
             "token_usage": token_usage,
+            "created_at": datetime.datetime.utcnow(),
         }
 
     def status(self, user_id: Optional[str] = None):

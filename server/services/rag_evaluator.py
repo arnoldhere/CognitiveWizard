@@ -140,7 +140,7 @@ class RAGEvaluator:
         """
         if self._llm is None:
             from config.settings import settings
-            from providers.llm_provider import Provider
+            from providers.llm.llm_provider import Provider
 
             self._llm = Provider(
                 provider=settings.DEF_LLM_PROVIDER or "huggingface",

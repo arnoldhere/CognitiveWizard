@@ -1,5 +1,5 @@
+import datetime
 from typing import Any, Dict, List, Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -38,6 +38,10 @@ class RAGResponse(BaseModel):
         default=None, description="Session identifier for persisted chat history"
     )
     session_title: Optional[str] = Field(default=None, description="Chat session title")
+    created_at: Optional[datetime.datetime] = Field(
+        default=None,
+        description="Server timestamp for the assistant response message",
+    )
     chat_limit_info: Optional[Dict[str, Any]] = Field(
         default=None, description="Chat message limit information"
     )

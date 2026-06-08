@@ -280,6 +280,8 @@ class LangChainRAGService:
             answer = f"Error processing query: {str(e)}"
             mode_used = "error"
 
+        assistant_created_at = None
+
         # Persist the full chat turn if the session exists
         if session_id and user_id and answer:
             try:
@@ -289,7 +291,7 @@ class LangChainRAGService:
                     "user",
                     query,
                 )
-                store_chat_message(
+                assistant_message = store_chat_message(
                     session_id,
                     int(user_id),
                     "assistant",
@@ -300,6 +302,7 @@ class LangChainRAGService:
                         "warning": warning if warning else None,
                     },
                 )
+                assistant_created_at = assistant_message.get("created_at")
                 if db is not None:
                     update_chat_session_activity(
                         db,
@@ -329,7 +332,7 @@ class LangChainRAGService:
                 warning=warning,
             )
 
-        return {
+        response_payload = {
             "answer": answer,
             "mode_used": mode_used,
             "sources": [
@@ -345,6 +348,11 @@ class LangChainRAGService:
             "warning": warning,
             "token_usage": token_usage,
         }
+
+        if assistant_created_at is not None:
+            response_payload["created_at"] = assistant_created_at
+
+        return response_payload
 
     def _log_query_for_evaluation(
         self,
@@ -531,7 +539,7 @@ class LangChainRAGService:
 
     def _generate_without_context(self, query: str) -> str:
         """Generate an answer without retrieval context."""
-        from providers.llm_provider import llm
+        from providers.llm.llm_provider import llm
 
         prompt = f"Answer the following question helpfully: {query}"
         try:
