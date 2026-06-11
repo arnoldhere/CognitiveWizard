@@ -16,7 +16,7 @@ class Provider:
         hf_task: Optional[str] = None,
     ):
         self.provider = provider.lower()
-        self.model_name = model_name
+        self.model_name = model_name or settings.HF_DEF_MODEL
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
         self.hf_task = hf_task
@@ -41,16 +41,35 @@ class Provider:
                 )
 
             case "huggingface":
-                model = self._clean_model(self.model_name or settings.HF_DEF_MODEL)
-                token = settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN
+                # Route conversational tasks directly through HF's chat endpoint
+                # This ensures all chat-style tasks use a chat-compatible model client.
+                if self.hf_task == "conversational" or use_chat:
+                    token = settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN
+                    model_id = self._clean_model(
+                        self.model_name or settings.HF_DEF_MODEL
+                    )
+                    endpoint = HuggingFaceEndpoint(
+                        temperature=self.temperature,
+                        repo_id=model_id,
+                        max_new_tokens=self.max_new_tokens,
+                        huggingfacehub_api_token=token,
+                        # endpoint_url=(
+                        #     f"https://api-inference.huggingface.co/models/"
+                        #     f"{model_id}/v1"
+                        # ),
+                    )
+                    return ChatHuggingFace(llm=endpoint)
+
+                # Fallback for standard text-generation endpoints when chat is not required.
                 endpoint = HuggingFaceEndpoint(
-                    repo_id=model,
+                    repo_id=self.model_name or settings.HF_DEF_MODEL,
                     temperature=self.temperature,
-                    huggingfacehub_api_token=token,
+                    huggingfacehub_api_token=settings.HF_API_KEY
+                    or settings.HUGGINGFACEHUB_API_TOKEN,
                     task=self.hf_task or "text-generation",
                     max_new_tokens=self.max_new_tokens,
                 )
-                return ChatHuggingFace(llm=endpoint) if use_chat else endpoint
+                return endpoint
 
             case "inference":
                 model = self._clean_model(self.model_name or settings.HF_DEF_MODEL)

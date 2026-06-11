@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from typing import List, Dict, Tuple
+from typing import Any, List, Dict, Tuple
 from langchain_core.messages import HumanMessage, SystemMessage
 from providers.llm.factory import get_llm_for_task
 from providers.llm.tasks import TaskType
@@ -118,6 +118,23 @@ def _parse_response(response_text: str) -> Tuple[bool, List[Dict]]:
         return False, []
 
 
+def _extract_model_response(response: Any) -> str:
+    if response is None:
+        return ""
+    if hasattr(response, "content"):
+        return str(response.content)
+    if hasattr(response, "generations"):
+        generations = getattr(response, "generations")
+        if generations and generations[0] and hasattr(generations[0][0], "text"):
+            return str(generations[0][0].text)
+    if isinstance(response, list) and response:
+        first = response[0]
+        if hasattr(first, "content"):
+            return str(first.content)
+        return str(first)
+    return str(response)
+
+
 def generate_quiz(
     topic: str, difficulty: str, num_questions: int, QUIZ_MODEL_MODE: str = "api"
 ) -> Tuple[bool, List[Dict]]:
@@ -143,11 +160,6 @@ def generate_quiz(
 
         logger.debug("Sending request to model...")
 
-        if QUIZ_MODEL_MODE != "api":
-            raise ValueError(
-                f"Unsupported quiz model mode: {QUIZ_MODEL_MODE}. Only 'api' is supported."
-            )
-
         # Use factory pattern for task-specific text-generation configuration
         llm = get_llm_for_task(TaskType.QUIZ, provider="huggingface")
 
@@ -158,14 +170,29 @@ def generate_quiz(
             f"{prompt}"
         )
 
-        response = llm.generate([prompt_text])
+        # Use chat-style invocation for quiz generation to ensure compatibility
+        messages = [
+            SystemMessage(
+                content=(
+                    "You are an advanced quiz generation assistant. "
+                    "Generate ONLY valid JSON without explanation."
+                )
+            ),
+            HumanMessage(content=prompt_text),
+        ]
 
-        if not response or not getattr(response, "generations", None):
-            raise ValueError("Empty response from HuggingFace LangChain client")
+        if hasattr(llm, "invoke"):
+            response = llm.invoke(messages)
+        elif hasattr(llm, "generate"):
+            response = llm.generate([messages])
+        else:
+            raise AttributeError("LLM client does not support chat-style invocation")
 
-        response_text = response.generations[0][0].text
+        if not response:
+            raise ValueError("Empty response from the model")
+
+        response_text = _extract_model_response(response).strip()
         logger.debug(f"Received response of length {len(response_text)}")
-        # print(f"Raw response: {response_text}...")  # Print first 500 chars
 
         # Parse and validate
         success, parsed_data = _parse_response(response_text)

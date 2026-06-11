@@ -3,11 +3,9 @@
 ## 📌 Overview
 
 CognitiveWizard is an AI-powered learning platform that provides adaptive and smart materials and tools for learning and study purpose.
-
 The platform provides Quiz and Summarization engine, RAG powered chatbot and more tools.
 
 ---
-
 
 ## Core idea
 > An AI-driven personalized learning engine
@@ -32,7 +30,6 @@ The platform provides Quiz and Summarization engine, RAG powered chatbot and mor
     - MySQL
     - chromaDB for embeddings
     - MongoDB for chat storage
-
 
 ## Core Features
 
@@ -79,7 +76,6 @@ The platform provides Quiz and Summarization engine, RAG powered chatbot and mor
   * Weak areas
 
 ---
-
 
 ## Evaluation Metrics
 

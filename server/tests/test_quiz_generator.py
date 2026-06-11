@@ -135,7 +135,6 @@ class TestGenerateQuiz:
     @patch("services.quiz.quiz_generator.build_quiz_prompt")
     def test_generate_quiz_success(self, mock_prompt, mock_get_llm):
         """Test successful quiz generation"""
-        # Setup mocks
         mock_prompt.return_value = "Mock prompt"
 
         mock_response = MagicMock()
@@ -148,12 +147,12 @@ class TestGenerateQuiz:
             )
         )
         mock_response.generations = [[mock_generation]]
+        mock_response.content = mock_response.generations[0][0].text
 
         mock_client_instance = MagicMock()
-        mock_client_instance.generate.return_value = mock_response
+        mock_client_instance.invoke.return_value = mock_response
         mock_get_llm.return_value = mock_client_instance
 
-        # Call function
         success, data = quiz_generator.generate_quiz("Python", "beginner", 2)
 
         # Verify
@@ -170,12 +169,12 @@ class TestGenerateQuiz:
         mock_response = MagicMock()
         mock_generation = MagicMock(text="This is not valid JSON")
         mock_response.generations = [[mock_generation]]
+        mock_response.content = mock_generation.text
 
         mock_client_instance = MagicMock()
-        mock_client_instance.generate.return_value = mock_response
+        mock_client_instance.invoke.return_value = mock_response
         mock_get_llm.return_value = mock_client_instance
 
-        # Call function
         success, data = quiz_generator.generate_quiz("Python", "beginner", 2)
 
         # Should fail gracefully
@@ -189,7 +188,6 @@ class TestGenerateQuiz:
         mock_prompt.return_value = "Mock prompt"
         mock_get_llm.side_effect = Exception("API Error")
 
-        # Call function
         success, data = quiz_generator.generate_quiz("Python", "beginner", 2)
 
         # Should fail gracefully
@@ -202,7 +200,6 @@ class TestGenerateQuiz:
         """Test that auto-fix is applied"""
         mock_prompt.return_value = "Mock prompt"
 
-        # Response with issues that should be auto-fixed
         mock_response = MagicMock()
         mock_generation = MagicMock(
             text=json.dumps(
@@ -216,12 +213,12 @@ class TestGenerateQuiz:
             )
         )
         mock_response.generations = [[mock_generation]]
+        mock_response.content = mock_generation.text
 
         mock_client_instance = MagicMock()
-        mock_client_instance.generate.return_value = mock_response
+        mock_client_instance.invoke.return_value = mock_response
         mock_get_llm.return_value = mock_client_instance
 
-        # Call function
         success, data = quiz_generator.generate_quiz("Python", "beginner", 1)
 
         # Should succeed with auto-fixed data

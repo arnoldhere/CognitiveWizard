@@ -539,11 +539,25 @@ class LangChainRAGService:
 
     def _generate_without_context(self, query: str) -> str:
         """Generate an answer without retrieval context."""
-        from providers.llm.llm_provider import llm
+        from providers.llm.factory import get_llm_for_task
+        from providers.llm.tasks import TaskType
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        client = get_llm_for_task(task=TaskType.RAG)
 
         prompt = f"Answer the following question helpfully: {query}"
         try:
-            response = llm.invoke([{"role": "user", "content": prompt}])
+            response = client.generate(
+                [
+                    [
+                        SystemMessage(
+                            content="You're great chatbot, a helpfull QnA buddy..."
+                        ),
+                        HumanMessage(content=prompt),
+                    ]
+                ]
+            )
+            # response = llm.invoke([{"role": "user", "content": prompt}])
             return getattr(response, "content", str(response))
         except Exception as e:
             logger.exception(f"Error generating response: {e}")

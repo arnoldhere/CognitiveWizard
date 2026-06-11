@@ -11,8 +11,8 @@ class TextChunker:
     def chunk(
         text: str,
         max_chunk_size: int = 1000,  # characters, not words
-        overlap: int = 200,
-        min_chunk_size: int = 100,
+        overlap: int = 100,
+        min_chunk_size: int = 50,
     ) -> List[str]:
         """
         Split text into chunks with intelligent boundary detection.

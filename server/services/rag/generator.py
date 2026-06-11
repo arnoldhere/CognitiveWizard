@@ -2,11 +2,32 @@
 generator module to generate the output based on provided context using generation model
 """
 
-from config.hf_inference import HFClientManager
+from providers.llm.factory import get_llm_for_task
+from providers.llm.tasks import TaskType
 from utils.prompt_builder.prompt_rag_gen import prompt_rag_gen
 import logging
+from langchain_core.messages import HumanMessage, SystemMessage
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_response_text(response):
+    if response is None:
+        return ""
+    if hasattr(response, "content"):
+        return str(response.content)
+    if hasattr(response, "generations"):
+        generations = getattr(response, "generations")
+        if generations and generations[0] and hasattr(generations[0][0], "text"):
+            return str(generations[0][0].text)
+    if isinstance(response, list) and response:
+        first = response[0]
+        if hasattr(first, "content"):
+            return str(first.content)
+        if isinstance(first, dict) and "generated_text" in first:
+            return str(first["generated_text"])
+        return str(first)
+    return str(response)
 
 
 class Generator:
@@ -14,8 +35,13 @@ class Generator:
         if mode not in ["api", "local"]:
             raise ValueError(f"Invalid mode : {mode}")
 
-        self.client = HFClientManager().get_client()
         self.mode = mode
+        if self.mode == "api":
+            self.client = get_llm_for_task(TaskType.RAG, provider="huggingface")
+        else:
+            from config.hf_inference import HFClientManager
+
+            self.client = HFClientManager().get_client(mode="local")
 
     def generate_response(self, query, context_docs=None):
         if context_docs:
@@ -25,58 +51,63 @@ class Generator:
             prompt = f"Answer the following question:\n{query}"
 
         try:
-            # ===========
-            # inference model mode
-            # ===========
             if self.mode == "api":
-                response = self.client.chat_completion(
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=1024,  # Reduced for efficiency
-                    temperature=0.5,  # Lower temperature for more consistent outcome
-                )
-                answer = response.choices[0].message["content"].strip()
+                messages = [
+                    SystemMessage(
+                        content=(
+                            "You are a reliable retrieval-augmented assistant. "
+                            "Answer based on provided context when available."
+                        )
+                    ),
+                    HumanMessage(content=prompt),
+                ]
 
-                # Extract token usage
-                token_usage = {
-                    "input_tokens": response.usage.prompt_tokens,
-                    "output_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens,
-                }
+                if hasattr(self.client, "invoke"):
+                    response = self.client.invoke(messages)
+                elif hasattr(self.client, "generate"):
+                    response = self.client.generate([messages])
+                else:
+                    raise AttributeError(
+                        "RAG model client does not support chat-style invocation"
+                    )
 
+                answer = _extract_response_text(response).strip()
+                token_usage = None
+                if hasattr(response, "usage"):
+                    token_usage = {
+                        "input_tokens": getattr(response.usage, "prompt_tokens", 0),
+                        "output_tokens": getattr(
+                            response.usage, "completion_tokens", 0
+                        ),
+                        "total_tokens": getattr(response.usage, "total_tokens", 0),
+                    }
                 return answer, token_usage
 
-            # ===========
-            # Local model mode
-            # ===========
             elif self.mode == "local":
-                # For local models, we need to handle the response format properly
                 response = self.client(
                     prompt, max_new_tokens=512, temperature=0.5, do_sample=True
                 )
                 if isinstance(response, list) and response:
-                    answer = response[0]["generated_text"].strip()
+                    answer = response[0].get("generated_text", str(response[0])).strip()
                 else:
                     answer = str(response).strip()
 
-                # Manual token counting for local mode
                 from transformers import AutoTokenizer
 
-                tokenizer = AutoTokenizer.from_pretrained(
-                    "microsoft/DialoGPT-medium"
-                )  # Using a common tokenizer
-
+                tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
                 input_tokens = len(tokenizer.encode(prompt))
                 output_tokens = len(tokenizer.encode(answer))
-
                 token_usage = {
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "total_tokens": input_tokens + output_tokens,
                 }
-
                 return answer, token_usage
-            else:
-                return {"error": "Unspecified model mode to generate"}
+
+            return {"error": "Unspecified model mode to generate"}
         except Exception as e:
-            logger.error(f"Error generating summary with {self.mode} client: {str(e)}")
-        raise
+            logger.error(
+                f"Error generating response with {self.mode} client: {str(e)}",
+                exc_info=True,
+            )
+            raise

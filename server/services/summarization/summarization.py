@@ -160,7 +160,7 @@ def _generate_summary_with_client(
     try:
         if model_mode != "api":
             raise ValueError(f"Unsupported model mode: {model_mode}")
-
+        # below generation format is specific suitable for .chat_completions endpoints
         response = client.generate(
             [
                 [
@@ -227,7 +227,10 @@ def Summarization(
         # =====================================================
         # Use factory pattern for task-specific LLM configuration
         # Factory will use optimal temperature (0.3) and max_tokens (1024) for summarization
-        client = get_llm_for_task(TaskType.SUMMARIZE, provider="huggingface")
+        client = get_llm_for_task(
+            TaskType.SUMMARIZE,
+            provider="huggingface",
+        )
 
         if client is None:
             return False, "Failed to initialize model client"

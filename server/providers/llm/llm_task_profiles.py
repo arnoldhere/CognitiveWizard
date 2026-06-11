@@ -18,15 +18,8 @@ TASK_PROFILES = {
         "temperature": 0.8,
         "max_new_tokens": 2048,  # quiz JSON is long
         "model_override": settings.QUIZ_GENERATOR_MODEL,
-        "use_chat": False,
-        "hf_task": "text-generation",
-    },
-    "sentiment": {
-        "temperature": 0.1,
-        "max_new_tokens": 128,
-        "model_override": None,
-        "use_chat": False,
-        "hf_task": "text-generation",
+        "use_chat": True,
+        "hf_task": "conversational",
     },
     "rag": {
         "temperature": 0.3,  # factual, grounded — lower than chat
