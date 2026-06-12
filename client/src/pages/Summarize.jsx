@@ -30,6 +30,7 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import { summarizeContent, uploadSummaryFile } from "../services/api";
+import { getApiErrorMessage } from "../utils/apiError";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -353,8 +354,7 @@ export default function SummarizerPage() {
                 setError(response?.detail || "Unexpected error");
             }
         } catch (err) {
-            setError(err.message || "Failed");
-            // console.log(err)
+            setError(getApiErrorMessage(err, "Failed to generate summary. Please try again."));
         } finally {
             setLoading(false);
         }

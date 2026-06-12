@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ErrorMessage from "../utils/ErrorMessage";
-import { askRagQuestion, fetchChatSessionHistory, fetchRagSource } from "../../services/rag";
+import { askRagQuestion, fetchChatSessionHistory } from "../../services/rag";
+import { parseMessageTimestamp } from "../../utils/apiError";
 import "../../styles/ChatWindow.css";
 
 function createMessage(sender, text, extra = {}) {
@@ -21,7 +22,7 @@ function createMessage(sender, text, extra = {}) {
 function formatResetTime(resetTime) {
   if (!resetTime) return "not available";
 
-  const parsed = new Date(resetTime);
+  const parsed = parseMessageTimestamp(resetTime);
   if (Number.isNaN(parsed.getTime())) return "not available";
 
   return parsed.toLocaleString([], {
@@ -43,78 +44,15 @@ function getTokenValue(tokenUsage, keys) {
   return null;
 }
 
-function SourceScore({ score }) {
-  const value = Number(score);
-  if (!Number.isFinite(value)) return null;
-  return <span className="source-score">{Math.round(value * 100)}%</span>;
-}
-
-function getSourceHash(source) {
-  const snippet = (source?.snippet || "").replace(/\s+/g, " ").trim().slice(0, 90);
-  if (!snippet) return "";
-  const title = source?.title || "";
-  if (title.toLowerCase().endsWith(".pdf")) {
-    return `#search=${encodeURIComponent(snippet)}`;
-  }
-  return `#:~:text=${encodeURIComponent(snippet)}`;
-}
-
-function MessageSources({ sources, onOpenSource }) {
-  if (!sources?.length) return null;
-
-  return (
-    <div className="source-list">
-      <div className="source-list-header">
-        <span>Sources</span>
-        <small>{sources.length}</small>
-      </div>
-      <div className="source-chip-grid">
-        {sources.map((source, index) => {
-          const canOpen = Boolean(source.source_url);
-          const label = source.title || `Source ${index + 1}`;
-          const body = (
-            <>
-              <span className="source-index">{index + 1}</span>
-              <span className="source-main">
-                <span className="source-title">{label}</span>
-                <span className="source-snippet">{source.snippet}</span>
-              </span>
-              <SourceScore score={source.score} />
-            </>
-          );
-
-          return canOpen ? (
-            <button
-              key={`${source.id}-${index}`}
-              type="button"
-              className="source-chip"
-              onClick={() => onOpenSource(source, getSourceHash(source))}
-              title="Open source document"
-            >
-              {body}
-            </button>
-          ) : (
-            <button
-              key={`${source.id}-${index}`}
-              type="button"
-              className="source-chip is-disabled"
-              disabled
-              title="Source file is not available for this older message"
-            >
-              {body}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function MessageBubble({ message, onOpenSource }) {
-  const time = new Date(message.createdAt).toLocaleTimeString([], {
+function formatMessageTime(createdAt) {
+  return parseMessageTimestamp(createdAt).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function MessageBubble({ message }) {
+  const time = formatMessageTime(message.createdAt);
   const inputTokens = getTokenValue(message.tokenUsage, [
     "input_tokens",
     "prompt_tokens",
@@ -127,10 +65,8 @@ function MessageBubble({ message, onOpenSource }) {
     "output",
     "completion",
   ]);
-  const totalTokens = getTokenValue(message.tokenUsage, ["total_tokens", "total"]);
   const showTokens =
-    message.sender === "bot" &&
-    (inputTokens !== null || outputTokens !== null || totalTokens !== null);
+    message.sender === "bot" && (inputTokens !== null || outputTokens !== null);
 
   return (
     <div className={`chat-msg ${message.sender}`}>
@@ -138,22 +74,15 @@ function MessageBubble({ message, onOpenSource }) {
       {message.warning ? (
         <small className="chat-warning">{message.warning}</small>
       ) : null}
-      {message.sources?.length ? (
-        <MessageSources sources={message.sources} onOpenSource={onOpenSource} />
-      ) : null}
       <div className="message-footer">
-        {showTokens && (
+        <small className="message-time">{time}</small>
+        {showTokens ? (
           <small className="token-usage">
             {inputTokens !== null ? `in ${inputTokens}` : null}
             {inputTokens !== null && outputTokens !== null ? " / " : null}
             {outputTokens !== null ? `out ${outputTokens}` : null}
-            {(inputTokens !== null || outputTokens !== null) && totalTokens !== null
-              ? " / "
-              : null}
-            {totalTokens !== null ? `total ${totalTokens}` : null}
           </small>
-        )}
-        <small>{time}</small>
+        ) : null}
       </div>
     </div>
   );
@@ -379,9 +308,8 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
       setMessages((prev) => [
         ...prev,
         createMessage("bot", data.answer, {
-          createdAt: data.created_at ?? data.createdAt,
+          createdAt: new Date().toISOString(),
           modeUsed: data.mode_used,
-          sources: data.sources ?? [],
           warning: data.warning ?? "",
           tokenUsage: data.token_usage ?? null,
         }),
@@ -435,28 +363,6 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
     await sendQuery(lastFailedQuery);
   };
 
-  const handleOpenSource = async (source, hash) => {
-    if (!source?.source_url) return;
-
-    const opened = window.open("", "_blank");
-    if (!opened) {
-      setError("Browser blocked the source document tab. Allow pop-ups and try again.");
-      return;
-    }
-    opened.opener = null;
-
-    try {
-      setError("");
-      const blob = await fetchRagSource(source.source_url);
-      const objectUrl = URL.createObjectURL(blob);
-      opened.location.href = `${objectUrl}${hash}`;
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-    } catch (err) {
-      opened.close();
-      setError(err.message);
-    }
-  };
-
   const resetAtLabel = formatResetTime(chatLimitInfo?.reset_time);
   const planName = chatLimitInfo?.subscription_name || "Free";
   const planLimit = chatLimitInfo?.subscription_daily_limit ?? chatLimitInfo?.max_per_day ?? 5;
@@ -503,11 +409,7 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
 
       <div className="chat-history" ref={chatContainerRef}>
         {messages.map((message) => (
-          <MessageBubble
-            key={message.id}
-            message={message}
-            onOpenSource={handleOpenSource}
-          />
+          <MessageBubble key={message.id} message={message} />
         ))}
 
         {loading && <div className="typing-indicator">assistant thinking</div>}

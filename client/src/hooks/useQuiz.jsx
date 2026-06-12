@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { generateQuiz, submitQuiz as submitQuizRequest } from "../services/api";
+import { getApiErrorMessage } from "../utils/apiError";
 
 export const useQuiz = () => {
   const [generating, setGenerating] = useState(false);
@@ -18,7 +19,7 @@ export const useQuiz = () => {
       setQuizSession(data?.data || null);
     } catch (err) {
       console.error("Error in useQuiz hook:", err);
-      setError(err.response?.data?.detail || "Failed to generate quiz.");
+      setError(getApiErrorMessage(err, "Failed to generate quiz. Please try again."));
     } finally {
       setGenerating(false);
     }
@@ -44,7 +45,7 @@ export const useQuiz = () => {
       return data;
     } catch (err) {
       console.error("Error submitting quiz:", err);
-      setError(err.response?.data?.detail || "Failed to submit quiz.");
+      setError(getApiErrorMessage(err, "Failed to submit quiz. Please try again."));
       setQuizSession(null);
       throw err;
     } finally {

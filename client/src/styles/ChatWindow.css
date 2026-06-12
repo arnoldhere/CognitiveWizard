@@ -276,25 +276,37 @@
 
 .message-footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 12px;
   margin-top: 10px;
-  color: wheat;
 }
 
+.chat-msg.user .message-footer {
+  justify-content: flex-end;
+}
+
+.chat-msg.bot .message-footer {
+  justify-content: space-between;
+}
+
+.message-time,
 .token-usage,
-.chat-msg small:last-child,
 .source-card header small,
 .source-list-header small,
 .source-score {
-  color: #1b2027;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.chat-msg.user .message-time {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .token-usage {
-  font-size: 0.75rem;
+  margin-left: auto;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 500;
+  text-align: right;
 }
 
 .source-list {

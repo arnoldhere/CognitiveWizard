@@ -1,10 +1,5 @@
 import { API } from "./api";
-
-function toErrorMessage(error, fallbackMessage) {
-  if (error?.response?.data?.detail) return error.response.data.detail;
-  if (error?.message) return error.message;
-  return fallbackMessage;
-}
+import { getApiErrorMessage } from "../utils/apiError";
 
 export async function uploadDocument(file) {
   const formData = new FormData();
@@ -18,7 +13,7 @@ export async function uploadDocument(file) {
     });
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "File upload failed."));
+    throw new Error(getApiErrorMessage(error, "File upload failed."));
   }
 }
 
@@ -39,7 +34,7 @@ export async function askRagQuestion({ query, use_rag = true, signal, use_langch
     const response = await API.post(endpoint, payload, { signal });
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to get answer from chatbot."));
+    throw new Error(getApiErrorMessage(error, "Failed to get answer from chatbot."));
   }
 }
 
@@ -48,7 +43,7 @@ export async function fetchChatSessions() {
     const response = await API.get("/rag/sessions");
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to load chat sessions."));
+    throw new Error(getApiErrorMessage(error, "Failed to load chat sessions."));
   }
 }
 
@@ -60,7 +55,7 @@ export async function createChatSession({ title = null, initial_prompt = null } 
     });
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to start a new chat session."));
+    throw new Error(getApiErrorMessage(error, "Failed to start a new chat session."));
   }
 }
 
@@ -69,7 +64,7 @@ export async function deleteChatSession(session_id) {
     const response = await API.delete(`/rag/sessions/${session_id}`);
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to delete the chat session."));
+    throw new Error(getApiErrorMessage(error, "Failed to delete the chat session."));
   }
 }
 
@@ -80,7 +75,7 @@ export async function renameChatSession(session_id, new_title) {
     });
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to rename the chat session."));
+    throw new Error(getApiErrorMessage(error, "Failed to rename the chat session."));
   }
 }
 
@@ -89,7 +84,7 @@ export async function fetchChatSessionHistory(session_id) {
     const response = await API.get(`/rag/sessions/${session_id}/history`);
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to load session history."));
+    throw new Error(getApiErrorMessage(error, "Failed to load session history."));
   }
 }
 
@@ -98,7 +93,7 @@ export async function deleteRagDocument(document_name) {
     const response = await API.delete(`/rag/documents/${encodeURIComponent(document_name)}`);
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to delete document."));
+    throw new Error(getApiErrorMessage(error, "Failed to delete document."));
   }
 }
 
@@ -109,7 +104,7 @@ export async function fetchRagSource(sourceUrl) {
     });
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to open source document."));
+    throw new Error(getApiErrorMessage(error, "Failed to open source document."));
   }
 }
 
@@ -126,7 +121,7 @@ export async function fetchRagStatus() {
     const response = await API.get("/rag/status");
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to fetch RAG context status."));
+    throw new Error(getApiErrorMessage(error, "Failed to fetch RAG context status."));
   }
 }
 
@@ -138,6 +133,6 @@ export async function fetchRagStatusLangChain() {
     const response = await API.get("/rag/status-langchain");
     return response.data;
   } catch (error) {
-    throw new Error(toErrorMessage(error, "Failed to fetch LangChain RAG status."));
+    throw new Error(getApiErrorMessage(error, "Failed to fetch LangChain RAG status."));
   }
 }

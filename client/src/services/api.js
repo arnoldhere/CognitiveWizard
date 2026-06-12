@@ -1,10 +1,19 @@
 import axios from "axios";
+import { getApiErrorMessage } from "../utils/apiError";
 
 const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || import.meta.env.BACKEND_BASE_URL || "http://localhost:8000";
 
 export const API = axios.create({
   baseURL: BASE_URL,
 });
+
+async function requestWithFriendlyErrors(request, fallbackMessage) {
+  try {
+    return await request();
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, fallbackMessage));
+  }
+}
 
 export const setAuthToken = (token) => {
   if (token) {
@@ -16,8 +25,10 @@ export const setAuthToken = (token) => {
 };
 
 export const generateQuiz = async (payload) => {
-  const res = await API.post("/quiz/generate", payload);
-  return res.data;
+  return requestWithFriendlyErrors(async () => {
+    const res = await API.post("/quiz/generate", payload);
+    return res.data;
+  }, "Failed to generate quiz. Please try again.");
 };
 
 export const submitQuiz = async (payload) => {
@@ -31,27 +42,31 @@ export const getQuizResultDetail = async (quizId) => {
 };
 
 export const summarizeContent = async ({ input_type, source, mode = "brief", model_mode = "api" }) => {
-  const res = await API.post("/summarize/content", {
-    input_type,
-    source,
-    mode,
-    model_mode,
-  });
-  return res.data;
+  return requestWithFriendlyErrors(async () => {
+    const res = await API.post("/summarize/content", {
+      input_type,
+      source,
+      mode,
+      model_mode,
+    });
+    return res.data;
+  }, "Failed to generate summary. Please try again.");
 };
 
 export const uploadSummaryFile = async (file, mode = "brief", model_mode = "api") => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("mode", mode);
-  formData.append("model_mode", model_mode);
+  return requestWithFriendlyErrors(async () => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("mode", mode);
+    formData.append("model_mode", model_mode);
 
-  const res = await API.post("/summarize/upload", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-  return res.data;
+    const res = await API.post("/summarize/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data;
+  }, "Failed to summarize the uploaded file. Please try again.");
 };
 
 export const sendFaceData = async (user_id, imageData) => {
