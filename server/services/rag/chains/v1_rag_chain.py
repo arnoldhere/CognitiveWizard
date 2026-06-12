@@ -35,10 +35,23 @@ def _doc_text(doc: Any) -> str:
 
 
 def _format_docs(docs: List[Any]) -> str:
-    """Join document texts — no numbering to prevent hallucinated references."""
+    """Join document/chunks texts for retrieval context, with numbered entries."""
     if not docs:
-        return "No relevant documents found."
-    return "\n\n".join(text for doc in docs if (text := _doc_text(doc).strip()))
+        return "No relevant chunks found."
+    formatted_docs = []
+    for idx, doc in enumerate(docs, start=1):
+        text = _doc_text(doc).strip()
+        if not text:
+            continue
+        formatted_docs.append(f"Chunk {idx}: {text}")
+    return (
+        "\n\n".join(formatted_docs)
+        if formatted_docs
+        else "No relevant documents or chunks found."
+    )
+
+
+format_docs = _format_docs
 
 
 def _format_history(chat_history: list) -> str:
@@ -61,9 +74,9 @@ def _extract_query(x: Any) -> str:
     return x.get("input", x) if isinstance(x, dict) else str(x)
 
 
-def _extract_history(x: Any) -> str:
+def _extract_history(x: Any) -> list:
     history = x.get("chat_history", []) if isinstance(x, dict) else []
-    return _format_history(history)
+    return history if isinstance(history, list) else []
 
 
 def build_v1_rag_chain(
@@ -106,6 +119,7 @@ def build_retrieval_qa_chain(
     retriever,
     prompt: Optional[PromptTemplate] = None,
     provider: Optional[str] = None,
+    llm_instance: Optional[Any] = None,
 ):
     """
     Full RAG QA chain — returns both answer and source documents.
@@ -113,30 +127,47 @@ def build_retrieval_qa_chain(
         retriever : any LangChain-compatible retriever
         prompt    : optional override (defaults to RAG_PROMPT)
         provider  : optional provider override
+        llm_instance: optional runnable LLM for testing or injection
     Returns:
         Runnable: accepts {"input": str, "chat_history": list}
-        Output  : {"answer": str, "source_docs": List[Document]}
+        Output  : {"answer": str, "source_docs": List[Document], "original_docs": List}
     """
-    llm = _get_default_llm(provider)
+    llm = llm_instance or _get_default_llm(provider)
     prompt = prompt or RAG_PROMPT
+
+    def _invoke_retriever(retriever_obj, query_text: str):
+        if hasattr(retriever_obj, "invoke"):
+            return retriever_obj.invoke(query_text)
+        if hasattr(retriever_obj, "retrieve"):
+            return retriever_obj.retrieve(query_text)
+        if hasattr(retriever_obj, "get_relevant_documents_with_scores"):
+            return retriever_obj.get_relevant_documents_with_scores(query_text)
+        if hasattr(retriever_obj, "get_relevant_documents"):
+            return retriever_obj.get_relevant_documents(query_text)
+        if callable(retriever_obj):
+            return retriever_obj(query_text)
+        raise AttributeError(
+            "Retriever must support invoke(), retrieve(), get_relevant_documents[_with_scores](), or call(query)"
+        )
 
     def _retrieve(x: dict) -> dict:
         """Single retrieval call — result shared between answer + source branches."""
         query = _extract_query(x)
         history = _extract_history(x)
 
-        docs = retriever.invoke(query)
+        docs = _invoke_retriever(retriever, query)
 
         return {
             "input": query,
             "chat_history": history,
             "context": _format_docs(docs),
             "source_docs": docs,
+            "original_docs": docs,
         }
 
     # After _retrieve, the dict has all keys the prompt needs
     # plus source_docs for attribution
-    answer_chain = prompt | llm | StrOutputParser()
+    answer_chain = prompt | llm
 
     chain = (
         RunnableLambda(_retrieve)
@@ -145,6 +176,7 @@ def build_retrieval_qa_chain(
             lambda x: {
                 "answer": x["answer"],
                 "source_docs": x["source_docs"],
+                "original_docs": x["original_docs"],
             }
         )
     )

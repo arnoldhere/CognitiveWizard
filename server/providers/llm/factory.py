@@ -20,6 +20,8 @@ def get_llm_for_task(task: TaskType, provider: str = None):
         temperature=profile["temperature"],
         max_new_tokens=profile["max_new_tokens"],
         hf_task=profile.get("hf_task"),
+        top_p=profile.get("top_p"),
+        top_k=profile.get("top_k"),
     )
     return p.get_llm(use_chat=profile.get("use_chat", True))
 

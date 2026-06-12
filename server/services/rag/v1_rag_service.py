@@ -240,10 +240,12 @@ class LangChainRAGService:
 
                     chain_result = chain.invoke(chain_input)
                     if isinstance(chain_result, dict):
-                        answer = chain_result.get("answer", str(chain_result))
+                        raw_answer = chain_result.get("answer", chain_result)
+                        answer = self._extract_response_text(raw_answer)
+                        token_usage = self._extract_token_usage(chain_result)
                         original_docs = chain_result.get("original_docs", [])
                     else:
-                        answer = str(chain_result)
+                        answer = self._extract_response_text(chain_result)
                         original_docs = []
 
                     sources = self._build_sources(original_docs, user_id=user_id)
@@ -255,7 +257,7 @@ class LangChainRAGService:
                             "Answer generated without retrieval."
                         )
                         fallback_start = time.perf_counter()
-                        answer = self._generate_without_context(query)
+                        answer, token_usage = self._generate_without_context(query)
                         generation_ms = round(
                             (time.perf_counter() - fallback_start) * 1000, 2
                         )
@@ -269,10 +271,10 @@ class LangChainRAGService:
                     )
                     mode_used = "llm"
                     warning = "Unable to execute retrieval chain. Answer generated without retrieval."
-                    answer = self._generate_without_context(query)
+                    answer, token_usage = self._generate_without_context(query)
             else:
                 fallback_start = time.perf_counter()
-                answer = self._generate_without_context(query)
+                answer, token_usage = self._generate_without_context(query)
                 generation_ms = round((time.perf_counter() - fallback_start) * 1000, 2)
 
         except Exception as e:
@@ -537,7 +539,59 @@ class LangChainRAGService:
     # Private Helper Methods
     # =====================
 
-    def _generate_without_context(self, query: str) -> str:
+    def _extract_response_text(self, response: Any) -> str:
+        if response is None:
+            return ""
+        if hasattr(response, "content"):
+            return str(response.content).strip()
+        if hasattr(response, "generations"):
+            generations = getattr(response, "generations")
+            if generations and generations[0] and hasattr(generations[0][0], "text"):
+                return str(generations[0][0].text).strip()
+        if isinstance(response, list) and response:
+            first = response[0]
+            if hasattr(first, "content"):
+                return str(first.content).strip()
+            if isinstance(first, dict) and first.get("generated_text"):
+                return str(first["generated_text"]).strip()
+            return str(first).strip()
+        return str(response).strip()
+
+    def _extract_token_usage(self, response: Any) -> Optional[Dict[str, int]]:
+        if response is None:
+            return None
+        if isinstance(response, dict) and response.get("token_usage"):
+            return response["token_usage"]
+        if hasattr(response, "usage"):
+            usage = getattr(response, "usage")
+            return {
+                "input_tokens": getattr(usage, "prompt_tokens", None)
+                or getattr(usage, "input_tokens", None)
+                or getattr(usage, "input", None),
+                "output_tokens": getattr(usage, "completion_tokens", None)
+                or getattr(usage, "output_tokens", None)
+                or getattr(usage, "completion", None),
+                "total_tokens": getattr(usage, "total_tokens", None)
+                or (getattr(usage, "prompt_tokens", 0) or 0)
+                + (getattr(usage, "completion_tokens", 0) or 0),
+            }
+        if isinstance(response, dict):
+            for field in ["llm_output", "raw_output", "choices"]:
+                if field in response:
+                    nested = response[field]
+                    if isinstance(nested, dict) and nested.get("usage"):
+                        return self._extract_token_usage(nested)
+                    if isinstance(nested, list) and nested:
+                        return self._extract_token_usage(nested[0])
+        if isinstance(response, list) and response:
+            return self._extract_token_usage(response[0])
+        if isinstance(response, dict) and response.get("usage"):
+            return self._extract_token_usage(response.get("usage"))
+        return None
+
+    def _generate_without_context(
+        self, query: str
+    ) -> tuple[str, Optional[Dict[str, int]]]:
         """Generate an answer without retrieval context."""
         from providers.llm.factory import get_llm_for_task
         from providers.llm.tasks import TaskType
@@ -547,21 +601,25 @@ class LangChainRAGService:
 
         prompt = f"Answer the following question helpfully: {query}"
         try:
-            response = client.generate(
-                [
-                    [
-                        SystemMessage(
-                            content="You're great chatbot, a helpfull QnA buddy..."
-                        ),
-                        HumanMessage(content=prompt),
-                    ]
-                ]
-            )
-            # response = llm.invoke([{"role": "user", "content": prompt}])
-            return getattr(response, "content", str(response))
+            messages = [
+                SystemMessage(content="You're a helpful RAG chatbot assistant."),
+                HumanMessage(content=prompt),
+            ]
+            if hasattr(client, "invoke"):
+                response = client.invoke(messages)
+            elif hasattr(client, "generate"):
+                response = client.generate([messages])
+            else:
+                raise AttributeError(
+                    "LLM client does not support chat-style invocation"
+                )
+
+            answer = self._extract_response_text(response)
+            token_usage = self._extract_token_usage(response)
+            return answer, token_usage
         except Exception as e:
             logger.exception(f"Error generating response: {e}")
-            return f"Unable to generate response: {str(e)}"
+            return f"Unable to generate response: {str(e)}", None
 
     def _chunk_docs(
         self, documents: List[str], chunk_size: int = 512, overlap: int = 100

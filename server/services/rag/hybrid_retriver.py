@@ -15,6 +15,10 @@ class HybridRetriever:
     def retrieve(self, query: str):
         return self.retriever.invoke(query)
 
+    # LangChain expects retrievers to support invoke() for compatibility.
+    invoke = retrieve
+    __call__ = retrieve
+
     def search(self, query: str, k: int = 5):
         return self.retriever.invoke(query)
 

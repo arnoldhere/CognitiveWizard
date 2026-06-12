@@ -123,6 +123,15 @@ def _extract_model_response(response: Any) -> str:
         return ""
     if hasattr(response, "content"):
         return str(response.content)
+    if hasattr(response, "choices"):
+        try:
+            choice = response.choices[0]
+            if hasattr(choice, "message") and choice.message:
+                return str(choice.message["content"]).strip()
+            if isinstance(choice, dict) and choice.get("message"):
+                return str(choice["message"]["content"]).strip()
+        except Exception:
+            pass
     if hasattr(response, "generations"):
         generations = getattr(response, "generations")
         if generations and generations[0] and hasattr(generations[0][0], "text"):
@@ -131,6 +140,10 @@ def _extract_model_response(response: Any) -> str:
         first = response[0]
         if hasattr(first, "content"):
             return str(first.content)
+        if isinstance(first, dict) and first.get("message"):
+            return str(first["message"]["content"]).strip()
+        if isinstance(first, dict) and first.get("generated_text"):
+            return str(first["generated_text"]).strip()
         return str(first)
     return str(response)
 

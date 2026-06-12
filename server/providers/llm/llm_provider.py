@@ -14,12 +14,16 @@ class Provider:
         temperature: float = 0.5,
         max_new_tokens: int = 512,
         hf_task: Optional[str] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
     ):
         self.provider = provider.lower()
         self.model_name = model_name or settings.HF_DEF_MODEL
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
         self.hf_task = hf_task
+        self.top_p = top_p
+        self.top_k = top_k
 
     def get_llm(self, use_chat: bool = True):
         match self.provider:
@@ -48,15 +52,18 @@ class Provider:
                     model_id = self._clean_model(
                         self.model_name or settings.HF_DEF_MODEL
                     )
+                    # Build optional sampling kwargs — only pass if set
+                    sampling_kwargs = {}
+                    if self.top_p is not None:
+                        sampling_kwargs["top_p"] = self.top_p
+                    if self.top_k is not None:
+                        sampling_kwargs["top_k"] = self.top_k
                     endpoint = HuggingFaceEndpoint(
                         temperature=self.temperature,
                         repo_id=model_id,
                         max_new_tokens=self.max_new_tokens,
                         huggingfacehub_api_token=token,
-                        # endpoint_url=(
-                        #     f"https://api-inference.huggingface.co/models/"
-                        #     f"{model_id}/v1"
-                        # ),
+                        **sampling_kwargs,
                     )
                     return ChatHuggingFace(llm=endpoint)
 
