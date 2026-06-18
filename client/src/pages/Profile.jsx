@@ -34,7 +34,7 @@ import {
     TextField,
     CircularProgress,
 } from "@mui/material";
-import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, Face2Outlined } from "@mui/icons-material";
+import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, Face2Outlined, CheckCircle, Close } from "@mui/icons-material";
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -91,6 +91,7 @@ export default function Profile() {
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
     const [paymentError, setPaymentError] = useState(null);
+
     const formatDuration = (seconds) => {
         if (seconds === null || seconds === undefined) {
             return "N/A";
@@ -163,7 +164,6 @@ export default function Profile() {
         } catch (err) {
             console.error("Error deleting profile:", err);
             setDeleteError(
-                // err.response?.data?.detail ||
                 "Failed to delete profile, Invalid password."
             );
         } finally {
@@ -185,6 +185,7 @@ export default function Profile() {
             setDetailLoading(false);
         }
     };
+
     const loadFaceLoginStatus = useCallback(async () => {
         try {
             setFaceLoading(true);
@@ -287,7 +288,7 @@ export default function Profile() {
                 key:
                     import.meta.env.VITE_RAZORPAY_KEY_ID ||
                     import.meta.env.VITE_REACT_APP_RAZORPAY_KEY_ID ||
-                    "rzp_test_your_key_here", // Use env var
+                    "rzp_test_your_key_here",
                 amount: orderData.amount,
                 currency: orderData.currency,
                 name: "Cognitive Wizard",
@@ -318,7 +319,7 @@ export default function Profile() {
                     email: user?.email || "",
                 },
                 theme: {
-                    color: "#1976d2",
+                    color: "#7c3aed",
                 },
             };
 
@@ -337,20 +338,37 @@ export default function Profile() {
     };
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Container maxWidth="lg" sx={{ py: 6 }}>
+            {/* TABS CONTAINER */}
             <Paper
                 elevation={0}
                 sx={{
-                    borderRadius: 3,
-                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                    borderBottom: "1px solid",
-                    borderColor: "divider",
+                    borderRadius: 4,
+                    background: "rgba(22, 27, 39, 0.95)",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    backdropFilter: "blur(20px)",
+                    mb: 4,
                 }}
             >
                 <Tabs
                     value={tabValue}
                     onChange={(event, newValue) => setTabValue(newValue)}
-                    sx={{ px: 3 }}
+                    sx={{
+                        px: 3,
+                        py: 0.5,
+                        "& .MuiTab-root": {
+                            textTransform: "none",
+                            fontWeight: 700,
+                            color: "#94a3b8",
+                            minHeight: 52,
+                            "&.Mui-selected": {
+                                color: "#06b6d4",
+                            }
+                        },
+                        "& .MuiTabs-indicator": {
+                            backgroundColor: "#06b6d4",
+                        }
+                    }}
                 >
                     <Tab label="Account Details" icon={<Person />} iconPosition="start" />
                     <Tab
@@ -365,137 +383,146 @@ export default function Profile() {
             {/* Account Details Tab */}
             <TabPanel value={tabValue} index={0}>
                 <Paper
-                    elevation={2}
+                    elevation={0}
                     sx={{
-                        p: 4,
-                        borderRadius: 3,
-                        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                        p: { xs: 3, md: 5 },
+                        borderRadius: 4,
+                        background: "rgba(22, 27, 39, 0.95)",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
                     }}
                 >
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
                         <Avatar
                             sx={{
                                 width: 80,
                                 height: 80,
-                                bgcolor: 'primary.main',
-                                mr: 3,
+                                background: "linear-gradient(135deg, #7c3aed, #06b6d4)",
+                                mr: 2,
                                 fontSize: '2rem',
+                                fontWeight: 800,
+                                border: "2px solid rgba(255, 255, 255, 0.15)",
                             }}
                         >
-                            {user.full_name ? user.full_name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                            {user?.full_name ? user.full_name.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
                         </Avatar>
                         <Box>
                             <Typography
                                 variant="overline"
                                 sx={{
-                                    color: 'primary.main',
-                                    fontWeight: 600,
-                                    letterSpacing: 1,
+                                    color: '#06b6d4',
+                                    fontWeight: 700,
+                                    letterSpacing: 2,
                                 }}
                             >
                                 Profile
                             </Typography>
-                            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+                            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: '#f1f5f9' }}>
                                 Account details
                             </Typography>
                             <Chip
-                                label={user.role}
+                                label={user?.role?.toUpperCase()}
                                 icon={<AdminPanelSettings />}
-                                color={user.role === 'admin' ? 'secondary' : 'primary'}
                                 variant="outlined"
+                                sx={{
+                                    fontWeight: 700,
+                                    color: user?.role === 'admin' ? '#22d3ee' : '#a855f7',
+                                    borderColor: user?.role === 'admin' ? 'rgba(6, 182, 212, 0.3)' : 'rgba(168, 85, 247, 0.3)',
+                                    backgroundColor: user?.role === 'admin' ? 'rgba(6, 182, 212, 0.06)' : 'rgba(168, 85, 247, 0.06)',
+                                }}
                             />
                         </Box>
                     </Box>
 
-                    <Divider sx={{ my: 3 }} />
+                    <Divider sx={{ my: 3.5, borderColor: "rgba(255,255,255,0.08)" }} />
 
-                    <Grid container spacing={3}>
+                    <Grid container spacing={4}>
                         <Grid item xs={12} sm={6}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Email sx={{ mr: 1, color: 'primary.main' }} />
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Email
+                                <Email sx={{ mr: 1, color: '#a855f7' }} />
+                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
+                                    Email Address
                                 </Typography>
                             </Box>
-                            <Typography variant="body1" color="text.secondary">
-                                {user.email}
+                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500 }}>
+                                {user?.email}
                             </Typography>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Person sx={{ mr: 1, color: 'primary.main' }} />
-                                <Typography variant="subtitle2" fontWeight={600}>
+                                <Person sx={{ mr: 1, color: '#a855f7' }} />
+                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
                                     Full Name
                                 </Typography>
                             </Box>
-                            <Typography variant="body1" color="text.secondary">
-                                {user.full_name || "Not provided"}
+                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500 }}>
+                                {user?.full_name || "Not provided"}
                             </Typography>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <AdminPanelSettings sx={{ mr: 1, color: 'primary.main' }} />
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Role
+                                <AdminPanelSettings sx={{ mr: 1, color: '#a855f7' }} />
+                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
+                                    User Role
                                 </Typography>
                             </Box>
-                            <Typography variant="body1" color="text.secondary">
-                                {user.role}
+                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500, textTransform: "capitalize" }}>
+                                {user?.role}
                             </Typography>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <SettingsEthernet sx={{ mr: 1, color: 'primary.main' }} />
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Phone
+                                <SettingsEthernet sx={{ mr: 1, color: '#a855f7' }} />
+                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
+                                    Phone Number
                                 </Typography>
                             </Box>
-                            <Typography variant="body1" color="text.secondary">
-                                {user.phone || "Not provided"}
+                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500 }}>
+                                {user?.phone || "Not provided"}
                             </Typography>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Face2Outlined sx={{ mr: 1, color: 'primary.main' }} />
-                                <Typography variant="subtitle2" fontWeight={600}>
+                                <Face2Outlined sx={{ mr: 1, color: '#a855f7' }} />
+                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
                                     Date of Birth
                                 </Typography>
                             </Box>
-                            <Typography variant="body1" color="text.secondary">
-                                {user.dob || "Not provided"}
+                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500 }}>
+                                {user?.dob || "Not provided"}
                             </Typography>
                         </Grid>
                     </Grid>
-                    <Divider sx={{ my: 4 }} />
 
-                    <Box sx={{ mb: 4 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                Edit profile details
-                            </Typography>
-                        </Box>
+                    <Divider sx={{ my: 4.5, borderColor: "rgba(255,255,255,0.08)" }} />
+
+                    {/* Edit profile details */}
+                    <Box sx={{ mb: 5 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 3, color: "#f1f5f9" }}>
+                            Edit Profile Details
+                        </Typography>
 
                         {profileSuccess && (
-                            <Alert severity="success" sx={{ mb: 2 }}>
+                            <Alert severity="success" sx={{ mb: 3 }}>
                                 {profileSuccess}
                             </Alert>
                         )}
                         {profileError && (
-                            <Alert severity="error" sx={{ mb: 2 }}>
+                            <Alert severity="error" sx={{ mb: 3 }}>
                                 {profileError}
                             </Alert>
                         )}
 
                         <Paper
-                            elevation={1}
+                            elevation={0}
                             sx={{
-                                p: 3,
+                                p: 4,
                                 borderRadius: 3,
-                                background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+                                background: 'rgba(255, 255, 255, 0.01)',
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
                             }}
                         >
                             <Grid container spacing={3}>
@@ -507,6 +534,12 @@ export default function Profile() {
                                         value={user?.email || ""}
                                         disabled
                                         variant="outlined"
+                                        sx={{
+                                            "& .MuiOutlinedInput-root": {
+                                                backgroundColor: "rgba(255,255,255,0.02)",
+                                                "& fieldset": { borderColor: "rgba(255,255,255,0.05)" }
+                                            }
+                                        }}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -517,6 +550,12 @@ export default function Profile() {
                                         value={profileForm.full_name}
                                         onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })}
                                         variant="outlined"
+                                        sx={{
+                                            "& .MuiOutlinedInput-root": {
+                                                backgroundColor: "rgba(255,255,255,0.02)",
+                                                "& fieldset": { borderColor: "rgba(255,255,255,0.08)" }
+                                            }
+                                        }}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -527,6 +566,12 @@ export default function Profile() {
                                         value={profileForm.phone}
                                         onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
                                         variant="outlined"
+                                        sx={{
+                                            "& .MuiOutlinedInput-root": {
+                                                backgroundColor: "rgba(255,255,255,0.02)",
+                                                "& fieldset": { borderColor: "rgba(255,255,255,0.08)" }
+                                            }
+                                        }}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -538,15 +583,32 @@ export default function Profile() {
                                         onChange={(e) => setProfileForm({ ...profileForm, dob: e.target.value })}
                                         InputLabelProps={{ shrink: true }}
                                         variant="outlined"
+                                        sx={{
+                                            "& .MuiOutlinedInput-root": {
+                                                backgroundColor: "rgba(255,255,255,0.02)",
+                                                "& fieldset": { borderColor: "rgba(255,255,255,0.08)" }
+                                            }
+                                        }}
                                     />
                                 </Grid>
                             </Grid>
-                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 3 }}>
+                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 4 }}>
                                 <Button
                                     variant="contained"
                                     onClick={handleSaveProfile}
                                     disabled={profileLoading}
-                                    sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}
+                                    sx={{
+                                        borderRadius: 2,
+                                        textTransform: 'none',
+                                        px: 4.5,
+                                        py: 1.25,
+                                        fontWeight: 700,
+                                        background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+                                        color: "#ffffff",
+                                        "&:hover": {
+                                            background: "linear-gradient(90deg, #6d28d9, #0891b2)"
+                                        }
+                                    }}
                                 >
                                     {profileLoading ? 'Saving...' : 'Save changes'}
                                 </Button>
@@ -564,7 +626,19 @@ export default function Profile() {
                                         }
                                     }}
                                     disabled={profileLoading}
-                                    sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}
+                                    sx={{
+                                        borderRadius: 2,
+                                        textTransform: 'none',
+                                        px: 4.5,
+                                        py: 1.25,
+                                        fontWeight: 700,
+                                        color: "#cbd5e1",
+                                        borderColor: "rgba(255,255,255,0.12)",
+                                        "&:hover": {
+                                            borderColor: "rgba(255,255,255,0.25)",
+                                            backgroundColor: "rgba(255,255,255,0.04)"
+                                        }
+                                    }}
                                 >
                                     Cancel
                                 </Button>
@@ -573,71 +647,80 @@ export default function Profile() {
                     </Box>
 
                     {/* Security Section */}
-                    <Box>
-                        <Typography
-                            variant="h6"
-                            sx={{ fontWeight: 600, mb: 2 }}
-                        >
-                            Security
+                    <Box sx={{ mb: 5 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 3, color: "#f1f5f9" }}>
+                            Security settings
                         </Typography>
 
                         <Paper
-                            elevation={1}
+                            elevation={0}
                             sx={{
-                                p: 3,
+                                p: 4,
                                 borderRadius: 3,
                                 display: "flex",
-                                alignItems: "center",
+                                flexDirection: { xs: "column", md: "row" },
+                                alignItems: { xs: "flex-start", md: "center" },
                                 justifyContent: "space-between",
-                                background: "linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)",
+                                gap: 3,
+                                background: "rgba(255, 255, 255, 0.01)",
+                                border: "1px solid rgba(255, 255, 255, 0.05)",
                             }}
                         >
                             <Box>
-                                <Typography variant="subtitle1" fontWeight={600}>
-                                    Facial Login
+                                <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#f1f5f9" }}>
+                                    Facial Recognition Login
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Secure your account using face recognition for faster login.
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Secure your account using face recognition for instant, keyless logins.
                                 </Typography>
 
                                 <Chip
                                     label={
                                         faceLoading
-                                            ? "Checking setup..."
+                                            ? "Checking status..."
                                             : faceLoginStatus
-                                                ? "Face Login Enabled"
-                                                : "Not Setup"
+                                                ? "Face Login Activated"
+                                                : "Not Configured"
                                     }
-                                    color={
-                                        faceLoading
-                                            ? "info"
-                                            : faceLoginStatus
-                                                ? "success"
-                                                : "warning"
-                                    }
-                                    size="small"
-                                    sx={{ mt: 1 }}
+                                    variant="outlined"
+                                    sx={{
+                                        mt: 2,
+                                        fontWeight: 700,
+                                        color: faceLoading ? "#93c5fd" : faceLoginStatus ? "#34d399" : "#fbbf24",
+                                        borderColor: faceLoading ? "rgba(59, 130, 246, 0.25)" : faceLoginStatus ? "rgba(16, 185, 129, 0.25)" : "rgba(245, 158, 11, 0.25)",
+                                        backgroundColor: faceLoading ? "rgba(59, 130, 246, 0.06)" : faceLoginStatus ? "rgba(16, 185, 129, 0.06)" : "rgba(245, 158, 11, 0.06)",
+                                    }}
                                 />
                                 {faceError && (
-                                    <Alert severity="error" sx={{ mt: 2 }}>
+                                    <Alert severity="error" sx={{ mt: 3 }}>
                                         {faceError}
                                     </Alert>
                                 )}
                                 {faceDeleteSuccess && (
-                                    <Alert severity="success" sx={{ mt: 2 }}>
+                                    <Alert severity="success" sx={{ mt: 3 }}>
                                         {faceDeleteSuccess}
                                     </Alert>
                                 )}
                             </Box>
 
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                                 <Button
                                     variant="contained"
-                                    color="primary"
                                     onClick={() => navigate("/face-register")}
-                                    sx={{ borderRadius: 2, textTransform: "none", px: 3 }}
+                                    sx={{
+                                        borderRadius: 2,
+                                        textTransform: "none",
+                                        fontWeight: 700,
+                                        px: 3,
+                                        py: 1.25,
+                                        background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+                                        color: "#ffffff",
+                                        "&:hover": {
+                                            background: "linear-gradient(90deg, #6d28d9, #0891b2)"
+                                        }
+                                    }}
                                 >
-                                    {faceLoginStatus ? "Re-setup Facial Login" : "Setup Facial Login"}
+                                    {faceLoginStatus ? "Re-configure Face" : "Setup Face Login"}
                                 </Button>
                                 {faceLoginStatus && !faceLoading ? (
                                     <Button
@@ -645,60 +728,79 @@ export default function Profile() {
                                         color="error"
                                         onClick={handleRemoveFaceSetup}
                                         disabled={faceDeleteLoading}
-                                        sx={{ borderRadius: 2, textTransform: "none", px: 3 }}
+                                        sx={{
+                                            borderRadius: 2,
+                                            textTransform: "none",
+                                            fontWeight: 700,
+                                            px: 3,
+                                            py: 1.25,
+                                            borderColor: "rgba(239, 68, 68, 0.4)",
+                                            color: "#fca5a5",
+                                            "&:hover": {
+                                                borderColor: "#ef4444",
+                                                backgroundColor: "rgba(239, 68, 68, 0.06)"
+                                            }
+                                        }}
                                     >
-                                        {faceDeleteLoading ? "Removing..." : "Remove Facial Login"}
+                                        {faceDeleteLoading ? "Removing..." : "Remove Face Setup"}
                                     </Button>
                                 ) : null}
                             </Box>
                         </Paper>
                     </Box>
 
-                    {/* Danger Zone - Delete Profile */}
-                    <Box sx={{ mt: 4 }}>
+                    {/* Danger Zone */}
+                    <Box>
                         <Typography
                             variant="h6"
                             sx={{
-                                fontWeight: 600,
-                                mb: 2,
-                                color: "#d32f2f",
+                                fontWeight: 800,
+                                mb: 3,
+                                color: "#ef4444",
                             }}
                         >
                             Danger Zone
                         </Typography>
 
                         <Paper
-                            elevation={1}
+                            elevation={0}
                             sx={{
-                                p: 3,
+                                p: 4,
                                 borderRadius: 3,
                                 display: "flex",
-                                alignItems: "center",
+                                flexDirection: { xs: "column", md: "row" },
+                                alignItems: { xs: "flex-start", md: "center" },
                                 justifyContent: "space-between",
-                                background: "linear-gradient(135deg, rgba(211, 47, 47, 0.05) 0%, rgba(244, 67, 54, 0.05) 100%)",
-                                border: "1px solid #ffcdd2",
+                                gap: 3,
+                                background: "linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.02) 100%)",
+                                border: "1px solid rgba(239, 68, 68, 0.25)",
                             }}
                         >
                             <Box>
-                                <Typography variant="subtitle1" fontWeight={600} sx={{ color: "#d32f2f" }}>
-                                    Delete Profile
+                                <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#fca5a5" }}>
+                                    Delete Account Permanent
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Permanently delete your account and all associated data including facial recognition data.
-                                    This action cannot be undone.
+                                <Typography variant="body2" sx={{ color: '#e2e8f0', mt: 0.5 }}>
+                                    This will delete your credentials, facial bio, quiz milestones, and document index databases permanently.
                                 </Typography>
                             </Box>
 
                             <Button
-                                variant="outlined"
+                                variant="contained"
                                 color="error"
                                 startIcon={<Delete />}
                                 onClick={() => setDeleteModalOpen(true)}
                                 sx={{
                                     borderRadius: 2,
                                     textTransform: "none",
-                                    px: 3,
-                                    minWidth: "140px"
+                                    fontWeight: 700,
+                                    px: 3.5,
+                                    py: 1.25,
+                                    backgroundColor: "#ef4444",
+                                    color: "#ffffff",
+                                    "&:hover": {
+                                        backgroundColor: "#dc2626",
+                                    }
                                 }}
                             >
                                 Delete Profile
@@ -723,66 +825,97 @@ export default function Profile() {
                 />
             </TabPanel>
 
+            {/* Subscription plans */}
             <TabPanel value={tabValue} index={2}>
-                <Typography variant="h6" gutterBottom>
-                    Subscription Plans
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 3.5, color: "#f1f5f9" }}>
+                    Select Subscription Plan
                 </Typography>
                 {subscriptionError && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
+                    <Alert severity="error" sx={{ mb: 3 }}>
                         {subscriptionError}
                     </Alert>
                 )}
                 {subscriptionLoading ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-                        <CircularProgress />
+                    <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+                        <CircularProgress color="secondary" />
                     </Box>
                 ) : (
-                    <Grid container spacing={3}>
-                        {subscriptionPlans.map((plan) => (
-                            <Grid item xs={12} md={4} key={plan.id}>
-                                <Paper
-                                    elevation={2}
-                                    sx={{
-                                        p: 3,
-                                        textAlign: "center",
-                                        borderRadius: 2,
-                                        border: user?.subscription_plan === plan.id ? "2px solid #1976d2" : "1px solid #e0e0e0",
-                                    }}
-                                >
-                                    <Typography variant="h5" gutterBottom>
-                                        {plan.name}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                        {plan.description}
-                                    </Typography>
-                                    <Typography variant="h4" color="primary" sx={{ fontWeight: "bold" }}>
-                                        INR {plan.amount_inr}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                        per month
-                                    </Typography>
-                                    <Typography variant="body1" sx={{ mb: 1 }}>
-                                        Daily Limit: {plan.daily_chat_limit} chats
-                                    </Typography>
-                                    {user?.subscription_plan === plan.id ? (
-                                        <Chip label="Current Plan" color="primary" />
-                                    ) : (
-                                        <Button
-                                            variant="contained"
-                                            fullWidth
-                                            onClick={() => handlePurchaseSubscription(plan)}
-                                            sx={{ mt: 2 }}
-                                        >
-                                            Purchase
-                                        </Button>
-                                    )}
-                                </Paper>
-                            </Grid>
-                        ))}
+                    <Grid container spacing={4}>
+                        {subscriptionPlans.map((plan) => {
+                            const isCurrent = user?.subscription_plan === plan.id;
+                            return (
+                                <Grid item xs={12} md={4} key={plan.id}>
+                                    <Paper
+                                        elevation={0}
+                                        sx={{
+                                            p: 4,
+                                            textAlign: "center",
+                                            borderRadius: 4,
+                                            background: isCurrent ? "rgba(6, 182, 212, 0.05)" : "rgba(255, 255, 255, 0.02)",
+                                            border: isCurrent ? "2.5px solid #06b6d4" : "1px solid rgba(255, 255, 255, 0.08)",
+                                            boxShadow: isCurrent ? "0 0 24px rgba(6, 182, 212, 0.15)" : "none",
+                                            position: "relative",
+                                        }}
+                                    >
+                                        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, color: "#f1f5f9" }}>
+                                            {plan.name}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, minHeight: 40 }}>
+                                            {plan.description}
+                                        </Typography>
+                                        <Typography variant="h3" sx={{ fontWeight: 900, color: "#06b6d4", mb: 0.5 }}>
+                                            ₹ {plan.amount_inr}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5 }}>
+                                            per month
+                                        </Typography>
+                                        
+                                        <Divider sx={{ my: 2.5, borderColor: "rgba(255,255,255,0.06)" }} />
+
+                                        <Typography variant="body2" sx={{ mb: 3.5, color: "#cbd5e1", fontWeight: 600 }}>
+                                            Daily Limit: {plan.daily_chat_limit} chat sessions
+                                        </Typography>
+
+                                        {isCurrent ? (
+                                            <Chip 
+                                                label="Active Plan" 
+                                                icon={<CheckCircle style={{ color: "#ffffff" }} />}
+                                                sx={{ 
+                                                    fontWeight: 700, 
+                                                    backgroundColor: "#06b6d4", 
+                                                    color: "#ffffff",
+                                                    px: 1.5
+                                                }} 
+                                            />
+                                        ) : (
+                                            <Button
+                                                variant="contained"
+                                                fullWidth
+                                                onClick={() => handlePurchaseSubscription(plan)}
+                                                sx={{ 
+                                                    mt: 2, 
+                                                    py: 1.25, 
+                                                    fontWeight: 700,
+                                                    borderRadius: 2.5,
+                                                    background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+                                                    color: "#ffffff",
+                                                    "&:hover": {
+                                                        background: "linear-gradient(90deg, #6d28d9, #0891b2)"
+                                                    }
+                                                }}
+                                            >
+                                                Subscribe Now
+                                            </Button>
+                                        )}
+                                    </Paper>
+                                </Grid>
+                            );
+                        })}
                     </Grid>
                 )}
             </TabPanel>
 
+            {/* Quiz detail Dialog */}
             <Dialog
                 open={detailOpen}
                 onClose={() => {
@@ -791,56 +924,77 @@ export default function Profile() {
                 }}
                 maxWidth="md"
                 fullWidth
+                PaperProps={{
+                    sx: {
+                        bgcolor: "#161b27",
+                        backgroundImage: "none",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        borderRadius: 3,
+                    }
+                }}
             >
-                <DialogTitle sx={{ fontWeight: 700 }}>Quiz Attempt Details</DialogTitle>
+                <DialogTitle sx={{ fontWeight: 800, color: "#f1f5f9" }}>Quiz Attempt Details</DialogTitle>
                 <DialogContent>
                     {detailLoading ? (
                         <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-                            <CircularProgress />
+                            <CircularProgress color="secondary" />
                         </Box>
                     ) : selectedQuizDetail ? (
                         <Box sx={{ pt: 1 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 800, color: "#f1f5f9" }}>
                                 {selectedQuizDetail.quiz_topic}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            <Typography variant="body2" sx={{ mb: 3, color: "#cbd5e1", fontWeight: 500 }}>
                                 Score: {selectedQuizDetail.score_percentage}% ({selectedQuizDetail.correct_answers}/
                                 {selectedQuizDetail.total_questions}) | Time Taken: {formatDuration(selectedQuizDetail.time_taken)} / {formatDuration(selectedQuizDetail.time_limit_seconds)}
                             </Typography>
-                            <Divider sx={{ mb: 2 }} />
+                            <Divider sx={{ mb: 3, borderColor: "rgba(255,255,255,0.08)" }} />
                             {selectedQuizDetail.feedback?.map((item, index) => (
                                 <Paper
                                     key={`${item.question_id}-${index}`}
                                     elevation={0}
                                     sx={{
-                                        p: 2,
-                                        mb: 1.5,
-                                        borderRadius: 2,
+                                        p: 2.5,
+                                        mb: 2,
+                                        borderRadius: 2.5,
                                         border: "1px solid",
-                                        borderColor: item.is_correct ? "success.light" : "warning.light",
+                                        borderColor: item.is_correct ? "rgba(16, 185, 129, 0.25)" : "rgba(245, 158, 11, 0.25)",
+                                        background: item.is_correct ? "rgba(16, 185, 129, 0.04)" : "rgba(245, 158, 11, 0.04)",
                                     }}
                                 >
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: "#f1f5f9" }}>
                                         Q{index + 1}. {item.question}
                                     </Typography>
-                                    <Typography variant="body2" color="text.secondary">
+                                    <Typography variant="body2" sx={{ color: item.is_correct ? "#6ee7b7" : "#fca5a5", mb: 0.5 }}>
                                         Your answer: {item.selected_option || "Not answered"}
                                     </Typography>
-                                    <Typography variant="body2" color="text.secondary">
+                                    <Typography variant="body2" sx={{ color: "#6ee7b7" }}>
                                         Correct answer: {item.correct_answer}
                                     </Typography>
                                 </Paper>
                             ))}
                         </Box>
                     ) : (
-                        <Alert severity="info">No detail found for this quiz.</Alert>
+                        <Alert severity="info" sx={{ mt: 1 }}>No details found for this quiz.</Alert>
                     )}
                 </DialogContent>
-                <DialogActions>
+                <DialogActions sx={{ p: 2.5 }}>
                     <Button
                         onClick={() => {
                             setDetailOpen(false);
                             setSelectedQuizDetail(null);
+                        }}
+                        variant="outlined"
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: 700,
+                            color: "#cbd5e1",
+                            borderColor: "rgba(255,255,255,0.12)",
+                            "&:hover": {
+                                borderColor: "rgba(255,255,255,0.25)",
+                                backgroundColor: "rgba(255,255,255,0.04)"
+                            }
                         }}
                     >
                         Close
@@ -858,36 +1012,53 @@ export default function Profile() {
                 }}
                 maxWidth="sm"
                 fullWidth
+                PaperProps={{
+                    sx: {
+                        bgcolor: "#161b27",
+                        backgroundImage: "none",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        borderRadius: 3,
+                    }
+                }}
             >
-                <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
-                    Delete Profile
+                <DialogTitle sx={{ fontWeight: 800, pb: 1, color: "#fca5a5" }}>
+                    Confirm Delete Profile
                 </DialogTitle>
                 <DialogContent sx={{ pt: 2 }}>
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                        <Typography variant="body2" fontWeight={600}>
+                    <Alert 
+                        severity="error" 
+                        sx={{ 
+                            mb: 3,
+                            bgcolor: "rgba(239, 68, 68, 0.08)",
+                            border: "1px solid rgba(239, 68, 68, 0.2)",
+                            color: "#fca5a5",
+                            "& .MuiAlert-icon": { color: "#f87171" }
+                        }}
+                    >
+                        <Typography variant="body2" fontWeight={700}>
                             <WarningAmber fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
-                            This action is irreversible!
+                            This action is permanent and irreversible!
                         </Typography>
-                        <Typography variant="body2" sx={{ mt: 1 }}>
+                        <Typography variant="body2" sx={{ mt: 1.5, fontWeight: 500 }}>
                             Deleting your profile will:
                         </Typography>
-                        <Typography variant="body2" component="ul" sx={{ mt: 1, pl: 2 }}>
-                            <li>Remove your account permanently</li>
-                            <li>Delete all facial recognition data</li>
-                            <li>Delete all quiz history</li>
-                            <li>Delete all stored files and embeddings</li>
+                        <Typography variant="body2" component="ul" sx={{ mt: 1, pl: 2, fontWeight: 500 }}>
+                            <li>Remove your login account permanently</li>
+                            <li>Delete facial bio template metadata</li>
+                            <li>Wipe quiz result archives</li>
+                            <li>Delete all uploaded files & embeddings</li>
                         </Typography>
                     </Alert>
 
-                    <Typography variant="body2" sx={{ mb: 2 }}>
-                        To confirm, please enter your password:
+                    <Typography variant="body2" sx={{ mb: 2, color: "#cbd5e1", fontWeight: 600 }}>
+                        Enter your password to verify your identity:
                     </Typography>
 
                     <TextField
                         fullWidth
                         type="password"
-                        label="Password"
-                        placeholder="Enter your password"
+                        label="Confirm Password"
+                        placeholder="Enter password to confirm"
                         value={deletePassword}
                         onChange={(e) => {
                             setDeletePassword(e.target.value);
@@ -896,10 +1067,16 @@ export default function Profile() {
                         error={!!deleteError}
                         helperText={deleteError}
                         disabled={deleteLoading}
-                        sx={{ mb: 1 }}
+                        sx={{
+                            mb: 1,
+                            "& .MuiOutlinedInput-root": {
+                                backgroundColor: "rgba(255,255,255,0.02)",
+                                "& fieldset": { borderColor: "rgba(255,255,255,0.08)" }
+                            }
+                        }}
                     />
                 </DialogContent>
-                <DialogActions sx={{ p: 2, pt: 0 }}>
+                <DialogActions sx={{ p: 2.5, pt: 0 }}>
                     <Button
                         onClick={() => {
                             setDeleteModalOpen(false);
@@ -907,6 +1084,18 @@ export default function Profile() {
                             setDeleteError(null);
                         }}
                         disabled={deleteLoading}
+                        variant="outlined"
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: 700,
+                            color: "#cbd5e1",
+                            borderColor: "rgba(255,255,255,0.12)",
+                            "&:hover": {
+                                borderColor: "rgba(255,255,255,0.25)",
+                                backgroundColor: "rgba(255,255,255,0.04)"
+                            }
+                        }}
                     >
                         Cancel
                     </Button>
@@ -915,16 +1104,27 @@ export default function Profile() {
                         color="error"
                         variant="contained"
                         disabled={deleteLoading || !deletePassword.trim()}
-                        sx={{ minWidth: "100px" }}
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: 700,
+                            px: 3,
+                            backgroundColor: "#ef4444",
+                            color: "#ffffff",
+                            "&:hover": {
+                                backgroundColor: "#dc2626",
+                            }
+                        }}
                     >
                         {deleteLoading ? (
                             <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
                         ) : null}
-                        {deleteLoading ? "Deleting..." : "Delete"}
+                        {deleteLoading ? "Deleting..." : "Permanently Delete"}
                     </Button>
                 </DialogActions>
             </Dialog>
 
+            {/* Subscription Confirm Dialog */}
             <Dialog
                 open={paymentModalOpen}
                 onClose={() => {
@@ -934,34 +1134,42 @@ export default function Profile() {
                 }}
                 maxWidth="sm"
                 fullWidth
+                PaperProps={{
+                    sx: {
+                        bgcolor: "#161b27",
+                        backgroundImage: "none",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        borderRadius: 3,
+                    }
+                }}
             >
-                <DialogTitle sx={{ fontWeight: 700 }}>
-                    Confirm Subscription Purchase
+                <DialogTitle sx={{ fontWeight: 800, color: "#f1f5f9" }}>
+                    Confirm Subscription Order
                 </DialogTitle>
                 <DialogContent>
                     {selectedPlan && (
                         <Box sx={{ pt: 1 }}>
-                            <Typography variant="h6" gutterBottom>
+                            <Typography variant="h6" sx={{ color: "#f1f5f9", fontWeight: 800 }} gutterBottom>
                                 {selectedPlan.name} Plan
                             </Typography>
-                            <Typography variant="body1" sx={{ mb: 1 }}>
-                                Amount: INR {selectedPlan.amount_inr}
+                            <Typography variant="body1" sx={{ mb: 1, color: "#cbd5e1", fontWeight: 600 }}>
+                                Amount: ₹ {selectedPlan.amount_inr}
                             </Typography>
-                            <Typography variant="body1" sx={{ mb: 2 }}>
-                                Daily Limit: {selectedPlan.daily_chat_limit} chats
+                            <Typography variant="body1" sx={{ mb: 2, color: "#cbd5e1", fontWeight: 600 }}>
+                                Daily Limit: {selectedPlan.daily_chat_limit} chat sessions
                             </Typography>
                             {paymentError && (
-                                <Alert severity="error" sx={{ mb: 2 }}>
+                                <Alert severity="error" sx={{ mb: 2.5 }}>
                                     {paymentError}
                                 </Alert>
                             )}
                             <Typography variant="body2" color="text.secondary">
-                                You will be redirected to Razorpay for secure payment processing.
+                                You will be redirected to Razorpay checkout to finish payment processing.
                             </Typography>
                         </Box>
                     )}
                 </DialogContent>
-                <DialogActions>
+                <DialogActions sx={{ p: 2.5 }}>
                     <Button
                         onClick={() => {
                             setPaymentModalOpen(false);
@@ -969,6 +1177,18 @@ export default function Profile() {
                             setPaymentError(null);
                         }}
                         disabled={paymentLoading}
+                        variant="outlined"
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: 700,
+                            color: "#cbd5e1",
+                            borderColor: "rgba(255,255,255,0.12)",
+                            "&:hover": {
+                                borderColor: "rgba(255,255,255,0.25)",
+                                backgroundColor: "rgba(255,255,255,0.04)"
+                            }
+                        }}
                     >
                         Cancel
                     </Button>
@@ -976,7 +1196,17 @@ export default function Profile() {
                         onClick={handleConfirmPayment}
                         variant="contained"
                         disabled={paymentLoading}
-                        sx={{ minWidth: "120px" }}
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: 700,
+                            px: 3.5,
+                            background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+                            color: "#ffffff",
+                            "&:hover": {
+                                background: "linear-gradient(90deg, #6d28d9, #0891b2)"
+                            }
+                        }}
                     >
                         {paymentLoading ? (
                             <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />

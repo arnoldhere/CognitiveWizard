@@ -23,6 +23,8 @@ import {
 
 export default function QuizResults({ result, onStartAgain }) {
   const passPercentage = result.result === "pass" ? 100 : (result.score_percentage / 100) * 100;
+  const isPass = result.result === "pass";
+
   const formatDuration = (seconds) => {
     if (seconds === null || seconds === undefined) return "N/A";
     const mins = Math.floor(seconds / 60);
@@ -39,13 +41,15 @@ export default function QuizResults({ result, onStartAgain }) {
           sx={{
             p: { xs: 3, md: 4 },
             borderRadius: 4,
-            background:
-              result.result === "pass"
-                ? "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)"
-                : "linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)",
-            border: `2px solid ${result.result === "pass" ? "#10b981" : "#f59e0b"}`,
+            background: isPass
+              ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.05) 100%)"
+              : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%)",
+            border: `1.5px solid ${isPass ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)"}`,
             position: "relative",
             overflow: "hidden",
+            boxShadow: isPass 
+              ? "0 8px 32px rgba(16, 185, 129, 0.1)"
+              : "0 8px 32px rgba(239, 68, 68, 0.1)",
           }}
         >
           <Stack spacing={2.5}>
@@ -60,7 +64,7 @@ export default function QuizResults({ result, onStartAgain }) {
                   variant="overline"
                   sx={{
                     letterSpacing: 2,
-                    color: result.result === "pass" ? "#047857" : "#b45309",
+                    color: isPass ? "#34d399" : "#f87171",
                     fontWeight: 700,
                   }}
                 >
@@ -71,7 +75,7 @@ export default function QuizResults({ result, onStartAgain }) {
                   sx={{
                     fontWeight: 800,
                     mb: 1,
-                    color: result.result === "pass" ? "#065f46" : "#92400e",
+                    color: "#f1f5f9",
                   }}
                 >
                   {result.topic}
@@ -79,45 +83,59 @@ export default function QuizResults({ result, onStartAgain }) {
                 <Typography
                   variant="body1"
                   sx={{
-                    color: result.result === "pass" ? "#047857" : "#b45309",
+                    color: "#94a3b8",
                     fontWeight: 500,
                   }}
                 >
                   {result.summary}
                 </Typography>
                 {result.is_auto_submitted ? (
-                  <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+                  <Alert 
+                    severity="warning" 
+                    sx={{ 
+                      mt: 2, 
+                      borderRadius: 2,
+                      bgcolor: "rgba(245, 158, 11, 0.1)",
+                      color: "#fde68a",
+                      border: "1px solid rgba(245, 158, 11, 0.25)",
+                      "& .MuiAlert-icon": { color: "#fbbf24" }
+                    }}
+                  >
                     Time limit reached. This quiz was submitted automatically.
                   </Alert>
                 ) : null}
               </Box>
               <Chip
                 label={result.result.toUpperCase()}
-                icon={result.result === "pass" ? <CheckCircle /> : <Close />}
-                color={result.result === "pass" ? "success" : "warning"}
+                icon={isPass ? <CheckCircle style={{ color: "#10b981" }} /> : <Close style={{ color: "#ef4444" }} />}
+                variant="outlined"
                 sx={{
                   fontWeight: 700,
                   fontSize: "1rem",
                   py: 3,
                   px: 2,
+                  color: isPass ? "#34d399" : "#f87171",
+                  borderColor: isPass ? "rgba(16, 185, 129, 0.4)" : "rgba(239, 68, 68, 0.4)",
+                  backgroundColor: isPass ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
                 }}
               />
             </Stack>
 
-            <Divider />
+            <Divider sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
 
             <Grid container spacing={2}>
+              {/* Score card */}
               <Grid item xs={12} sm={6} md={3}>
                 <Card
                   elevation={0}
                   sx={{
                     p: 2.5,
                     borderRadius: 3,
-                    background: "rgba(255,255,255,0.7)",
-                    backdropFilter: "blur(10px)",
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
                 >
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: "text.secondary" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: "#94a3b8" }}>
                     Score
                   </Typography>
                   <Typography
@@ -134,58 +152,64 @@ export default function QuizResults({ result, onStartAgain }) {
                   </Typography>
                 </Card>
               </Grid>
+
+              {/* Time taken card */}
               <Grid item xs={12} sm={6} md={3}>
                 <Card
                   elevation={0}
                   sx={{
                     p: 2.5,
                     borderRadius: 3,
-                    background: "rgba(255,255,255,0.7)",
-                    backdropFilter: "blur(10px)",
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
                 >
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: "text.secondary" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: "#94a3b8" }}>
                     Time Taken
                   </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary" }}>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: "#f1f5f9", mb: 0.5 }}>
                     {formatDuration(result.time_taken)}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  <Typography variant="caption" sx={{ color: "#64748b" }}>
                     Limit: {formatDuration(result.time_limit_seconds)}
                   </Typography>
                 </Card>
               </Grid>
+
+              {/* Correct answers card */}
               <Grid item xs={12} sm={6} md={3}>
                 <Card
                   elevation={0}
                   sx={{
                     p: 2.5,
                     borderRadius: 3,
-                    background: "rgba(255,255,255,0.7)",
-                    backdropFilter: "blur(10px)",
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
                 >
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: "text.secondary" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: "#94a3b8" }}>
                     Correct Answers
                   </Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 800, color: "success.main" }}>
+                  <Typography variant="h3" sx={{ fontWeight: 800, color: "#34d399" }}>
                     {result.correct_answers}/{result.total_questions}
                   </Typography>
                 </Card>
               </Grid>
+
+              {/* Difficulty card */}
               <Grid item xs={12} sm={6} md={3}>
                 <Card
                   elevation={0}
                   sx={{
                     p: 2.5,
                     borderRadius: 3,
-                    background: "rgba(255,255,255,0.7)",
-                    backdropFilter: "blur(10px)",
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
                 >
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                    <TrendingUp sx={{ color: "primary.main" }} />
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    <TrendingUp sx={{ color: "#818cf8" }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#94a3b8" }}>
                       Difficulty
                     </Typography>
                   </Stack>
@@ -194,25 +218,27 @@ export default function QuizResults({ result, onStartAgain }) {
                     sx={{
                       fontWeight: 800,
                       textTransform: "capitalize",
-                      color: "primary.main",
+                      color: "#818cf8",
                     }}
                   >
                     {result.difficulty}
                   </Typography>
                 </Card>
               </Grid>
+
+              {/* Accuracy progress card */}
               <Grid item xs={12} sm={6} md={3}>
                 <Card
                   elevation={0}
                   sx={{
                     p: 2.5,
                     borderRadius: 3,
-                    background: "rgba(255,255,255,0.7)",
-                    backdropFilter: "blur(10px)",
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
                 >
                   <Box sx={{ mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "text.secondary" }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#94a3b8" }}>
                       Accuracy
                     </Typography>
                   </Box>
@@ -222,7 +248,7 @@ export default function QuizResults({ result, onStartAgain }) {
                     sx={{
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: "rgba(0,0,0,0.1)",
+                      backgroundColor: "rgba(255,255,255,0.06)",
                       "& .MuiLinearProgress-bar": {
                         background: `linear-gradient(90deg, ${result.score_percentage >= 60 ? "#10b981" : "#f59e0b"
                           }, ${result.score_percentage >= 60 ? "#34d399" : "#fbbf24"})`,
@@ -232,7 +258,7 @@ export default function QuizResults({ result, onStartAgain }) {
                   />
                   <Typography
                     variant="caption"
-                    sx={{ display: "block", mt: 1, fontWeight: 600, color: "text.secondary" }}
+                    sx={{ display: "block", mt: 1, fontWeight: 600, color: "#94a3b8" }}
                   >
                     {Math.round(passPercentage)}% Achieved
                   </Typography>
@@ -250,9 +276,14 @@ export default function QuizResults({ result, onStartAgain }) {
                 px: 4,
                 py: 1.5,
                 fontSize: "1rem",
-                fontWeight: 600,
-                background: "linear-gradient(90deg, #0ea5e9, #4f46e5)",
-                boxShadow: "0 6px 20px rgba(79,70,229,0.4)",
+                fontWeight: 700,
+                background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+                boxShadow: "0 6px 20px rgba(124,58,237,0.3)",
+                color: "#ffffff",
+                border: "none",
+                "&:hover": {
+                  background: "linear-gradient(90deg, #6d28d9, #0891b2)",
+                }
               }}
             >
               Start Another Quiz
@@ -265,18 +296,19 @@ export default function QuizResults({ result, onStartAgain }) {
           <Typography
             variant="h5"
             sx={{
-              fontWeight: 700,
+              fontWeight: 800,
               mb: 2.5,
               display: "flex",
               alignItems: "center",
               gap: 1,
+              color: "#f1f5f9",
             }}
           >
-            <Info sx={{ color: "primary.main" }} />
+            <Info sx={{ color: "#a78bfa" }} />
             Detailed Feedback
           </Typography>
 
-          <Stack spacing={2}>
+          <Stack spacing={2.5}>
             {result.feedback && result.feedback.length > 0 ? (
               result.feedback.map((item, index) => (
                 <Paper
@@ -285,37 +317,42 @@ export default function QuizResults({ result, onStartAgain }) {
                   sx={{
                     p: 3,
                     borderRadius: 3,
-                    border: `2px solid ${item.is_correct ? "#d1fae5" : "#fecaca"}`,
+                    border: `1.5px solid ${item.is_correct ? "rgba(52, 211, 153, 0.25)" : "rgba(248, 113, 113, 0.25)"}`,
                     background: item.is_correct
-                      ? "linear-gradient(135deg, #f0fdf4 0%, #e8f8f5 100%)"
-                      : "linear-gradient(135deg, #fef5f5 0%, #feeaea 100%)",
+                      ? "linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.02) 100%)"
+                      : "linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(220, 38, 38, 0.02) 100%)",
                   }}
                 >
-                  <Stack spacing={1.5}>
+                  <Stack spacing={2}>
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
                       justifyContent="space-between"
                       alignItems={{ xs: "flex-start", sm: "center" }}
-                      spacing={1}
+                      spacing={1.5}
                     >
                       <Typography
                         variant="h6"
                         sx={{
                           fontWeight: 700,
-                          color: "#0f172a",
+                          color: "#f1f5f9",
                         }}
                       >
                         Q{index + 1}. {item.question}
                       </Typography>
                       <Chip
-                        icon={item.is_correct ? <CheckCircle /> : <Close />}
+                        icon={item.is_correct ? <CheckCircle style={{ color: "#34d399" }} /> : <Close style={{ color: "#f87171" }} />}
                         label={item.is_correct ? "Correct" : "Incorrect"}
-                        color={item.is_correct ? "success" : "error"}
-                        variant="filled"
+                        variant="outlined"
+                        sx={{
+                          color: item.is_correct ? "#34d399" : "#f87171",
+                          borderColor: item.is_correct ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)",
+                          backgroundColor: item.is_correct ? "rgba(16, 185, 129, 0.06)" : "rgba(239, 68, 68, 0.06)",
+                          fontWeight: 700,
+                        }}
                       />
                     </Stack>
 
-                    <Divider />
+                    <Divider sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
 
                     <Grid container spacing={2}>
                       <Grid item xs={12} sm={6}>
@@ -324,8 +361,8 @@ export default function QuizResults({ result, onStartAgain }) {
                             variant="body2"
                             sx={{
                               fontWeight: 600,
-                              color: "text.secondary",
-                              mb: 0.5,
+                              color: "#94a3b8",
+                              mb: 1,
                             }}
                           >
                             Your Answer
@@ -336,17 +373,16 @@ export default function QuizResults({ result, onStartAgain }) {
                               p: 1.5,
                               borderRadius: 2,
                               background: item.is_correct
-                                ? "rgba(16, 185, 129, 0.1)"
-                                : "rgba(239, 68, 68, 0.1)",
-                              borderLeft: `4px solid ${item.is_correct ? "#10b981" : "#ef4444"
-                                }`,
+                                ? "rgba(16, 185, 129, 0.08)"
+                                : "rgba(239, 68, 68, 0.08)",
+                              borderLeft: `4px solid ${item.is_correct ? "#10b981" : "#ef4444"}`,
                             }}
                           >
                             <Typography
                               variant="body2"
                               sx={{
-                                color: item.is_correct ? "#065f46" : "#7f1d1d",
-                                fontWeight: 500,
+                                color: item.is_correct ? "#6ee7b7" : "#fca5a5",
+                                fontWeight: 600,
                               }}
                             >
                               {item.selected_option || "Not answered"}
@@ -360,8 +396,8 @@ export default function QuizResults({ result, onStartAgain }) {
                             variant="body2"
                             sx={{
                               fontWeight: 600,
-                              color: "text.secondary",
-                              mb: 0.5,
+                              color: "#94a3b8",
+                              mb: 1,
                             }}
                           >
                             Correct Answer
@@ -371,15 +407,15 @@ export default function QuizResults({ result, onStartAgain }) {
                             sx={{
                               p: 1.5,
                               borderRadius: 2,
-                              background: "rgba(16, 185, 129, 0.1)",
+                              background: "rgba(16, 185, 129, 0.08)",
                               borderLeft: "4px solid #10b981",
                             }}
                           >
                             <Typography
                               variant="body2"
                               sx={{
-                                color: "#065f46",
-                                fontWeight: 600,
+                                color: "#6ee7b7",
+                                fontWeight: 700,
                               }}
                             >
                               {item.correct_answer}
@@ -393,9 +429,15 @@ export default function QuizResults({ result, onStartAgain }) {
                       severity={item.is_correct ? "success" : "warning"}
                       sx={{
                         borderRadius: 2,
+                        bgcolor: item.is_correct ? "rgba(16, 185, 129, 0.06)" : "rgba(245, 158, 11, 0.06)",
+                        color: item.is_correct ? "#a7f3d0" : "#fde68a",
+                        border: `1px solid ${item.is_correct ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)"}`,
                         "& .MuiAlert-message": {
                           fontWeight: 500,
                         },
+                        "& .MuiAlert-icon": {
+                          color: item.is_correct ? "#34d399" : "#fbbf24",
+                        }
                       }}
                     >
                       {item.feedback}
@@ -404,7 +446,17 @@ export default function QuizResults({ result, onStartAgain }) {
                 </Paper>
               ))
             ) : (
-              <Alert severity="info">No feedback available</Alert>
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  borderRadius: 2,
+                  bgcolor: "rgba(59, 130, 246, 0.1)",
+                  color: "#93c5fd",
+                  border: "1px solid rgba(59, 130, 246, 0.2)"
+                }}
+              >
+                No feedback available
+              </Alert>
             )}
           </Stack>
         </Box>

@@ -22,3 +22,4 @@ samples/
 requirements/
 weights/
 .venv
+.mycli-fts

@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import "./App.css";
 import ErrorBoundary from "./components/utils/ErrorBoundary";
 import SummarizerPage from "./pages/Summarize";
+import WizardModule from "./pages/WizardModule";
 import FaceRegister from "./pages/FaceRegister";
 import FaceLogin from "./pages/FaceLogin";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -53,6 +54,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <SummarizerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wizard"
+            element={
+              <ProtectedRoute>
+                <WizardModule />
               </ProtectedRoute>
             }
           />

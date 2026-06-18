@@ -10,7 +10,6 @@ import {
     Button,
     Alert,
     CircularProgress,
-    Fade,
     FormControl,
     InputLabel,
     Select,
@@ -27,6 +26,7 @@ import {
     CheckCircle,
     Lightbulb,
     TrendingUp,
+    ContentCopy,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import { summarizeContent, uploadSummaryFile } from "../services/api";
@@ -67,44 +67,56 @@ const parseSummaryContent = (text) => {
 
     return sections;
 };
+
 /**
  * Enhanced summary display component with better readability
  */
 const SummaryDisplay = ({ summary, mode }) => {
     const sections = useMemo(() => parseSummaryContent(summary), [summary]);
+    const [copied, setCopied] = useState(false);
 
     const modeConfig = {
         concise: {
-            icon: <Lightbulb sx={{ fontSize: 24, color: "#f59e0b" }} />,
+            icon: <Lightbulb sx={{ fontSize: 24, color: "#fbbf24" }} />,
             title: "Quick Insight",
             subtitle: "Ultra-concise summary",
-            bgColor: "rgba(245, 158, 11, 0.05)",
-            borderColor: "#fde68a",
+            bgColor: "rgba(251, 191, 36, 0.08)",
+            borderColor: "rgba(251, 191, 36, 0.3)",
+            textColor: "#fde68a",
         },
         brief: {
-            icon: <CheckCircle sx={{ fontSize: 24, color: "#3b82f6" }} />,
+            icon: <CheckCircle sx={{ fontSize: 24, color: "#60a5fa" }} />,
             title: "Brief Overview",
             subtitle: "Key points summary",
-            bgColor: "rgba(59, 130, 246, 0.05)",
-            borderColor: "#bfdbfe",
+            bgColor: "rgba(96, 165, 250, 0.08)",
+            borderColor: "rgba(96, 165, 250, 0.3)",
+            textColor: "#bfdbfe",
         },
         summary: {
-            icon: <TrendingUp sx={{ fontSize: 24, color: "#10b981" }} />,
+            icon: <TrendingUp sx={{ fontSize: 24, color: "#34d399" }} />,
             title: "Main Summary",
             subtitle: "Balanced overview",
-            bgColor: "rgba(16, 185, 129, 0.05)",
-            borderColor: "#a7f3d0",
+            bgColor: "rgba(52, 211, 153, 0.08)",
+            borderColor: "rgba(52, 211, 153, 0.3)",
+            textColor: "#a7f3d0",
         },
         detailed: {
-            icon: <AutoAwesome sx={{ fontSize: 24, color: "#8b5cf6" }} />,
+            icon: <AutoAwesome sx={{ fontSize: 24, color: "#a78bfa" }} />,
             title: "Detailed Analysis",
             subtitle: "Comprehensive summary",
-            bgColor: "rgba(139, 92, 246, 0.05)",
-            borderColor: "#ddd6fe",
+            bgColor: "rgba(167, 139, 250, 0.08)",
+            borderColor: "rgba(167, 139, 250, 0.3)",
+            textColor: "#ddd6fe",
         },
     };
 
     const config = modeConfig[mode] || modeConfig.brief;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(summary);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     return (
         <Box
@@ -117,10 +129,12 @@ const SummaryDisplay = ({ summary, mode }) => {
                 sx={{
                     mt: 5,
                     p: { xs: 3, md: 5 },
-                    borderRadius: 3,
-                    background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,250,251,0.95) 100%)",
-                    border: `2px solid ${config.borderColor}`,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                    borderRadius: 4,
+                    background: "rgba(22, 27, 39, 0.95)",
+                    border: `1.5px solid ${config.borderColor}`,
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                    backdropFilter: "blur(16px)",
+                    color: "#e2e8f0",
                 }}
             >
                 {/* HEADER */}
@@ -131,7 +145,7 @@ const SummaryDisplay = ({ summary, mode }) => {
                         gap: 2,
                         mb: 3,
                         pb: 3,
-                        borderBottom: `1px solid ${config.borderColor}`,
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
                     }}
                 >
                     <Box
@@ -142,6 +156,7 @@ const SummaryDisplay = ({ summary, mode }) => {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
+                            border: `1px solid ${config.borderColor}`,
                         }}
                     >
                         {config.icon}
@@ -151,9 +166,7 @@ const SummaryDisplay = ({ summary, mode }) => {
                             variant="h6"
                             fontWeight={800}
                             sx={{
-                                background: `linear-gradient(90deg, ${config.borderColor}, currentColor)`,
-                                WebkitBackgroundClip: "text",
-                                WebkitTextFillColor: "transparent",
+                                color: "#f1f5f9",
                             }}
                         >
                             {config.title}
@@ -176,14 +189,12 @@ const SummaryDisplay = ({ summary, mode }) => {
                                 <Typography
                                     variant="body1"
                                     sx={{
-                                        color: "#1f2937",
+                                        color: "#cbd5e1",
                                         fontSize: "0.95rem",
                                         letterSpacing: "0.3px",
                                         lineHeight: 1.85,
-                                        textAlign: "justify",
                                     }}
                                 >
-                                    {/* Format emphasized text */}
                                     {section.content.split(/(\*\*.*?\*\*)/g).map(
                                         (part, i) =>
                                             part.startsWith("**") ? (
@@ -191,7 +202,7 @@ const SummaryDisplay = ({ summary, mode }) => {
                                                     key={i}
                                                     style={{
                                                         fontWeight: 700,
-                                                        color: "#374151",
+                                                        color: "#f1f5f9",
                                                     }}
                                                 >
                                                     {part.replace(/\*\*/g, "")}
@@ -210,13 +221,13 @@ const SummaryDisplay = ({ summary, mode }) => {
                                             m: 0,
                                             "& li": {
                                                 mb: 1.5,
-                                                color: "#374151",
+                                                color: "#cbd5e1",
                                                 lineHeight: 1.8,
                                             },
                                             "& li::marker": {
-                                                color: config.borderColor,
+                                                color: config.textColor,
                                                 fontWeight: 700,
-                                                fontSize: "1.2em",
+                                                fontSize: "1.1em",
                                             },
                                         }}
                                     >
@@ -239,7 +250,7 @@ const SummaryDisplay = ({ summary, mode }) => {
                 </Box>
 
                 {/* FOOTER STATS */}
-                <Divider sx={{ my: 3 }} />
+                <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.08)" }} />
                 <Box
                     sx={{
                         display: "flex",
@@ -254,27 +265,26 @@ const SummaryDisplay = ({ summary, mode }) => {
                         color="text.secondary"
                         fontWeight={600}
                     >
-                        {summary.split(" ").length} words | {sections.length}{" "}
-                        sections
+                        {summary.split(/\s+/).length} words | {sections.length} sections
                     </Typography>
                     <Button
                         size="medium"
                         variant="outlined"
-                        onClick={() => {
-                            navigator.clipboard.writeText(summary);
-                        }}
+                        onClick={handleCopy}
+                        startIcon={<ContentCopy />}
                         sx={{
                             textTransform: "none",
-                            fontWeight: 600,
-                            color: config.borderColor,
-                            bgcolor: "AccentColor",
+                            fontWeight: 700,
+                            color: "#cbd5e1",
+                            borderColor: "rgba(255,255,255,0.12)",
+                            bgcolor: "rgba(255,255,255,0.03)",
                             "&:hover": {
-                                background: config.bgColor,
-                                color: "red"
+                                background: "rgba(255,255,255,0.08)",
+                                borderColor: "rgba(255,255,255,0.2)",
                             },
                         }}
                     >
-                        Copy
+                        {copied ? "Copied!" : "Copy Summary"}
                     </Button>
                 </Box>
             </Paper>
@@ -368,7 +378,7 @@ export default function SummarizerPage() {
                     variant="h3"
                     fontWeight={900}
                     sx={{
-                        background: "linear-gradient(90deg,#6366f1,#9333ea)",
+                        background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                     }}
@@ -376,7 +386,7 @@ export default function SummarizerPage() {
                     AI Summarizer
                 </Typography>
 
-                <Typography mt={1} color="text.secondary">
+                <Typography mt={1.5} color="text.secondary" sx={{ fontSize: "1.1rem" }}>
                     Turn long content into powerful insights instantly
                 </Typography>
             </Box>
@@ -387,9 +397,9 @@ export default function SummarizerPage() {
                 sx={{
                     p: 4,
                     borderRadius: 4,
-                    background: "rgba(255,255,255,0.75)",
+                    background: "rgba(22, 27, 39, 0.95)",
                     backdropFilter: "blur(20px)",
-                    border: "1px solid rgba(0,0,0,0.05)",
+                    border: "1px solid rgba(255,255,255,0.07)",
                 }}
             >
                 {/* TABS */}
@@ -399,10 +409,18 @@ export default function SummarizerPage() {
                     centered
                     sx={{
                         mb: 4,
+                        borderBottom: "1px solid rgba(255,255,255,0.06)",
                         "& .MuiTab-root": {
                             textTransform: "none",
-                            fontWeight: 600,
+                            fontWeight: 700,
+                            color: "#94a3b8",
+                            "&.Mui-selected": {
+                                color: "#06b6d4",
+                            }
                         },
+                        "& .MuiTabs-indicator": {
+                            backgroundColor: "#06b6d4",
+                        }
                     }}
                 >
                     <Tab icon={<UploadFile />} label="Document" value="file" />
@@ -415,20 +433,25 @@ export default function SummarizerPage() {
                     {source === "file" && (
                         <Box
                             sx={{
-                                border: "2px dashed #c7d2fe",
+                                border: "2px dashed rgba(124, 58, 237, 0.3)",
                                 borderRadius: 3,
                                 p: 4,
                                 textAlign: "center",
                                 cursor: "pointer",
-                                transition: "0.3s",
+                                transition: "0.2s ease-in-out",
+                                background: "rgba(255, 255, 255, 0.01)",
                                 "&:hover": {
-                                    background: "#f5f3ff",
+                                    background: "rgba(124, 58, 237, 0.05)",
+                                    borderColor: "#7c3aed",
                                 },
                             }}
                         >
-                            <UploadFile sx={{ fontSize: 40, color: "#6366f1" }} />
-                            <Typography mt={1}>
+                            <UploadFile sx={{ fontSize: 48, color: "#a78bfa", mb: 1 }} />
+                            <Typography sx={{ color: "#cbd5e1", fontWeight: 600 }}>
                                 Click or drag file to upload
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                                PDF & DOCX up to 50MB
                             </Typography>
                             <input
                                 type="file"
@@ -437,14 +460,14 @@ export default function SummarizerPage() {
                                 id="fileInput"
                             />
                             <label htmlFor="fileInput">
-                                <Button component="span" sx={{ mt: 2 }}>
+                                <Button component="span" variant="outlined" sx={{ mt: 2, textTransform: "none", fontWeight: 600, color: "#a78bfa", borderColor: "rgba(167, 139, 250, 0.4)" }}>
                                     Browse File
                                 </Button>
                             </label>
 
                             {file && (
-                                <Typography mt={1} color="success.main">
-                                    {file.name}
+                                <Typography mt={2} color="success.main" sx={{ fontWeight: 600 }}>
+                                    {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
                                 </Typography>
                             )}
                         </Box>
@@ -453,6 +476,7 @@ export default function SummarizerPage() {
                     {(source === "url" || source === "youtube") && (
                         <TextField
                             fullWidth
+                            variant="outlined"
                             placeholder={
                                 source === "url"
                                     ? "Paste article URL..."
@@ -464,16 +488,33 @@ export default function SummarizerPage() {
                                     ? setUrl(e.target.value)
                                     : setYoutube(e.target.value)
                             }
-                            sx={{ borderRadius: 3 }}
+                            sx={{
+                                "& .MuiOutlinedInput-root": {
+                                    backgroundColor: "rgba(255, 255, 255, 0.02)",
+                                    "& fieldset": {
+                                        borderColor: "rgba(255, 255, 255, 0.08)",
+                                    },
+                                    "&:hover fieldset": {
+                                        borderColor: "rgba(255, 255, 255, 0.15)",
+                                    },
+                                }
+                            }}
                         />
                     )}
 
                     {/* MODE */}
                     <FormControl fullWidth>
-                        <InputLabel>Summary Mode</InputLabel>
+                        <InputLabel sx={{ color: "#94a3b8" }}>Summary Mode</InputLabel>
                         <Select
                             value={mode}
                             onChange={(e) => setMode(e.target.value)}
+                            label="Summary Mode"
+                            sx={{
+                                backgroundColor: "rgba(255, 255, 255, 0.02)",
+                                "& .MuiOutlinedInput-notchedOutline": {
+                                    borderColor: "rgba(255, 255, 255, 0.08)",
+                                },
+                            }}
                         >
                             <MenuItem value="concise">Concise</MenuItem>
                             <MenuItem value="brief">Brief</MenuItem>
@@ -482,7 +523,19 @@ export default function SummarizerPage() {
                         </Select>
                     </FormControl>
 
-                    {error && <Alert severity="error">{error}</Alert>}
+                    {error && (
+                        <Alert 
+                            severity="error"
+                            sx={{
+                                bgcolor: "rgba(239, 68, 68, 0.08)",
+                                border: "1px solid rgba(239, 68, 68, 0.25)",
+                                color: "#fca5a5",
+                                "& .MuiAlert-icon": { color: "#f87171" }
+                            }}
+                        >
+                            {error}
+                        </Alert>
+                    )}
 
                     {/* BUTTON */}
                     <Button
@@ -490,16 +543,21 @@ export default function SummarizerPage() {
                         size="large"
                         onClick={handleSubmit}
                         disabled={loading}
-                        startIcon={<AutoAwesome />}
+                        startIcon={!loading && <AutoAwesome />}
                         sx={{
-                            py: 1.5,
+                            py: 1.8,
                             borderRadius: 3,
-                            background:
-                                "linear-gradient(90deg,#6366f1,#9333ea)",
+                            fontWeight: 700,
+                            color: "#ffffff",
+                            background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+                            boxShadow: "0 6px 20px rgba(124, 58, 237, 0.35)",
+                            "&:hover": {
+                                background: "linear-gradient(90deg, #6d28d9, #0891b2)",
+                            }
                         }}
                     >
                         {loading ? (
-                            <CircularProgress size={22} />
+                            <CircularProgress size={24} color="inherit" />
                         ) : (
                             "Generate Summary"
                         )}

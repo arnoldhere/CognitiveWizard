@@ -1,13 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateQuiz, submitQuiz as submitQuizRequest } from "../services/api";
 import { getApiErrorMessage } from "../utils/apiError";
+
+const STORAGE_KEY = "cw_active_quiz_session";
+
+function loadPersistedSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistSession(session) {
+  try {
+    if (session) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch {
+    /* storage full or private mode */
+  }
+}
 
 export const useQuiz = () => {
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [quizSession, setQuizSession] = useState(null);
+  const [quizSession, setQuizSession] = useState(() => loadPersistedSession());
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+
+  // Keep localStorage in sync whenever quizSession changes
+  useEffect(() => {
+    persistSession(quizSession);
+  }, [quizSession]);
 
   const createQuiz = async (input) => {
     try {
@@ -16,7 +44,8 @@ export const useQuiz = () => {
       setResult(null);
 
       const data = await generateQuiz(input);
-      setQuizSession(data?.data || null);
+      const session = data?.data || null;
+      setQuizSession(session);
     } catch (err) {
       console.error("Error in useQuiz hook:", err);
       setError(getApiErrorMessage(err, "Failed to generate quiz. Please try again."));
@@ -41,7 +70,7 @@ export const useQuiz = () => {
       });
 
       setResult(data);
-      setQuizSession(null);
+      setQuizSession(null); // clears localStorage via useEffect
       return data;
     } catch (err) {
       console.error("Error submitting quiz:", err);

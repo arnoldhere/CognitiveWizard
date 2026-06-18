@@ -1,248 +1,214 @@
+/* ─── SessionManager.css – dark theme ─────────────────────────────────── */
 .session-manager-panel {
-    display: grid;
-    gap: 20px;
-    padding: 24px;
+  display: grid;
+  gap: 18px;
+  padding: 22px;
 }
 
-.session-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
+/* ─── NEW CHAT BUTTON ─── */
 .session-actions button {
-    width: 100%;
-    border-radius: 12px;
-    border: 1px solid #10b981;
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    color: #065f46;
-    padding: 14px 18px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(124,58,237,0.4);
+  background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.08));
+  color: #c4b5fd;
+  padding: 13px 18px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.22s ease;
 }
 
 .session-actions button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  background: linear-gradient(135deg, rgba(124,58,237,0.22), rgba(6,182,212,0.14));
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(124,58,237,0.2);
 }
 
 .session-actions button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
+/* ─── SCROLLABLE LIST ─── */
 .session-list-wrapper {
-    max-height: 420px;
-    overflow-y: auto;
-    padding-right: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
-.session-list-wrapper::-webkit-scrollbar {
-    width: 6px;
-}
-
-.session-list-wrapper::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 10px;
-}
-
-.session-list-wrapper::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
-}
-
-.session-list-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
+.session-list-wrapper::-webkit-scrollbar { width: 4px }
+.session-list-wrapper::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 999px }
 
 .session-list {
-    display: grid;
-    gap: 12px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
+/* ─── SESSION ITEM ─── */
 .session-item {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 18px;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    background: #ffffff;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .session-item:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: rgba(124,58,237,0.3);
+  background: rgba(124,58,237,0.07);
 }
 
 .session-item.is-selected {
-    border-color: #10b981;
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+  border-color: rgba(16,185,129,0.4);
+  background: rgba(16,185,129,0.07);
+  box-shadow: 0 0 0 1px rgba(16,185,129,0.15);
 }
 
+/* ─── SESSION BUTTON (inner clickable row) ─── */
 .session-item-button {
-    text-align: left;
-    border: none;
-    padding: 0;
-    margin: 0;
-    width: 100%;
-    color: inherit;
-    background: transparent;
-    cursor: pointer;
-    font-family: inherit;
+  text-align: left;
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .session-title {
-    display: block;
-    font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 6px;
-    font-size: 1rem;
+  display: block;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .session-meta {
-    display: block;
-    font-size: 0.85rem;
-    color: #64748b;
-    font-weight: 400;
+  display: block;
+  font-size: 0.76rem;
+  color: #64748b;
 }
 
+/* ─── ACTION ICONS ─── */
 .session-item-actions {
-    display: flex;
-    gap: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.session-edit,
+.session-delete {
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .session-edit {
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    background: #fef3c7;
-    color: #d97706;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  background: rgba(245,158,11,0.1);
+  color: #fcd34d;
 }
 
 .session-edit:hover {
-    background: #fde68a;
-    transform: scale(1.05);
-}
-
-.session-edit-mode {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-}
-
-.session-title-input {
-    border: 2px solid #10b981;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #1f2937;
-    background: #ffffff;
-    width: 100%;
-    outline: none;
-    transition: border-color 0.2s ease;
-}
-
-.session-title-input:focus {
-    border-color: #059669;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-}
-
-.session-edit-actions {
-    display: flex;
-    gap: 6px;
-}
-
-.session-edit-save,
-.session-edit-cancel {
-    border: none;
-    border-radius: 6px;
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.session-edit-save {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.session-edit-save:hover {
-    background: #a7f3d0;
-    transform: scale(1.05);
-}
-
-.session-edit-cancel {
-    background: #fee2e2;
-    color: #dc2626;
-}
-
-.session-edit-cancel:hover {
-    background: #fecaca;
-    transform: scale(1.05);
+  background: rgba(245,158,11,0.18);
+  transform: scale(1.08);
 }
 
 .session-delete {
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    background: #fef2f2;
-    color: #dc2626;
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  background: rgba(239,68,68,0.1);
+  color: #f87171;
 }
 
 .session-delete:hover {
-    background: #fee2e2;
-    transform: scale(1.05);
+  background: rgba(239,68,68,0.18);
+  transform: scale(1.08);
 }
 
+/* ─── EDIT MODE ─── */
+.session-edit-mode {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.session-title-input {
+  border: 1.5px solid rgba(124,58,237,0.5);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  background: rgba(124,58,237,0.1);
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.session-title-input:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+}
+
+.session-edit-actions { display: flex; gap: 5px }
+
+.session-edit-save,
+.session-edit-cancel {
+  border: none;
+  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-edit-save  { background: rgba(16,185,129,0.15); color: #6ee7b7 }
+.session-edit-save:hover  { background: rgba(16,185,129,0.25); transform: scale(1.08) }
+.session-edit-cancel { background: rgba(239,68,68,0.15); color: #f87171 }
+.session-edit-cancel:hover { background: rgba(239,68,68,0.25); transform: scale(1.08) }
+
+/* ─── EMPTY STATE ─── */
 .session-empty {
-    padding: 14px 12px;
-    border-radius: 14px;
-    border: 1px dashed rgba(102, 217, 239, 0.18);
-    background: rgba(8, 16, 24, 0.74);
-    color: #8fa8b9;
+  padding: 20px 16px;
+  border-radius: 12px;
+  border: 1px dashed rgba(124,58,237,0.2);
+  background: rgba(124,58,237,0.04);
+  text-align: center;
 }
 
 .session-empty p {
-    margin: 0 0 8px;
-    font-weight: 600;
-    color: #f5fbff;
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: #e2e8f0;
+  font-size: 0.92rem;
 }
 
 .session-empty small {
-    color: #7f97ab;
+  color: #64748b;
+  font-size: 0.8rem;
 }

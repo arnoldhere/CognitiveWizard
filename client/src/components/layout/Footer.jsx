@@ -1,22 +1,36 @@
 import { Link } from "react-router-dom";
 
+const footerLinks = [
+  { label: "Home", to: "/" },
+  { label: "AI Wizard", to: "/wizard" },
+  { label: "Quiz", to: "/quiz" },
+  { label: "Quick Study", to: "/quick-study" },
+  { label: "AI Chat", to: "/chatbot" },
+  { label: "About", to: "/about" },
+  { label: "Contact", to: "/contact" },
+];
+
 export default function Footer() {
-    return (
-        <footer className="footer">
-            <div className="container footer-inner">
-                <div>
-                    <p className="footer-title">CognitiveWizard</p>
-                    <p className="footer-copy">A smart study planner, RAG tutor, quiz engine, and summarization workspace for focused preparation.</p>
-                </div>
-                <div className="footer-links">
-                    <Link to="/">Home</Link>
-                    <Link to="/quiz">Quiz</Link>
-                    <Link to="/quick-study">Quick Study</Link>
-                    <Link to="/chatbot">AI Chat</Link>
-                    <Link to="/about">About</Link>
-                    <Link to="/contact">Contact</Link>
-                </div>
-            </div>
-        </footer>
-    );
+  const year = new Date().getFullYear();
+  return (
+    <footer className="footer" role="contentinfo">
+      <div className="container footer-inner">
+        <div>
+          <p className="footer-title">CognitiveWizard</p>
+          <p className="footer-copy">
+            AI-powered adaptive learning — personalized courses, smart quizzes,
+            spaced repetition, and summarization in one secure workspace.
+          </p>
+          <p className="footer-copy" style={{ marginTop: "10px" }}>
+            &copy; {year} CognitiveWizard. All rights reserved.
+          </p>
+        </div>
+        <nav className="footer-links" aria-label="Footer navigation">
+          {footerLinks.map(link => (
+            <Link key={link.to} to={link.to}>{link.label}</Link>
+          ))}
+        </nav>
+      </div>
+    </footer>
+  );
 }
