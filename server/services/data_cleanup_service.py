@@ -4,13 +4,9 @@ Handles cleanup from MySQL, MongoDB, ChromaDB, and file storage.
 """
 
 import logging
-import os
 import shutil
 from pathlib import Path
-from typing import Optional
-
 from sqlalchemy.orm import Session
-
 from config.settings import settings
 from models.chat_session import ChatSession
 from models.rag_document import RAGDocument
