@@ -21,3 +21,4 @@ docker-compose.yml
 samples/
 requirements/
 weights/
+.venv

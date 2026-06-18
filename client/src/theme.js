@@ -3,22 +3,22 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
     palette: {
         primary: {
-            main: '#4f46e5', // Indigo
-            dark: '#4338ca',
-            light: '#6366f1',
+            main: '#206d5f',
+            dark: '#11483f',
+            light: '#3f8d7f',
         },
         secondary: {
-            main: '#f59e0b', // Amber
-            dark: '#d97706',
-            light: '#fbbf24',
+            main: '#d9702f',
+            dark: '#9f4c18',
+            light: '#f7d9be',
         },
         background: {
-            default: '#f6f7fb',
-            paper: '#ffffff',
+            default: '#f7f3ea',
+            paper: '#fffdf8',
         },
         text: {
-            primary: '#1f2937',
-            secondary: '#6b7280',
+            primary: '#181713',
+            secondary: '#686156',
         },
     },
     typography: {
@@ -66,15 +66,15 @@ const theme = createTheme({
                 root: {
                     '& .MuiOutlinedInput-root': {
                         borderRadius: 12,
-                        backgroundColor: '#f4f5f9',
+                        backgroundColor: '#fffdf8',
                         '& fieldset': {
-                            borderColor: '#e5e7eb',
+                            borderColor: '#ded2bc',
                         },
                         '&:hover fieldset': {
-                            borderColor: '#d1d5db',
+                            borderColor: '#c8b99f',
                         },
                         '&.Mui-focused fieldset': {
-                            borderColor: '#4f46e5',
+                            borderColor: '#206d5f',
                         },
                     },
                 },

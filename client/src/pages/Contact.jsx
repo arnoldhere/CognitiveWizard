@@ -1,12 +1,12 @@
 export default function Contact() {
     return (
-        <section className="page-section container contact-page">
-            <div className="contact-card card card-surface">
+        <section className="page-shell">
+            <div className="container contact-card card-surface">
                 <p className="eyebrow">Get in touch</p>
-                <h1>Contact the team</h1>
+                <h1 className="page-title">Contact the team</h1>
                 <p className="section-copy">
                     Reach out for feedback, support, or partnership inquiries. We are building
-                    the smartest quiz generation platform for learners and instructors.
+                    a practical AI learning platform for students, educators, and creators.
                 </p>
                 <div className="contact-grid">
                     <div>

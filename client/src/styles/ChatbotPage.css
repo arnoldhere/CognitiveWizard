@@ -1,23 +1,21 @@
 .chatbot-page {
-  --primary-bg: #ffffff;
-  --secondary-bg: #f8fafc;
-  --accent-blue: #2563eb;
-  --accent-blue-light: #dbeafe;
-  --accent-green: #059669;
-  --accent-green-light: #d1fae5;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
-  --border-light: #e5e7eb;
-  --border-medium: #d1d5db;
-  --shadow-light: rgba(0, 0, 0, 0.05);
-  --shadow-medium: rgba(0, 0, 0, 0.1);
-  --shadow-strong: rgba(0, 0, 0, 0.15);
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --primary-bg: var(--surface);
+  --secondary-bg: var(--surface-soft);
+  --accent-blue: var(--primary);
+  --accent-blue-light: var(--accent-soft);
+  --accent-green: var(--primary);
+  --accent-green-light: #dcefe8;
+  --text-primary: var(--text);
+  --text-secondary: var(--muted);
+  --text-muted: #8f8577;
+  --border-light: var(--border);
+  --border-medium: var(--border-strong);
+  --shadow-light: rgba(63, 49, 28, 0.08);
+  --shadow-medium: rgba(63, 49, 28, 0.12);
+  --shadow-strong: rgba(63, 49, 28, 0.18);
 
   position: relative;
-  width: min(1800px, calc(100% - 32px));
+  width: min(1320px, calc(100% - 32px));
   margin: 28px auto 56px;
   padding: 32px;
   border: 1px solid var(--border-light);
@@ -31,8 +29,8 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(rgba(37, 99, 235, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(37, 99, 235, 0.02) 1px, transparent 1px);
+    linear-gradient(rgba(32, 109, 95, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(32, 109, 95, 0.05) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 120%);
   pointer-events: none;
@@ -49,7 +47,7 @@
   padding: 32px 40px;
   border: 1px solid var(--border-light);
   border-radius: 20px;
-  background: var(--secondary-bg);
+  background: linear-gradient(135deg, rgba(244, 236, 220, 0.95), rgba(255, 253, 248, 0.86));
   backdrop-filter: blur(12px);
 }
 
@@ -57,8 +55,7 @@
   margin: 0 0 12px;
   color: var(--accent-blue);
   font-size: 0.85rem;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-weight: 600;
+  font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.15em;
 }
@@ -66,10 +63,10 @@
 .chatbot-hero h1 {
   margin: 0 0 16px;
   color: var(--text-primary);
-  font-size: clamp(2.2rem, 4vw, 3.2rem);
-  line-height: 1.1;
-  letter-spacing: -0.04em;
-  font-weight: 700;
+  font-size: clamp(2.2rem, 4vw, 3.8rem);
+  line-height: 1;
+  letter-spacing: 0;
+  font-weight: 950;
 }
 
 .chatbot-hero p {
@@ -106,7 +103,7 @@
   border-radius: 20px;
   background: var(--primary-bg);
   border: 1px solid var(--border-light);
-  box-shadow: 0 4px 6px -1px var(--shadow-light), 0 2px 4px -1px var(--shadow-light);
+  box-shadow: var(--shadow);
   backdrop-filter: blur(14px);
 }
 

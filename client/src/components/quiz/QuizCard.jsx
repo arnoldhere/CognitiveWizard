@@ -103,9 +103,6 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
       return undefined;
     }
 
-    // Initialize timer with quiz's time limit
-    setTimeLeft(quiz.time_limit_seconds);
-
     const timer = window.setInterval(() => {
       setTimeLeft((previous) => {
         // Stop timer at 0, don't go negative
