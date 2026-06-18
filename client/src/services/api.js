@@ -152,3 +152,25 @@ export const updateProfile = async (payload) => {
   const res = await API.patch("/auth/profile", payload);
   return res.data;
 };
+
+export const generateWizardContent = async (payload) => {
+  return requestWithFriendlyErrors(async () => {
+    const res = await API.post("/wizard/generate", payload);
+    return res.data;
+  }, "Failed to generate wizard content. Please try again.");
+};
+
+export const getWizardHistory = async (skip = 0, limit = 20) => {
+  const res = await API.get(`/wizard/history?skip=${skip}&limit=${limit}`);
+  return res.data;
+};
+
+export const getWizardContentDetail = async (id) => {
+  const res = await API.get(`/wizard/${id}`);
+  return res.data;
+};
+
+export const deleteWizardContent = async (id) => {
+  const res = await API.delete(`/wizard/${id}`);
+  return res.data;
+};

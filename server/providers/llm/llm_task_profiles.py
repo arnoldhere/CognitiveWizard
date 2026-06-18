@@ -35,4 +35,12 @@ TASK_PROFILES = {
         "model_override": None,
         "use_chat": True,
     },
+    "wizard": {
+        "temperature": 0.6,
+        "top_p": 0.9,
+        "top_k": 50,
+        "max_new_tokens": 3000,
+        "model_override": None,
+        "use_chat": True,
+    },
 }

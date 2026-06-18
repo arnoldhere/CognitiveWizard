@@ -7,6 +7,7 @@ from api.rag_evaluation_api import router as rag_evaluation_router
 from api.rag_auto_eval_api import router as rag_auto_router
 from api.summarization_api import router as summarization_router
 from api.subscription_api import router as subscription_router
+from api.wizard_api import router as wizard_router
 from config.db import Base, engine
 from config.settings import settings
 from models import *
@@ -42,6 +43,7 @@ app.include_router(rag_router)
 app.include_router(subscription_router)
 app.include_router(rag_evaluation_router)
 app.include_router(rag_auto_router)
+app.include_router(wizard_router)
 
 
 @app.get("/health")

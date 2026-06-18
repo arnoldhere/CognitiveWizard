@@ -7,3 +7,4 @@ class TaskType(str, Enum):
     QUIZ = "quiz"  # quiz gen → structured JSON output
     SENTIMENT = "sentiment"  # classification
     RAG = "rag"  # retrieval-augmented generation → RetrievalQA
+    WIZARD = "wizard" # generating structured plan, roadmap, syllabus

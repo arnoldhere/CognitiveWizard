@@ -4,3 +4,4 @@ from .face_embeddings import FaceEmbedding
 from .rag_document import RAGDocument
 from .payment_transaction import PaymentTransaction
 from .chat_session import ChatSession
+from .wizard import WizardContent

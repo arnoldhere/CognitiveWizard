@@ -1,394 +1,573 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import PsychologyIcon from "@mui/icons-material/Psychology";
-import TimerIcon from "@mui/icons-material/Timer";
-import SummarizeIcon from "@mui/icons-material/Summarize";
-import TaskAltIcon from "@mui/icons-material/TaskAlt";
-import TrackChangesIcon from "@mui/icons-material/TrackChanges";
-import EventIcon from "@mui/icons-material/Event";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import ExploreIcon from "@mui/icons-material/Explore";
+import LocalLibraryIcon from "@mui/icons-material/LocalLibrary";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import HistoryIcon from "@mui/icons-material/History";
+import CreateIcon from "@mui/icons-material/Create";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useGsapReveal } from "../hooks/useGsapReveal";
+import { generateWizardContent, getWizardHistory, deleteWizardContent } from "../services/api";
+import { CircularProgress } from "@mui/material";
 
-const levelOptions = ["Beginner", "Intermediate", "Advanced"];
-const subjectSuggestions = ["Machine Learning", "Web Development", "Data Science", "Mathematics", "History", "Biology", "Finance"];
+const CONTENT_TYPES = [
+  { id: "Roadmap", icon: <ExploreIcon sx={{ fontSize: 28 }} />, desc: "Visual path of milestones" },
+  { id: "Course/Syllabus", icon: <LocalLibraryIcon sx={{ fontSize: 28 }} />, desc: "Structured educational modules" },
+  { id: "Guide", icon: <MenuBookIcon sx={{ fontSize: 28 }} />, desc: "Step-by-step instructions" },
+  { id: "Schedule", icon: <ScheduleIcon sx={{ fontSize: 28 }} />, desc: "Time-managed study plan" }
+];
 
-const MODULE_POOLS = {
-  "Machine Learning": ["Linear Algebra Basics", "Supervised Learning", "Neural Networks", "Model Evaluation", "Deep Learning", "NLP Foundations"],
-  "Web Development": ["HTML & CSS Essentials", "JavaScript Core", "React Fundamentals", "API Design", "State Management", "Deployment"],
-  default: ["Foundations", "Core Concepts", "Intermediate Theory", "Practical Application", "Review & Practice", "Advanced Topics"],
+const QUESTION_SETS = {
+  "Roadmap": [
+    { key: "skillLevel", label: "What is your current skill level?", type: "select", options: ["Beginner", "Intermediate", "Advanced"] },
+    { key: "timeDedication", label: "Time dedication per week?", type: "text", placeholder: "e.g., 10 hours" },
+    { key: "learningStyle", label: "What is your main learning style?", type: "select", options: ["Visual & Project-based", "Theoretical & Reading", "Interactive & Coding"] },
+    { key: "tools", label: "Any specific tools/frameworks?", type: "text", placeholder: "e.g., React, TensorFlow, Python" }
+  ],
+  "Course/Syllabus": [
+    { key: "targetAudience", label: "Who is the target audience?", type: "text", placeholder: "e.g., High school students, Beginners" },
+    { key: "moduleCount", label: "How many modules or weeks?", type: "number", placeholder: "e.g., 8" },
+    { key: "courseFocus", label: "Primary focus of the course?", type: "select", options: ["Academic/Theoretical", "Bootcamp/Practical", "Corporate Training"] },
+    { key: "prerequisites", label: "Any prerequisites needed?", type: "text", placeholder: "e.g., Basic JavaScript, High School Math" }
+  ],
+  "Guide": [
+    { key: "guideStyle", label: "What style of guide?", type: "select", options: ["Step-by-step tutorial", "Conceptual overview", "Quick reference"] },
+    { key: "constraints", label: "Any specific tools or constraints?", type: "text", placeholder: "e.g., Open-source tools only" }
+  ],
+  "Schedule": [
+    { key: "deadline", label: "When is your deadline?", type: "date" },
+    { key: "dailyHours", label: "Hours per day?", type: "number", placeholder: "e.g., 2" }
+  ]
 };
 
-function getModules(subject, count) {
-  const pool = MODULE_POOLS[subject] || MODULE_POOLS.default;
-  return pool.slice(0, Math.min(Number(count) || 4, pool.length));
-}
+// Expandable module component
+const ModuleItem = ({ mod, type }) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "16px", padding: "24px", position: "relative", overflow: "hidden", transition: "all 0.3s", cursor: "pointer" }} onClick={() => setExpanded(!expanded)} className="hover-lift">
+      <div style={{ position: "absolute", top: 0, left: 0, width: "6px", height: "100%", background: "linear-gradient(to bottom, #7c3aed, #06b6d4)" }} />
+      
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+        <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 800, color: "var(--text)" }}>{mod.title}</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {mod.estimated_time && (
+            <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "4px 10px", borderRadius: "20px", color: "var(--text-light)", fontSize: "0.8rem", fontWeight: 600 }}>
+              <ScheduleIcon style={{ fontSize: "1rem", marginRight: "4px" }} /> {mod.estimated_time}
+            </div>
+          )}
+          {expanded ? <KeyboardArrowUpIcon style={{color: "var(--text-light)"}}/> : <KeyboardArrowDownIcon style={{color: "var(--text-light)"}}/>}
+        </div>
+      </div>
+      
+      <p style={{ color: "var(--text-light)", fontSize: "1rem", lineHeight: 1.6, margin: expanded ? "0 0 20px" : "0" }}>
+        {mod.description}
+      </p>
 
-function simulateWeakArea(subject) {
-  if (!subject) return "Enter a subject to get weak-area recommendations.";
-  const areas = {
-    "Machine Learning": ["Gradient Descent intuition", "Regularisation techniques", "Bias-Variance tradeoff"],
-    "Web Development": ["Async/Await patterns", "CSS specificity", "Component lifecycle"],
-  };
-  const found = areas[subject] || ["Conceptual gaps", "Application of theory", "Problem-solving speed"];
-  return `Suggested focus areas: ${found.join(" · ")}`;
-}
+      {expanded && mod.key_takeaways && mod.key_takeaways.length > 0 && (
+        <div style={{ marginBottom: "20px" }}>
+          <h4 style={{ margin: "0 0 8px", color: "var(--text)", fontSize: "0.95rem" }}>Key Takeaways:</h4>
+          <ul style={{ margin: 0, paddingLeft: "20px", color: "#a855f7", fontSize: "0.95rem" }}>
+            {mod.key_takeaways.map((k, i) => <li key={i}>{k}</li>)}
+          </ul>
+        </div>
+      )}
 
-function buildSchedule({ duration, deadline, modules }) {
-  const weeks = Number(duration) || 6;
-  const mods = Number(modules) || 4;
-  const sessionsPerWeek = 3;
-  return [
-    { icon: <ScheduleIcon />, label: `${weeks}-week adaptive plan`, sub: `${mods} modules · ${sessionsPerWeek} sessions/week` },
-    { icon: <TimerIcon />, label: "35 min focus + 5 min break", sub: "Pomodoro rhythm per session" },
-    { icon: <TrackChangesIcon />, label: "Spaced repetition engine", sub: "Reviews scheduled at optimal intervals" },
-    { icon: <EventIcon />, label: `Deadline: ${deadline}`, sub: "Auto-adjusts when deadline changes" },
-  ];
-}
-
-const initialForm = {
-  goal: "",
-  subject: "",
-  modules: "5",
-  duration: "6",
-  level: "Intermediate",
-  deadline: "",
+      {expanded && mod.topics && mod.topics.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {mod.topics.map((topic, idx) => (
+            <div key={idx} style={{ 
+              background: "rgba(6, 182, 212, 0.05)", 
+              padding: "16px", borderRadius: "12px", 
+              border: "1px solid rgba(6, 182, 212, 0.1)"
+            }}>
+              <h4 style={{ margin: "0 0 6px", color: "#22d3ee", fontSize: "1rem", fontWeight: 700 }}>
+                {topic.name || topic}
+              </h4>
+              {(topic.details || topic.content) && (
+                <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.9rem", lineHeight: 1.5 }}>
+                  {topic.details || topic.content}
+                </p>
+              )}
+              {topic.practical_task && (
+                <div style={{ marginTop: "12px", padding: "8px 12px", background: "rgba(16, 185, 129, 0.1)", borderRadius: "6px", color: "#10b981", fontSize: "0.85rem", fontWeight: 600 }}>
+                  <TaskAltIcon sx={{ fontSize: "1rem", marginRight: "4px", verticalAlign: "middle" }}/> 
+                  Task: {topic.practical_task}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default function WizardModule() {
-  const [form, setForm] = useState(initialForm);
+  const [activeTab, setActiveTab] = useState("generate"); // 'generate' or 'history'
+  
+  // Generator State
+  const [step, setStep] = useState(0); 
+  const [answers, setAnswers] = useState({ contentType: "", topic: "" });
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
-  const [planReady, setPlanReady] = useState(false);
-  const [activePomodoro, setActivePomodoro] = useState(false);
-  const [pomodoroTime, setPomodoroTime] = useState(35 * 60);
-  const [pomodoroRunning, setPomodoroRunning] = useState(false);
-  const timerRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [generatedData, setGeneratedData] = useState(null);
+
+  // History State
+  const [historyItems, setHistoryItems] = useState([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
+
   const rootRef = useRef(null);
   useGsapReveal(rootRef);
 
-  const schedule = useMemo(() => buildSchedule(form), [form]);
-  const moduleList = useMemo(() => getModules(form.subject, form.modules), [form.subject, form.modules]);
-  const weakArea = useMemo(() => simulateWeakArea(form.subject), [form.subject]);
+  const activeQuestions = answers.contentType ? QUESTION_SETS[answers.contentType] : [];
 
-  const handleChange = (field) => (e) => {
-    setForm(prev => ({ ...prev, [field]: e.target.value }));
-    setError(null);
-    setPlanReady(false);
+  // Fetch History
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetchHistory();
+    }
+  }, [activeTab]);
+
+  const fetchHistory = async () => {
+    setIsHistoryLoading(true);
+    try {
+      const data = await getWizardHistory();
+      setHistoryItems(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
   };
 
-  const handleGenerate = (e) => {
-    e.preventDefault();
-    if (!form.goal.trim()) { setError("Please describe your ultimate goal to generate a plan."); return; }
-    if (!form.subject.trim()) { setError("Please enter a subject or topic."); return; }
-    if (!form.deadline) { setError("Please set a deadline so the AI scheduler can plan your sessions."); return; }
-    setError(null);
-    setMessage("✓ Your adaptive AI plan has been generated! Review the schedule and modules below.");
-    setPlanReady(true);
+  const handleDeleteHistory = async (id, e) => {
+    e.stopPropagation();
+    try {
+      await deleteWizardContent(id);
+      fetchHistory();
+      if (selectedHistoryItem?.id === id) setSelectedHistoryItem(null);
+    } catch (err) {
+      console.error("Delete failed");
+    }
   };
 
-  // Pomodoro timer logic
-  const startPomodoro = () => {
-    if (pomodoroRunning) { clearInterval(timerRef.current); setPomodoroRunning(false); return; }
-    setPomodoroRunning(true);
-    timerRef.current = setInterval(() => {
-      setPomodoroTime(t => {
-        if (t <= 1) { clearInterval(timerRef.current); setPomodoroRunning(false); return 5 * 60; }
-        return t - 1;
+  const handleNext = () => {
+    setError(null);
+    if (step === 0 && !answers.contentType) { setError("Please select an option."); return; }
+    if (step === 1 && !answers.topic.trim()) { setError("Please provide a topic."); return; }
+    
+    if (step >= 2 && step < 2 + activeQuestions.length) {
+      const qIndex = step - 2;
+      const qKey = activeQuestions[qIndex].key;
+      if (!answers[qKey]) { setError("Please answer the question."); return; }
+    }
+    
+    setStep(s => s + 1);
+  };
+
+  const handleBack = () => {
+    setError(null);
+    setStep(s => Math.max(s - 1, 0));
+  };
+
+  const handleGenerate = async () => {
+    setError(null);
+    setMessage(null);
+    setIsLoading(true);
+    setGeneratedData(null);
+    const targetStep = 2 + activeQuestions.length + 1; // Summary step + 1
+    setStep(targetStep);
+
+    let details = "";
+    activeQuestions.forEach((q) => {
+      details += `Q: ${q.label}\nA: ${answers[q.key]}\n\n`;
+    });
+
+    try {
+      const response = await generateWizardContent({
+        topic: answers.topic,
+        content_type: answers.contentType,
+        details: details.trim()
       });
-    }, 1000);
+      
+      setGeneratedData(response);
+      setMessage(`Successfully generated your ${answers.contentType.toLowerCase()}!`);
+    } catch (err) {
+      setError(err.message || "An error occurred while generating.");
+      setStep(targetStep - 1);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const resetPomodoro = () => {
-    clearInterval(timerRef.current);
-    setPomodoroRunning(false);
-    setPomodoroTime(35 * 60);
+  const startOver = () => {
+    setStep(0);
+    setGeneratedData(null);
+    setAnswers({ contentType: "", topic: "" });
+    setSelectedHistoryItem(null);
+    setActiveTab("generate");
   };
 
-  const mins = String(Math.floor(pomodoroTime / 60)).padStart(2, "0");
-  const secs = String(pomodoroTime % 60).padStart(2, "0");
-  const isBreak = pomodoroTime <= 5 * 60 && pomodoroTime > 0 && !pomodoroRunning && pomodoroTime !== 35 * 60;
+  const renderContentData = (data) => (
+    <div style={{ animation: "fadeIn 0.5s ease", width: "100%", maxWidth: "800px", margin: "0 auto" }}>
+      <div style={{ textAlign: "center", marginBottom: "48px" }}>
+        <span style={{ display: "inline-block", background: "rgba(6, 182, 212, 0.1)", color: "#06b6d4", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          {data.content_type}
+        </span>
+        <h1 style={{ fontSize: "2.8rem", fontWeight: 900, color: "var(--text)", marginBottom: "16px", lineHeight: 1.2 }}>
+          {data.content?.title || data.topic}
+        </h1>
+        {data.content?.description && (
+          <p style={{ color: "var(--text-light)", fontSize: "1.15rem", maxWidth: "600px", margin: "0 auto", lineHeight: 1.6 }}>
+            {data.content.description}
+          </p>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        {data.content?.modules?.map((mod, i) => (
+          <ModuleItem key={i} mod={mod} type={data.content_type} />
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderGeneratorSteps = () => {
+    const totalSteps = activeQuestions.length > 0 ? 2 + activeQuestions.length + 1 : 4;
+
+    if (step === 0) {
+      return (
+        <div style={{ animation: "fadeInUp 0.4s ease" }}>
+          <h2 style={{ fontSize: "2rem", fontWeight: 900, textAlign: "center", marginBottom: "16px", color: "var(--text)" }}>What do you want to generate?</h2>
+          <p style={{ textAlign: "center", color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
+            Select an AI curriculum template to begin.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {CONTENT_TYPES.map(type => (
+              <div 
+                key={type.id} 
+                onClick={() => {
+                  setAnswers({ contentType: type.id, topic: "" });
+                  setTimeout(() => setStep(1), 150);
+                }}
+                style={{
+                  display: "flex", alignItems: "center", padding: "20px 24px",
+                  borderRadius: "12px", cursor: "pointer", transition: "all 0.2s ease",
+                  background: answers.contentType === type.id ? "rgba(6, 182, 212, 0.1)" : "var(--surface-soft)",
+                  border: answers.contentType === type.id ? "1px solid #06b6d4" : "1px solid var(--border)"
+                }}
+                className="wiz-hover-card"
+              >
+                <div style={{ color: answers.contentType === type.id ? "#06b6d4" : "var(--primary-light)", marginRight: "20px" }}>
+                  {type.icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: "0 0 4px", fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>{type.id}</h3>
+                  <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.9rem" }}>{type.desc}</p>
+                </div>
+                <ChevronRightIcon style={{ color: "var(--text-light)" }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (step === 1) {
+      return (
+        <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
+          <div style={{ display: "inline-block", background: "rgba(6, 182, 212, 0.1)", color: "#06b6d4", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "24px" }}>
+            {answers.contentType}
+          </div>
+          <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)" }}>What is the topic?</h2>
+          <p style={{ color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
+            Enter the main subject or goal you want to focus on.
+          </p>
+          <input
+            autoFocus
+            className="wiz-input-clean"
+            placeholder="e.g. Frontend Development, Machine Learning..."
+            value={answers.topic}
+            onChange={e => setAnswers({...answers, topic: e.target.value})}
+            onKeyDown={e => e.key === 'Enter' && handleNext()}
+            style={{
+              width: "100%", padding: "20px", fontSize: "1.2rem", textAlign: "center",
+              background: "transparent", border: "none", borderBottom: "2px solid var(--border)",
+              color: "var(--text)", outline: "none", transition: "border-color 0.3s"
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (step >= 2 && step < 2 + activeQuestions.length) {
+      const qIndex = step - 2;
+      const currentQ = activeQuestions[qIndex];
+      const ansKey = currentQ.key;
+      
+      return (
+        <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
+          <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)", lineHeight: 1.2 }}>{currentQ.label}</h2>
+          <p style={{ color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
+            Help the AI understand your specific needs.
+          </p>
+          
+          {currentQ.type === "select" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
+              {currentQ.options.map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => {
+                    setAnswers({...answers, [ansKey]: opt});
+                    setTimeout(() => handleNext(), 150);
+                  }}
+                  style={{
+                    padding: "16px 24px", borderRadius: "12px", fontSize: "1.05rem",
+                    background: answers[ansKey] === opt ? "rgba(168, 85, 247, 0.15)" : "var(--surface-soft)",
+                    border: answers[ansKey] === opt ? "1px solid #a855f7" : "1px solid var(--border)",
+                    color: answers[ansKey] === opt ? "#c084fc" : "var(--text)",
+                    fontWeight: 600, cursor: "pointer", transition: "all 0.2s", textAlign: "center"
+                  }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <input
+              autoFocus
+              type={currentQ.type}
+              className="wiz-input-clean"
+              placeholder={currentQ.placeholder}
+              value={answers[ansKey] || ""}
+              onChange={e => setAnswers({...answers, [ansKey]: e.target.value})}
+              onKeyDown={e => e.key === 'Enter' && handleNext()}
+              style={{
+                width: "100%", maxWidth: "500px", margin: "0 auto", padding: "20px", fontSize: "1.2rem", textAlign: "center",
+                background: "transparent", border: "none", borderBottom: "2px solid var(--border)",
+                color: "var(--text)", outline: "none", transition: "border-color 0.3s", display: "block"
+              }}
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (step === 2 + activeQuestions.length) {
+      return (
+        <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
+          <div style={{ display: "inline-block", background: "rgba(16, 185, 129, 0.1)", color: "#10b981", padding: "12px", borderRadius: "50%", marginBottom: "24px" }}>
+            <AutoAwesomeIcon sx={{ fontSize: 40 }} />
+          </div>
+          <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)" }}>Ready to Generate</h2>
+          <p style={{ color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
+            Review your inputs before we construct your personalized {answers.contentType.toLowerCase()}.
+          </p>
+          
+          <div style={{ background: "var(--surface-soft)", border: "1px solid var(--border)", borderRadius: "16px", padding: "32px", textAlign: "left", maxWidth: "500px", margin: "0 auto 40px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div>
+                <div style={{ color: "var(--text-light)", fontSize: "0.85rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Format</div>
+                <div style={{ color: "#06b6d4", fontWeight: 700, fontSize: "1.1rem" }}>{answers.contentType}</div>
+              </div>
+              <div>
+                <div style={{ color: "var(--text-light)", fontSize: "0.85rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Topic</div>
+                <div style={{ color: "var(--text)", fontWeight: 600, fontSize: "1.1rem" }}>{answers.topic}</div>
+              </div>
+              {activeQuestions.map((q) => (
+                <div key={q.key}>
+                  <div style={{ color: "var(--text-light)", fontSize: "0.85rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>{q.label}</div>
+                  <div style={{ color: "var(--text)", fontWeight: 500, fontSize: "1rem" }}>{answers[q.key]}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
-    <section ref={rootRef} className="page-shell wizard-page">
-
-      {/* ── HERO ── */}
-      <div className="container">
-        <div className="wizard-hero">
-          <div className="hero-copy">
-            <p className="eyebrow">Wizard Module (AI)</p>
-            <h1 className="hero-title">Design your AI-powered study roadmap.</h1>
-            <p className="section-copy">
-              Set a strong goal, choose subjects, duration, difficulty, and deadline.
-              The wizard creates an adaptive curriculum with spaced repetition,
-              weak-area detection, Pomodoro rhythm, and instant summaries.
-            </p>
-            <div className="hero-actions">
-              <Link className="btn-primary" to="/quiz" id="wizard-cta-quiz">Try Quiz Builder</Link>
-              <Link className="btn-secondary" to="/quick-study" id="wizard-cta-summary">Summary Engine</Link>
-            </div>
-          </div>
-
-          <div className="wizard-hero-card">
-            <div className="wizard-highlight-card">
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "16px" }}>
-                <AutoAwesomeIcon style={{ color: "var(--primary-light)", fontSize: "2rem" }} />
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "var(--text)" }}>AI Curriculum Companion</div>
-                  <div style={{ color: "var(--text-light)", fontSize: ".85rem" }}>Adaptive · Intelligent · Goal-first</div>
-                </div>
-              </div>
-              <p style={{ color: "var(--text-light)", margin: "0 0 18px", fontSize: ".92rem" }}>
-                Smart course architecture that adapts when your deadlines move and your knowledge gaps surface.
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                <span className="chip">Spaced Repetition</span>
-                <span className="chip chip-accent">Weak Topic Detection</span>
-                <span className="chip chip-success">Pomodoro Flow</span>
-                <span className="chip chip-warn">Auto-Adjust</span>
-              </div>
-            </div>
-          </div>
+    <section ref={rootRef} className="page-shell" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "6vh", paddingBottom: "10vh" }}>
+      
+      {/* TABS NAVIGATION */}
+      {!generatedData && !selectedHistoryItem && step < (2 + activeQuestions.length + 1) && (
+        <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: "30px", padding: "6px", marginBottom: "40px", border: "1px solid var(--border)" }}>
+          <button 
+            onClick={() => setActiveTab("generate")}
+            style={{ padding: "10px 24px", borderRadius: "24px", background: activeTab === "generate" ? "var(--surface-light)" : "transparent", color: activeTab === "generate" ? "var(--text)" : "var(--text-light)", border: "none", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", transition: "all 0.2s" }}
+          >
+            <CreateIcon sx={{ fontSize: "1.1rem", mr: 1 }}/> Generate New
+          </button>
+          <button 
+            onClick={() => setActiveTab("history")}
+            style={{ padding: "10px 24px", borderRadius: "24px", background: activeTab === "history" ? "var(--surface-light)" : "transparent", color: activeTab === "history" ? "var(--text)" : "var(--text-light)", border: "none", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", transition: "all 0.2s" }}
+          >
+            <HistoryIcon sx={{ fontSize: "1.1rem", mr: 1 }}/> My Content
+          </button>
         </div>
-      </div>
+      )}
 
-      {/* ── FLOW DIAGRAM ── */}
-      <div className="container" style={{ marginBottom: "48px" }}>
-        <div className="board-card" data-reveal>
-          <p className="small-label">Proposed AI flow</p>
-          <div style={{ overflowX: "auto" }}>
-            <div style={{ display: "flex", gap: "0", alignItems: "center", minWidth: "600px" }}>
-              {["Goal Input", "AI Scheduler", "Weak Detector", "Pomodoro 35+5", "Auto-Adjust", "Summary Engine"].map((step, i, arr) => (
-                <div key={step} style={{ display: "flex", alignItems: "center", flex: 1 }}>
-                  <div style={{
-                    flex: 1, padding: "12px 10px", textAlign: "center",
-                    background: "var(--surface-soft)", border: "1px solid var(--border-strong)",
-                    borderRadius: "10px", fontSize: ".78rem", fontWeight: 700,
-                    color: i === 0 ? "var(--primary-light)" : i === arr.length - 1 ? "var(--accent)" : "var(--text-light)",
-                  }}>{step}</div>
-                  {i < arr.length - 1 && (
-                    <div style={{ width: "24px", textAlign: "center", color: "var(--border-strong)", flexShrink: 0 }}>→</div>
+      <div style={{ width: "100%", maxWidth: "800px", padding: "0 20px" }}>
+        
+        {/* --- GENERATOR FLOW --- */}
+        {activeTab === "generate" && !selectedHistoryItem && (
+          <>
+            {step < (2 + activeQuestions.length + 1) && (
+              <div>
+                {/* Header / Back Button */}
+                <div style={{ display: "flex", alignItems: "center", marginBottom: "40px", height: "40px" }}>
+                  {step > 0 && (
+                    <button onClick={handleBack} style={{ background: "none", border: "none", color: "var(--text-light)", display: "flex", alignItems: "center", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600 }}>
+                      <ArrowBackIcon style={{ fontSize: "1.2rem", marginRight: "4px" }} /> Back
+                    </button>
                   )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── MAIN GRID ── */}
-      <div className="container wizard-grid">
-
-        {/* ── FORM PANEL ── */}
-        <div className="wizard-form-panel">
-          <div className="wizard-panel" style={{ padding: "clamp(24px,4vw,40px)" }}>
-            <p className="eyebrow">Step 1: Ultimate Goal</p>
-            <h2 style={{ margin: "0 0 8px", color: "var(--text)", fontWeight: 900, fontSize: "1.5rem" }}>
-              Start with your strongest objective.
-            </h2>
-            <p style={{ color: "var(--text-light)", marginBottom: "28px", fontSize: ".9rem" }}>
-              The better the goal, the sharper the AI recommendations.
-            </p>
-
-            <form onSubmit={handleGenerate} style={{ display: "grid", gap: "18px" }}>
-              <div className="wiz-field">
-                <label className="wiz-label" htmlFor="wiz-goal">Ultimate Goal *</label>
-                <textarea
-                  id="wiz-goal"
-                  className="wiz-input wiz-textarea"
-                  rows={3}
-                  placeholder="e.g. Master Machine Learning fundamentals and build 2 real projects in 8 weeks."
-                  value={form.goal}
-                  onChange={handleChange("goal")}
-                />
-                <span className="wiz-hint">Use specific, measurable outcomes for best results.</span>
-              </div>
-
-              <div className="form-grid">
-                <div className="wiz-field">
-                  <label className="wiz-label" htmlFor="wiz-subject">Subject / Topic *</label>
-                  <input
-                    id="wiz-subject"
-                    className="wiz-input"
-                    list="subject-suggestions"
-                    placeholder="e.g. Machine Learning"
-                    value={form.subject}
-                    onChange={handleChange("subject")}
-                  />
-                  <datalist id="subject-suggestions">
-                    {subjectSuggestions.map(s => <option key={s} value={s} />)}
-                  </datalist>
-                </div>
-                <div className="wiz-field">
-                  <label className="wiz-label" htmlFor="wiz-level">Difficulty Level</label>
-                  <select id="wiz-level" className="wiz-input" value={form.level} onChange={handleChange("level")}>
-                    {levelOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
-                </div>
-                <div className="wiz-field">
-                  <label className="wiz-label" htmlFor="wiz-modules">Total Modules</label>
-                  <input id="wiz-modules" className="wiz-input" type="number" min="1" max="12" value={form.modules} onChange={handleChange("modules")} />
-                </div>
-                <div className="wiz-field">
-                  <label className="wiz-label" htmlFor="wiz-duration">Duration (weeks)</label>
-                  <input id="wiz-duration" className="wiz-input" type="number" min="1" max="52" value={form.duration} onChange={handleChange("duration")} />
-                </div>
-              </div>
-
-              <div className="wiz-field">
-                <label className="wiz-label" htmlFor="wiz-deadline">Deadline *</label>
-                <input id="wiz-deadline" className="wiz-input" type="date" value={form.deadline} onChange={handleChange("deadline")} />
-                <span className="wiz-hint">The AI scheduler will auto-adjust the plan if this date changes.</span>
-              </div>
-
-              {error && <div className="error-message" role="alert">{error}</div>}
-              {message && (
-                <div style={{
-                  padding: "13px 16px", color: "#6ee7b7",
-                  background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)",
-                  borderRadius: "12px", fontSize: ".9rem"
-                }} role="status">{message}</div>
-              )}
-
-              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-                <button type="submit" className="btn-primary" id="wiz-generate-btn" style={{ fontSize: "1rem", padding: "12px 28px" }}>
-                  <AutoAwesomeIcon style={{ fontSize: "1.1rem" }} /> Build My Plan
-                </button>
-                <span style={{ color: "var(--text-light)", fontSize: ".82rem" }}>
-                  AI scheduler · spaced repetition · auto-adjustment
-                </span>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* ── SUMMARY PANEL ── */}
-        <div className="wizard-summary-panel">
-          <div className="wizard-panel wizard-summary-card">
-
-            {/* Schedule */}
-            <p className="small-label">AI schedule overview</p>
-            <h3 style={{ margin: "0 0 20px", color: "var(--text)", fontWeight: 900 }}>Adaptive Plan Preview</h3>
-            <div style={{ display: "grid", gap: "10px", marginBottom: "24px" }}>
-              {schedule.map((item, i) => (
-                <div className="wizard-card" key={i}>
-                  <div className="wizard-card-header">
-                    <span style={{ color: "var(--primary-light)" }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: ".92rem" }}>{item.label}</div>
-                      <div style={{ color: "var(--text-light)", fontSize: ".78rem", fontWeight: 400 }}>{item.sub}</div>
-                    </div>
+                  <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+                    {Array.from({length: activeQuestions.length > 0 ? 3 + activeQuestions.length : 1}).map((_, idx) => (
+                      <div key={idx} style={{ 
+                        width: "24px", height: "4px", borderRadius: "2px",
+                        background: idx === step ? "#06b6d4" : idx < step ? "rgba(6, 182, 212, 0.3)" : "rgba(255,255,255,0.1)",
+                        transition: "all 0.3s ease"
+                      }} />
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "20px 0" }} />
+                <div style={{ minHeight: "400px" }}>
+                  {renderGeneratorSteps()}
+                  {error && <div style={{ color: "#ef4444", textAlign: "center", marginTop: "20px", fontWeight: 500 }}>{error}</div>}
+                </div>
 
-            {/* Weak area detector */}
-            <div className="wizard-status-card" style={{ marginBottom: "12px" }}>
-              <div className="wizard-card-header">
-                <PsychologyIcon style={{ color: "var(--accent)" }} />
-                <strong>Weak Topic Detector</strong>
-              </div>
-              <p style={{ margin: 0, color: "var(--text-light)", fontSize: ".85rem" }}>{weakArea}</p>
-            </div>
-
-            {/* Pomodoro timer */}
-            <div className="wizard-status-card" style={{ marginBottom: "12px" }}>
-              <div className="wizard-card-header">
-                <TimerIcon style={{ color: "var(--secondary)" }} />
-                <strong>Pomodoro Timer</strong>
-                <span className={`chip ${isBreak ? "chip-success" : ""}`} style={{ marginLeft: "auto", fontSize: ".7rem" }}>
-                  {isBreak ? "Break!" : pomodoroRunning ? "Studying" : "Ready"}
-                </span>
-              </div>
-              <div style={{ textAlign: "center", margin: "8px 0 14px" }}>
-                <div style={{
-                  fontSize: "2.8rem", fontWeight: 900, fontVariantNumeric: "tabular-nums",
-                  background: "linear-gradient(135deg,var(--primary-light),var(--accent))",
-                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-                  letterSpacing: ".04em",
-                }}>{mins}:{secs}</div>
-                <p style={{ margin: "4px 0 0", color: "var(--text-light)", fontSize: ".78rem" }}>
-                  35 min focus · 5 min break
-                </p>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  className={pomodoroRunning ? "btn-secondary" : "btn-primary"}
-                  onClick={startPomodoro}
-                  style={{ flex: 1, fontSize: ".85rem" }}
-                  id="pomodoro-toggle-btn"
-                >
-                  {pomodoroRunning ? "Pause" : "Start Focus"}
-                </button>
-                <button className="btn-link" onClick={resetPomodoro} style={{ flex: "0 0 auto" }} id="pomodoro-reset-btn">
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            {/* Summary engine */}
-            <div className="wizard-status-card" style={{ marginBottom: "20px" }}>
-              <div className="wizard-card-header">
-                <SummarizeIcon style={{ color: "var(--green)" }} />
-                <strong>Summary Engine</strong>
-              </div>
-              <p style={{ margin: "0 0 12px", color: "var(--text-light)", fontSize: ".85rem" }}>
-                Generate quick summaries for every section. Select content below to summarize.
-              </p>
-              <Link to="/quick-study" className="btn-secondary" style={{ width: "100%", textAlign: "center", fontSize: ".85rem" }} id="wiz-summary-link">
-                Open Summarizer →
-              </Link>
-            </div>
-
-            {/* Module chips */}
-            {planReady && moduleList.length > 0 && (
-              <div>
-                <p className="small-label" style={{ marginBottom: "12px" }}>Generated course modules</p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                  {moduleList.map((mod, i) => (
-                    <span key={mod} className="chip" style={{ animationDelay: `${i * 80}ms` }}>
-                      <MenuBookIcon style={{ fontSize: ".9rem" }} /> {mod}
-                    </span>
-                  ))}
+                <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
+                  {step > 0 && step < (2 + activeQuestions.length) && (
+                    <button onClick={handleNext} className="btn-primary" style={{ padding: "14px 40px", fontSize: "1.1rem", borderRadius: "30px", background: "linear-gradient(135deg, #7c3aed, #06b6d4)", minWidth: "200px" }}>
+                      Continue
+                    </button>
+                  )}
+                  {step === (2 + activeQuestions.length) && (
+                    <button onClick={handleGenerate} className="btn-primary" style={{ padding: "14px 40px", fontSize: "1.1rem", borderRadius: "30px", background: "linear-gradient(135deg, #10b981, #059669)", minWidth: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <AutoAwesomeIcon style={{ marginRight: "8px" }} /> Generate Now
+                    </button>
+                  )}
                 </div>
               </div>
             )}
 
-            {planReady && (
-              <button className="btn-secondary" style={{ width: "100%", marginTop: "16px" }} id="wiz-review-plan-btn">
-                <TaskAltIcon style={{ fontSize: "1rem" }} /> Review Full Plan Details
-              </button>
+            {/* Loading & Result View */}
+            {step === (2 + activeQuestions.length + 1) && (
+              <div style={{ animation: "fadeIn 0.5s ease", width: "100%" }}>
+                {isLoading ? (
+                  <div style={{ textAlign: "center", padding: "100px 0" }}>
+                    <CircularProgress size={60} thickness={4} sx={{ color: "#06b6d4", marginBottom: "32px" }} />
+                    <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>Generating {answers.contentType}...</h2>
+                    <p style={{ color: "var(--text-light)", fontSize: "1.1rem" }}>This usually takes a few seconds.</p>
+                  </div>
+                ) : generatedData ? (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px" }}>
+                      <button onClick={startOver} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", color: "var(--text)", padding: "10px 20px", borderRadius: "20px", cursor: "pointer", display: "flex", alignItems: "center", fontWeight: 600, transition: "all 0.2s" }} className="hover-bg-surface">
+                        <ArrowBackIcon style={{ fontSize: "1.1rem", marginRight: "6px" }} /> Start Over
+                      </button>
+                      {message && <div style={{ display: "flex", alignItems: "center", color: "#10b981", fontWeight: 600, fontSize: "0.95rem" }}><CheckCircleIcon style={{ fontSize: "1.2rem", marginRight: "6px" }}/> Done</div>}
+                    </div>
+
+                    {renderContentData(generatedData)}
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* --- MY CONTENT FLOW --- */}
+        {activeTab === "history" && !selectedHistoryItem && (
+          <div style={{ animation: "fadeInUp 0.4s ease", width: "100%" }}>
+             <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "8px", color: "var(--text)" }}>My Generated Content</h2>
+             <p style={{ color: "var(--text-light)", marginBottom: "32px", fontSize: "1rem" }}>
+              View and manage your previously generated roadmaps and schedules.
+            </p>
+
+            {isHistoryLoading ? (
+               <div style={{ textAlign: "center", padding: "60px 0" }}>
+                  <CircularProgress size={40} sx={{ color: "#06b6d4" }} />
+               </div>
+            ) : historyItems.length === 0 ? (
+               <div style={{ textAlign: "center", padding: "60px 0", background: "var(--surface-soft)", borderRadius: "16px", border: "1px dashed var(--border)" }}>
+                 <MenuBookIcon sx={{ fontSize: 48, color: "var(--text-light)", opacity: 0.5, mb: 2 }} />
+                 <h3 style={{ color: "var(--text)", mb: 1 }}>No content generated yet</h3>
+                 <p style={{ color: "var(--text-light)", fontSize: "0.95rem" }}>Head over to the Generate tab to create your first learning plan.</p>
+               </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {historyItems.map(item => (
+                  <div key={item.id} onClick={() => setSelectedHistoryItem(item)} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", transition: "all 0.2s" }} className="hover-lift">
+                    <div>
+                      <div style={{ display: "inline-block", background: "rgba(6, 182, 212, 0.1)", color: "#06b6d4", padding: "4px 10px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 700, marginBottom: "8px", textTransform: "uppercase" }}>
+                        {item.content_type}
+                      </div>
+                      <h4 style={{ margin: "0 0 4px", fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>{item.topic}</h4>
+                      <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.85rem" }}>Generated on {new Date(item.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <button onClick={(e) => handleDeleteHistory(item.id, e)} style={{ background: "transparent", border: "none", color: "var(--text-light)", cursor: "pointer", padding: "8px" }} className="hover-text-red">
+                      <DeleteIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* ── FEATURE INFO CARDS ── */}
-      <div className="container" style={{ marginTop: "56px" }}>
-        <div className="section-divider" />
-        <p className="eyebrow" data-reveal>Wizard capabilities</p>
-        <h2 className="page-title" style={{ marginBottom: "32px" }} data-reveal>Every feature explained.</h2>
-        <div className="feature-grid" data-reveal>
-          {[
-            { icon: <AutoAwesomeIcon />, title: "AI Scheduler", text: "Generates a personalised week-by-week study plan using your goal, subject, duration, and level as inputs." },
-            { icon: <TrackChangesIcon />, title: "Spaced Repetition Engine", text: "Scientifically schedules review sessions at expanding intervals to maximise long-term retention." },
-            { icon: <PsychologyIcon />, title: "Weak Area Detector", text: "Identifies knowledge gaps from your subject and quiz history, then reprioritises your schedule." },
-            { icon: <TimerIcon />, title: "Pomodoro Flow", text: "5-minute break after every 35-minute deep-work block. Built-in timer keeps you on rhythm." },
-            { icon: <EventIcon />, title: "Deadline Auto-Adjust", text: "When you change the deadline the AI re-calculates session density and module order automatically." },
-            { icon: <SummarizeIcon />, title: "Summary Engine Plugin", text: "Select any section or content and get a quick AI summary — ideal for revision or note-making." },
-          ].map(card => (
-            <article className="feature-item" key={card.title}>
-              <span className="feature-icon">{card.icon}</span>
-              <h2>{card.title}</h2>
-              <p>{card.text}</p>
-            </article>
-          ))}
-        </div>
+        {/* Viewing a specific history item */}
+        {activeTab === "history" && selectedHistoryItem && (
+          <div style={{ animation: "fadeIn 0.5s ease", width: "100%" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px" }}>
+              <button onClick={() => setSelectedHistoryItem(null)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", color: "var(--text)", padding: "10px 20px", borderRadius: "20px", cursor: "pointer", display: "flex", alignItems: "center", fontWeight: 600, transition: "all 0.2s" }} className="hover-bg-surface">
+                <ArrowBackIcon style={{ fontSize: "1.1rem", marginRight: "6px" }} /> Back to History
+              </button>
+            </div>
+            {renderContentData(selectedHistoryItem)}
+          </div>
+        )}
+
       </div>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        .wiz-hover-card:hover {
+          transform: translateY(-2px);
+          border-color: #06b6d4 !important;
+          background: rgba(6, 182, 212, 0.05) !important;
+        }
+        .wiz-input-clean:focus {
+          border-bottom-color: #06b6d4 !important;
+        }
+        .hover-lift:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .hover-bg-surface:hover {
+          background: rgba(255,255,255,0.1) !important;
+        }
+        .hover-text-red:hover {
+          color: #ef4444 !important;
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(15px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}} />
     </section>
   );
 }
