@@ -14,6 +14,7 @@ import CreateIcon from "@mui/icons-material/Create";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import DeleteIcon from "@mui/icons-material/Delete";
+import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import { useGsapReveal } from "../hooks/useGsapReveal";
 import { generateWizardContent, getWizardHistory, deleteWizardContent } from "../services/api";
 import { CircularProgress } from "@mui/material";
@@ -54,7 +55,7 @@ const ModuleItem = ({ mod, type }) => {
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "16px", padding: "24px", position: "relative", overflow: "hidden", transition: "all 0.3s", cursor: "pointer" }} onClick={() => setExpanded(!expanded)} className="hover-lift">
       <div style={{ position: "absolute", top: 0, left: 0, width: "6px", height: "100%", background: "linear-gradient(to bottom, #7c3aed, #06b6d4)" }} />
-      
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
         <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 800, color: "var(--text)" }}>{mod.title}</h3>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -63,10 +64,10 @@ const ModuleItem = ({ mod, type }) => {
               <ScheduleIcon style={{ fontSize: "1rem", marginRight: "4px" }} /> {mod.estimated_time}
             </div>
           )}
-          {expanded ? <KeyboardArrowUpIcon style={{color: "var(--text-light)"}}/> : <KeyboardArrowDownIcon style={{color: "var(--text-light)"}}/>}
+          {expanded ? <KeyboardArrowUpIcon style={{ color: "var(--text-light)" }} /> : <KeyboardArrowDownIcon style={{ color: "var(--text-light)" }} />}
         </div>
       </div>
-      
+
       <p style={{ color: "var(--text-light)", fontSize: "1rem", lineHeight: 1.6, margin: expanded ? "0 0 20px" : "0" }}>
         {mod.description}
       </p>
@@ -83,9 +84,9 @@ const ModuleItem = ({ mod, type }) => {
       {expanded && mod.topics && mod.topics.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {mod.topics.map((topic, idx) => (
-            <div key={idx} style={{ 
-              background: "rgba(6, 182, 212, 0.05)", 
-              padding: "16px", borderRadius: "12px", 
+            <div key={idx} style={{
+              background: "rgba(6, 182, 212, 0.05)",
+              padding: "16px", borderRadius: "12px",
               border: "1px solid rgba(6, 182, 212, 0.1)"
             }}>
               <h4 style={{ margin: "0 0 6px", color: "#22d3ee", fontSize: "1rem", fontWeight: 700 }}>
@@ -98,7 +99,7 @@ const ModuleItem = ({ mod, type }) => {
               )}
               {topic.practical_task && (
                 <div style={{ marginTop: "12px", padding: "8px 12px", background: "rgba(16, 185, 129, 0.1)", borderRadius: "6px", color: "#10b981", fontSize: "0.85rem", fontWeight: 600 }}>
-                  <TaskAltIcon sx={{ fontSize: "1rem", marginRight: "4px", verticalAlign: "middle" }}/> 
+                  <TaskAltIcon sx={{ fontSize: "1rem", marginRight: "4px", verticalAlign: "middle" }} />
                   Task: {topic.practical_task}
                 </div>
               )}
@@ -112,9 +113,9 @@ const ModuleItem = ({ mod, type }) => {
 
 export default function WizardModule() {
   const [activeTab, setActiveTab] = useState("generate"); // 'generate' or 'history'
-  
+
   // Generator State
-  const [step, setStep] = useState(0); 
+  const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({ contentType: "", topic: "" });
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
@@ -165,13 +166,13 @@ export default function WizardModule() {
     setError(null);
     if (step === 0 && !answers.contentType) { setError("Please select an option."); return; }
     if (step === 1 && !answers.topic.trim()) { setError("Please provide a topic."); return; }
-    
+
     if (step >= 2 && step < 2 + activeQuestions.length) {
       const qIndex = step - 2;
       const qKey = activeQuestions[qIndex].key;
       if (!answers[qKey]) { setError("Please answer the question."); return; }
     }
-    
+
     setStep(s => s + 1);
   };
 
@@ -199,7 +200,7 @@ export default function WizardModule() {
         content_type: answers.contentType,
         details: details.trim()
       });
-      
+
       setGeneratedData(response);
       setMessage(`Successfully generated your ${answers.contentType.toLowerCase()}!`);
     } catch (err) {
@@ -254,8 +255,8 @@ export default function WizardModule() {
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {CONTENT_TYPES.map(type => (
-              <div 
-                key={type.id} 
+              <div
+                key={type.id}
                 onClick={() => {
                   setAnswers({ contentType: type.id, topic: "" });
                   setTimeout(() => setStep(1), 150);
@@ -298,7 +299,7 @@ export default function WizardModule() {
             className="wiz-input-clean"
             placeholder="e.g. Frontend Development, Machine Learning..."
             value={answers.topic}
-            onChange={e => setAnswers({...answers, topic: e.target.value})}
+            onChange={e => setAnswers({ ...answers, topic: e.target.value })}
             onKeyDown={e => e.key === 'Enter' && handleNext()}
             style={{
               width: "100%", padding: "20px", fontSize: "1.2rem", textAlign: "center",
@@ -314,21 +315,21 @@ export default function WizardModule() {
       const qIndex = step - 2;
       const currentQ = activeQuestions[qIndex];
       const ansKey = currentQ.key;
-      
+
       return (
         <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
           <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)", lineHeight: 1.2 }}>{currentQ.label}</h2>
           <p style={{ color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
             Help the AI understand your specific needs.
           </p>
-          
+
           {currentQ.type === "select" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
               {currentQ.options.map(opt => (
                 <button
                   key={opt}
                   onClick={() => {
-                    setAnswers({...answers, [ansKey]: opt});
+                    setAnswers({ ...answers, [ansKey]: opt });
                     setTimeout(() => handleNext(), 150);
                   }}
                   style={{
@@ -350,7 +351,7 @@ export default function WizardModule() {
               className="wiz-input-clean"
               placeholder={currentQ.placeholder}
               value={answers[ansKey] || ""}
-              onChange={e => setAnswers({...answers, [ansKey]: e.target.value})}
+              onChange={e => setAnswers({ ...answers, [ansKey]: e.target.value })}
               onKeyDown={e => e.key === 'Enter' && handleNext()}
               style={{
                 width: "100%", maxWidth: "500px", margin: "0 auto", padding: "20px", fontSize: "1.2rem", textAlign: "center",
@@ -373,7 +374,7 @@ export default function WizardModule() {
           <p style={{ color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
             Review your inputs before we construct your personalized {answers.contentType.toLowerCase()}.
           </p>
-          
+
           <div style={{ background: "var(--surface-soft)", border: "1px solid var(--border)", borderRadius: "16px", padding: "32px", textAlign: "left", maxWidth: "500px", margin: "0 auto 40px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               <div>
@@ -401,27 +402,27 @@ export default function WizardModule() {
 
   return (
     <section ref={rootRef} className="page-shell" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "6vh", paddingBottom: "10vh" }}>
-      
+
       {/* TABS NAVIGATION */}
       {!generatedData && !selectedHistoryItem && step < (2 + activeQuestions.length + 1) && (
         <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: "30px", padding: "6px", marginBottom: "40px", border: "1px solid var(--border)" }}>
-          <button 
+          <button
             onClick={() => setActiveTab("generate")}
             style={{ padding: "10px 24px", borderRadius: "24px", background: activeTab === "generate" ? "var(--surface-light)" : "transparent", color: activeTab === "generate" ? "var(--text)" : "var(--text-light)", border: "none", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", transition: "all 0.2s" }}
           >
-            <CreateIcon sx={{ fontSize: "1.1rem", mr: 1 }}/> Generate New
+            <CreateIcon sx={{ fontSize: "1.1rem", mr: 1 }} /> Generate New
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab("history")}
             style={{ padding: "10px 24px", borderRadius: "24px", background: activeTab === "history" ? "var(--surface-light)" : "transparent", color: activeTab === "history" ? "var(--text)" : "var(--text-light)", border: "none", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", transition: "all 0.2s" }}
           >
-            <HistoryIcon sx={{ fontSize: "1.1rem", mr: 1 }}/> My Content
+            <HistoryIcon sx={{ fontSize: "1.1rem", mr: 1 }} /> My Content
           </button>
         </div>
       )}
 
       <div style={{ width: "100%", maxWidth: "800px", padding: "0 20px" }}>
-        
+
         {/* --- GENERATOR FLOW --- */}
         {activeTab === "generate" && !selectedHistoryItem && (
           <>
@@ -435,8 +436,8 @@ export default function WizardModule() {
                     </button>
                   )}
                   <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
-                    {Array.from({length: activeQuestions.length > 0 ? 3 + activeQuestions.length : 1}).map((_, idx) => (
-                      <div key={idx} style={{ 
+                    {Array.from({ length: activeQuestions.length > 0 ? 3 + activeQuestions.length : 1 }).map((_, idx) => (
+                      <div key={idx} style={{
                         width: "24px", height: "4px", borderRadius: "2px",
                         background: idx === step ? "#06b6d4" : idx < step ? "rgba(6, 182, 212, 0.3)" : "rgba(255,255,255,0.1)",
                         transition: "all 0.3s ease"
@@ -480,7 +481,7 @@ export default function WizardModule() {
                       <button onClick={startOver} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", color: "var(--text)", padding: "10px 20px", borderRadius: "20px", cursor: "pointer", display: "flex", alignItems: "center", fontWeight: 600, transition: "all 0.2s" }} className="hover-bg-surface">
                         <ArrowBackIcon style={{ fontSize: "1.1rem", marginRight: "6px" }} /> Start Over
                       </button>
-                      {message && <div style={{ display: "flex", alignItems: "center", color: "#10b981", fontWeight: 600, fontSize: "0.95rem" }}><CheckCircleIcon style={{ fontSize: "1.2rem", marginRight: "6px" }}/> Done</div>}
+                      {message && <div style={{ display: "flex", alignItems: "center", color: "#10b981", fontWeight: 600, fontSize: "0.95rem" }}><CheckCircleIcon style={{ fontSize: "1.2rem", marginRight: "6px" }} /> Done</div>}
                     </div>
 
                     {renderContentData(generatedData)}
@@ -494,21 +495,21 @@ export default function WizardModule() {
         {/* --- MY CONTENT FLOW --- */}
         {activeTab === "history" && !selectedHistoryItem && (
           <div style={{ animation: "fadeInUp 0.4s ease", width: "100%" }}>
-             <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "8px", color: "var(--text)" }}>My Generated Content</h2>
-             <p style={{ color: "var(--text-light)", marginBottom: "32px", fontSize: "1rem" }}>
+            <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "8px", color: "var(--text)" }}>My Generated Content</h2>
+            <p style={{ color: "var(--text-light)", marginBottom: "32px", fontSize: "1rem" }}>
               View and manage your previously generated roadmaps and schedules.
             </p>
 
             {isHistoryLoading ? (
-               <div style={{ textAlign: "center", padding: "60px 0" }}>
-                  <CircularProgress size={40} sx={{ color: "#06b6d4" }} />
-               </div>
+              <div style={{ textAlign: "center", padding: "60px 0" }}>
+                <CircularProgress size={40} sx={{ color: "#06b6d4" }} />
+              </div>
             ) : historyItems.length === 0 ? (
-               <div style={{ textAlign: "center", padding: "60px 0", background: "var(--surface-soft)", borderRadius: "16px", border: "1px dashed var(--border)" }}>
-                 <MenuBookIcon sx={{ fontSize: 48, color: "var(--text-light)", opacity: 0.5, mb: 2 }} />
-                 <h3 style={{ color: "var(--text)", mb: 1 }}>No content generated yet</h3>
-                 <p style={{ color: "var(--text-light)", fontSize: "0.95rem" }}>Head over to the Generate tab to create your first learning plan.</p>
-               </div>
+              <div style={{ textAlign: "center", padding: "60px 0", background: "var(--surface-soft)", borderRadius: "16px", border: "1px dashed var(--border)" }}>
+                <MenuBookIcon sx={{ fontSize: 48, color: "var(--text-light)", opacity: 0.5, mb: 2 }} />
+                <h3 style={{ color: "var(--text)", mb: 1 }}>No content generated yet</h3>
+                <p style={{ color: "var(--text-light)", fontSize: "0.95rem" }}>Head over to the Generate tab to create your first learning plan.</p>
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {historyItems.map(item => (
@@ -543,8 +544,9 @@ export default function WizardModule() {
         )}
 
       </div>
-      
-      <style dangerouslySetInnerHTML={{__html: `
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .wiz-hover-card:hover {
           transform: translateY(-2px);
           border-color: #06b6d4 !important;

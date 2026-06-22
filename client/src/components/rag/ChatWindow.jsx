@@ -311,7 +311,7 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
           createdAt: new Date().toISOString(),
           modeUsed: data.mode_used,
           warning: data.warning ?? "",
-          tokenUsage: data.token_usage ?? null,
+          tokenUsage: data.usage.total_tokens ?? null,
         }),
       ]);
 

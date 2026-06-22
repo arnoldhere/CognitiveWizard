@@ -37,7 +37,8 @@ export default function Login() {
             await login(form);
             navigate(from, { replace: true });
         } catch (err) {
-            setError(err.response?.data?.detail || "Login failed. Please verify your credentials.");
+            // setError(err.response?.data?.detail || "Login failed. Please verify your credentials.");
+            setError(err.response?.detail?.message || "Login failed. Try again later...");
         } finally {
             setLoading(false);
         }
