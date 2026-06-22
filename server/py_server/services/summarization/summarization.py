@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from config.settings import settings
 from langchain_core.messages import HumanMessage, SystemMessage
 from providers.llm.factory import get_llm_for_task
@@ -150,7 +150,7 @@ def _generate_summary_with_client(
     client,
     prompt: str,
     model_mode: Optional[str] = None,
-) -> str:
+) -> Tuple[str, Dict[str, int]]:
     """
     Generate summary using the HuggingFace LangChain endpoint.
     """
@@ -180,7 +180,14 @@ def _generate_summary_with_client(
         if not content:
             raise ValueError("Empty summary generated")
 
-        return content
+        # Extract token usage using the shared utility
+        from utils.token_helper import extract_token_usage
+
+        token_usage = extract_token_usage(
+            response, prompt=prompt, response_text=content
+        )
+
+        return content, token_usage
 
     except Exception as e:
         logger.error(
@@ -198,7 +205,7 @@ def Summarization(
     mode: str = "brief",
     model_mode: str = DEFAULT_MODEL_MODE,
     max_chunks: int = 15,
-) -> Tuple[bool, str]:
+) -> Tuple[bool, str, Optional[Dict[str, int]]]:
 
     try:
 
@@ -213,7 +220,7 @@ def Summarization(
 
         if not is_valid:
             logger.warning(f"Validation failed: {error_msg}")
-            return False, error_msg
+            return False, error_msg, None
 
         logger.info(
             f"Starting summarization | "
@@ -233,7 +240,7 @@ def Summarization(
         )
 
         if client is None:
-            return False, "Failed to initialize model client"
+            return False, "Failed to initialize model client", None
 
         # =====================================================
         # 3. CLEAN TEXT
@@ -241,7 +248,7 @@ def Summarization(
         cleaned_text = TextCleaner.clean(text)
 
         if not cleaned_text or len(cleaned_text) < 50:
-            return (False, "Text too short after preprocessing")
+            return False, "Text too short after preprocessing", None
 
         # =====================================================
         # 4. CHUNK TEXT
@@ -249,7 +256,7 @@ def Summarization(
         chunks = TextChunker.chunk(cleaned_text)
 
         if not chunks:
-            return False, "Chunk generation failed"
+            return False, "Chunk generation failed", None
 
         if len(chunks) > max_chunks:
 
@@ -263,6 +270,16 @@ def Summarization(
 
         logger.info(f"Generated {len(chunks)} chunks")
 
+        # Accumulator for token usage
+        total_token_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
+        def accumulate_tokens(tu):
+            if not tu:
+                return
+            total_token_usage["input_tokens"] += tu.get("input_tokens", 0)
+            total_token_usage["output_tokens"] += tu.get("output_tokens", 0)
+            total_token_usage["total_tokens"] += tu.get("total_tokens", 0)
+
         # =====================================================
         # 5. SINGLE CHUNK FLOW
         # =====================================================
@@ -273,11 +290,12 @@ def Summarization(
                 mode,
             )
 
-            final_summary = _generate_summary_with_client(
+            final_summary, token_usage = _generate_summary_with_client(
                 client=client,
                 prompt=prompt,
                 model_mode=model_mode,
             )
+            accumulate_tokens(token_usage)
 
         # =====================================================
         # 6. MULTI-CHUNK FLOW
@@ -295,11 +313,12 @@ def Summarization(
                     mode,
                 )
 
-                summary = _generate_summary_with_client(
+                summary, token_usage = _generate_summary_with_client(
                     client=client,
                     prompt=prompt,
                     model_mode=model_mode,
                 )
+                accumulate_tokens(token_usage)
 
                 partial_summaries.append(summary)
 
@@ -310,21 +329,22 @@ def Summarization(
                 mode,
             )
 
-            final_summary = _generate_summary_with_client(
+            final_summary, final_token_usage = _generate_summary_with_client(
                 client=client,
                 prompt=final_prompt,
                 model_mode=model_mode,
             )
+            accumulate_tokens(final_token_usage)
 
         # =====================================================
         # 7. FINAL VALIDATION
         # =====================================================
         if not final_summary or not final_summary.strip():
-            return False, "Generated empty final summary"
+            return False, "Generated empty final summary", None
 
         logger.info("Summarization completed successfully")
 
-        return True, final_summary.strip()
+        return True, final_summary.strip(), total_token_usage
 
     except Exception as e:
 
@@ -333,4 +353,4 @@ def Summarization(
             exc_info=True,
         )
 
-        return (False, f"Summarization failed: {str(e)}")
+        return False, f"Summarization failed: {str(e)}", None

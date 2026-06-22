@@ -96,7 +96,7 @@ export default function Home() {
                     ? `Welcome back, ${user?.full_name || user?.email}. Choose your next study action.`
                     : "Enter a topic, upload material, or start with a guided study flow."}
                 </span>
-                <Link className="btn-primary" to={isAuthenticated ? "/chatbot" : "/signup"} id="hero-cta-generate">
+                <Link className="btn-primary" to={isAuthenticated ? "/wizard" : "/signup"} id="hero-cta-generate">
                   Generate
                 </Link>
               </div>

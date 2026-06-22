@@ -11,7 +11,7 @@ function createMessage(sender, text, extra = {}) {
     sender: normalizedSender,
     text,
     createdAt: new Date().toISOString(),
-    tokenUsage: extra.tokenUsage || null,
+    tokenUsage: extra.tokenUsage || extra.metadata?.token_usage || extra.metadata?.tokenUsage || null,
     sources: extra.metadata?.sources ?? extra.sources ?? [],
     modeUsed: extra.metadata?.mode_used ?? extra.modeUsed,
     warning: extra.metadata?.warning ?? extra.warning,
@@ -311,7 +311,7 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
           createdAt: new Date().toISOString(),
           modeUsed: data.mode_used,
           warning: data.warning ?? "",
-          tokenUsage: data.usage.total_tokens ?? null,
+          tokenUsage: data.token_usage ?? null,
         }),
       ]);
 

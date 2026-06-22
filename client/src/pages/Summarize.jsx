@@ -71,7 +71,7 @@ const parseSummaryContent = (text) => {
 /**
  * Enhanced summary display component with better readability
  */
-const SummaryDisplay = ({ summary, mode }) => {
+const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
     const sections = useMemo(() => parseSummaryContent(summary), [summary]);
     const [copied, setCopied] = useState(false);
 
@@ -267,25 +267,44 @@ const SummaryDisplay = ({ summary, mode }) => {
                     >
                         {summary.split(/\s+/).length} words | {sections.length} sections
                     </Typography>
-                    <Button
-                        size="medium"
-                        variant="outlined"
-                        onClick={handleCopy}
-                        startIcon={<ContentCopy />}
-                        sx={{
-                            textTransform: "none",
-                            fontWeight: 700,
-                            color: "#cbd5e1",
-                            borderColor: "rgba(255,255,255,0.12)",
-                            bgcolor: "rgba(255,255,255,0.03)",
-                            "&:hover": {
-                                background: "rgba(255,255,255,0.08)",
-                                borderColor: "rgba(255,255,255,0.2)",
-                            },
-                        }}
-                    >
-                        {copied ? "Copied!" : "Copy Summary"}
-                    </Button>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        {tokenUsage && (
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    color: "rgba(255,255,255,0.45)",
+                                    fontSize: "0.72rem",
+                                    fontWeight: 600,
+                                    background: "rgba(255, 255, 255, 0.04)",
+                                    px: 1.5,
+                                    py: 0.8,
+                                    borderRadius: 2,
+                                    border: "1px solid rgba(255, 255, 255, 0.06)",
+                                }}
+                            >
+                                Tokens: <span style={{ color: "#a5b4fc" }}>{tokenUsage.input_tokens || tokenUsage.prompt_tokens || 0}</span> in / <span style={{ color: "#6ee7b7" }}>{tokenUsage.output_tokens || tokenUsage.completion_tokens || 0}</span> out
+                            </Typography>
+                        )}
+                        <Button
+                            size="medium"
+                            variant="outlined"
+                            onClick={handleCopy}
+                            startIcon={<ContentCopy />}
+                            sx={{
+                                textTransform: "none",
+                                fontWeight: 700,
+                                color: "#cbd5e1",
+                                borderColor: "rgba(255,255,255,0.12)",
+                                bgcolor: "rgba(255,255,255,0.03)",
+                                "&:hover": {
+                                    background: "rgba(255,255,255,0.08)",
+                                    borderColor: "rgba(255,255,255,0.2)",
+                                },
+                            }}
+                        >
+                            {copied ? "Copied!" : "Copy Summary"}
+                        </Button>
+                    </Box>
                 </Box>
             </Paper>
         </Box>
@@ -300,6 +319,7 @@ export default function SummarizerPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [summary, setSummary] = useState("");
+    const [tokenUsage, setTokenUsage] = useState(null);
     const [mode, setMode] = useState("brief");
 
     const handleTabChange = (_, newValue) => {
@@ -334,6 +354,7 @@ export default function SummarizerPage() {
     const handleSubmit = async () => {
         setError("");
         setSummary("");
+        setTokenUsage(null);
 
         if (source === "file" && !file) return setError("Upload a document");
         if (source === "url" && !url.trim()) return setError("Enter a URL");
@@ -359,6 +380,7 @@ export default function SummarizerPage() {
 
             if (response?.status === "success") {
                 setSummary(response.data.summary);
+                setTokenUsage(response.data.token_usage);
             } else {
                 console.log("API Error:", response);
                 setError(response?.detail || "Unexpected error");
@@ -566,7 +588,7 @@ export default function SummarizerPage() {
             </Paper>
 
             {/* RESULT */}
-            {summary && <SummaryDisplay summary={summary} mode={mode} />}
+            {summary && <SummaryDisplay summary={summary} mode={mode} tokenUsage={tokenUsage} />}
         </Container>
     );
 }

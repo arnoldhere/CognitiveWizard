@@ -177,6 +177,8 @@ def build_retrieval_qa_chain(
                 "answer": x["answer"],
                 "source_docs": x["source_docs"],
                 "original_docs": x["original_docs"],
+                "input": x.get("input"),
+                "context": x.get("context"),
             }
         )
     )

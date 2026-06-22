@@ -56,7 +56,7 @@ async def summarize(req: SummaryRequest):
             )
 
         # Perform summarization
-        success, result = Summarization(text=text, mode=req.mode)
+        success, result, token_usage = Summarization(text=text, mode=req.mode)
 
         if not success:
             logger.error(f"Summarization failed: {result}")
@@ -72,6 +72,7 @@ async def summarize(req: SummaryRequest):
                 "summary": result,
                 "mode": req.mode,
                 "input_type": req.input_type,
+                "token_usage": token_usage,
             },
         }
 
@@ -128,7 +129,7 @@ async def summarize_upload(
             tmp.flush()
 
         text = Document_handler.extract_text(temp_file_path)
-        success, result = Summarization(text=text, mode=mode, model_mode=model_mode)
+        success, result, token_usage = Summarization(text=text, mode=mode, model_mode=model_mode)
 
         if not success:
             logger.error(f"File summarization failed: {result}")
@@ -146,6 +147,7 @@ async def summarize_upload(
                 "input_type": "file",
                 "model_mode": model_mode,
                 "filename": file.filename,
+                "token_usage": token_usage,
             },
         }
 

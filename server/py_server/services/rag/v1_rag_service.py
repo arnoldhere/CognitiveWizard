@@ -242,7 +242,7 @@ class LangChainRAGService:
                     if isinstance(chain_result, dict):
                         raw_answer = chain_result.get("answer", chain_result)
                         answer = self._extract_response_text(raw_answer)
-                        token_usage = self._extract_token_usage(chain_result)
+                        token_usage = self._extract_token_usage(chain_result, query=query)
                         original_docs = chain_result.get("original_docs", [])
                     else:
                         answer = self._extract_response_text(chain_result)
@@ -557,37 +557,21 @@ class LangChainRAGService:
             return str(first).strip()
         return str(response).strip()
 
-    def _extract_token_usage(self, response: Any) -> Optional[Dict[str, int]]:
-        if response is None:
-            return None
-        if isinstance(response, dict) and response.get("token_usage"):
-            return response["token_usage"]
-        if hasattr(response, "usage"):
-            usage = getattr(response, "usage")
-            return {
-                "input_tokens": getattr(usage, "prompt_tokens", None)
-                or getattr(usage, "input_tokens", None)
-                or getattr(usage, "input", None),
-                "output_tokens": getattr(usage, "completion_tokens", None)
-                or getattr(usage, "output_tokens", None)
-                or getattr(usage, "completion", None),
-                "total_tokens": getattr(usage, "total_tokens", None)
-                or (getattr(usage, "prompt_tokens", 0) or 0)
-                + (getattr(usage, "completion_tokens", 0) or 0),
-            }
+    def _extract_token_usage(self, response: Any, query: Optional[str] = None) -> Optional[Dict[str, int]]:
+        from utils.token_helper import extract_token_usage
+
+        prompt_text = query
         if isinstance(response, dict):
-            for field in ["llm_output", "raw_output", "choices"]:
-                if field in response:
-                    nested = response[field]
-                    if isinstance(nested, dict) and nested.get("usage"):
-                        return self._extract_token_usage(nested)
-                    if isinstance(nested, list) and nested:
-                        return self._extract_token_usage(nested[0])
-        if isinstance(response, list) and response:
-            return self._extract_token_usage(response[0])
-        if isinstance(response, dict) and response.get("usage"):
-            return self._extract_token_usage(response.get("usage"))
-        return None
+            ans = response.get("answer")
+            inp = response.get("input") or query
+            ctx = response.get("context")
+            if inp:
+                prompt_text = inp
+                if ctx:
+                    prompt_text = f"{inp}\n{ctx}"
+            return extract_token_usage(ans, prompt=prompt_text)
+
+        return extract_token_usage(response, prompt=prompt_text)
 
     def _generate_without_context(
         self, query: str
@@ -615,7 +599,7 @@ class LangChainRAGService:
                 )
 
             answer = self._extract_response_text(response)
-            token_usage = self._extract_token_usage(response)
+            token_usage = self._extract_token_usage(response, query=query)
             return answer, token_usage
         except Exception as e:
             logger.exception(f"Error generating response: {e}")
