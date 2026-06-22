@@ -16,20 +16,30 @@ The platform provides Quiz and Summarization engine, RAG powered chatbot and mor
 
 ---
 
-## High-Level Architecture
-1. User Interface
-    - ReactJS + VITE
-2. Backend
-    - FastAPI
-    - Redis + Celery / kafka
-3. AI Engine
-    - Hugging face transformers
-    - Langchain
-    - pytorch
-4. Storage
-    - MySQL
-    - chromaDB for embeddings
-    - MongoDB for chat storage
+## Proposed High-Level Architecture
+
+```
+User Query
+    │
+    ▼
+React Frontend
+    │  All API calls → 
+    ▼
+Express Gateway  [js_server]
+    ├── Security layer: Helmet + CORS
+    ├── Rate limiting: global / auth / AI-ML tiers
+    ├── HTTP logging: Morgan → Winston
+    ├── JWT verification middleware
+    ├── Route delegation by domain
+    ├── Route mapping according to tasks
+    │
+    ▼
+FastAPI py_server 
+    ├── MySQL 
+    ├── MongoDB 
+    ├── Redis 
+    └── ChromaDB 
+```
 
 ## Core Features
 
