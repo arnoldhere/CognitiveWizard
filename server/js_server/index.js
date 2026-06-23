@@ -166,7 +166,6 @@ const server = app.listen(PORT, () => {
   logger.info("║       Cognitive Wizard — Express Gateway Server          ║");
   logger.info("╚══════════════════════════════════════════════════════════╝");
   logger.info(`  Environment : ${NODE_ENV}`);
-  logger.info(`  Gateway URL : http://localhost:${PORT}`);
   logger.info(`  py_server   : ${PY_SERVER_URL}`);
   logger.info(`  CORS Origins: ${CORS_ORIGINS.join(", ")}`);
   // logger.info("  Routes      : /auth | /rag | /quiz | /wizard | /summarize | /subscriptions");

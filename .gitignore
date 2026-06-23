@@ -13,9 +13,7 @@ alembic.ini
 *tmp/
 .pytest*/
 tasks.txt
-*prod_DockerFile.yml
 *.env
-docker-compose.yml
 .agents/
 .codex/
 samples/
