@@ -1,15 +1,16 @@
-version: '3.8'
-name: "Cognitive-Wizard"
+name: Cognitive-Wizard
 
 services:
+
   ai-backend:
     build:
       context: ./server/py_server
     ports:
       - "8000:8000"
-    environment:
-      - ENVIRONMENT=production
-    command: [ "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000" ]
+    env_file:
+      - ./server/py_server/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   api-gateway:
@@ -20,8 +21,7 @@ services:
     depends_on:
       - ai-backend
     environment:
-      # Internal Docker DNS automatically resolves service names
-      - PY_SERVER_URL=http://ai-backend:8000
+      PY_SERVER_URL: http://ai-backend:8000
     restart: unless-stopped
 
   frontend:

@@ -25,9 +25,10 @@ def decode_access_token(token: str) -> TokenData:
         )
         email: str = payload.get("sub")
         role: str = payload.get("role")
-        if not email:
+        user_id: int = payload.get("id")
+        if not email or not user_id:
             raise JWTError()
-        return TokenData(email=email, role=role)
+        return TokenData(id=user_id, email=email, role=role)
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

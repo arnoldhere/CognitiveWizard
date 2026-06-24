@@ -1,226 +1,276 @@
 /**
  * controllers/authController.js
  * ==============================
- * Controller functions for authentication-related routes.
- *
- * Responsibility:
- *  - Handle multipart form-data for face endpoints (requires multer)
- *  - Forward all auth operations to py_server via the proxyToPyServer utility
- *  - Log significant auth events for audit trails
- *
- * Route delegation:
- *  All /auth/* paths are proxied directly to FastAPI py_server which owns
- *  the user DB, hashing, JWT issuance, OTP/Redis, and facial recognition.
+ * Native authentication for Express Gateway, replacing python dependency.
  */
 
 const multer = require("multer");
-const FormData = require("form-data");
-const { proxyToPyServer } = require("../utils/apiProxy");
+const bcrypt = require("bcryptjs");
+const { proxyToPyServer, pyAxios } = require("../utils/apiProxy");
 const logger = require("../utils/logger");
+const User = require("../models/User");
+const { generateToken } = require("../utils/jwtHelper");
+const { redisClient } = require("../config/redis");
+// If you have a nodemailer integration, you'd require it here.
+// For now, we mimic the python behavior of trying to send email or falling back to log.
 
-// ─── Multer config: memory storage for face image uploads ─────────────────
-// We forward the raw buffer bytes to py_server as multipart/form-data.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: parseInt(process.env.FACE_LOGIN_MAX_BYTES || "5242880", 10), // 5 MB default
-    files: 1,
-  },
+  limits: { fileSize: 5242880, files: 1 },
   fileFilter: (_req, file, cb) => {
     const allowed = ["image/jpeg", "image/jpg", "image/png"];
     if (!allowed.includes(file.mimetype)) {
-      return cb(
-        new Error("Only JPEG and PNG images are supported for face endpoints."),
-        false
-      );
+      return cb(new Error("Only JPEG and PNG images are supported for face endpoints."), false);
     }
     cb(null, true);
   },
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
-
-/**
- * Build a FormData object from a multer file buffer and optional extra fields.
- *
- * @param {Express.Multer.File} file  - Multer file object (buffer in memory)
- * @param {Record<string, string>} fields
- * @returns {FormData}
- */
 function buildFormData(file, fields = {}) {
+  const FormData = require("form-data");
   const form = new FormData();
-
-  // Append extra text fields first (e.g. userid)
   Object.entries(fields).forEach(([key, val]) => form.append(key, val));
-
-  // Append the image buffer with the original filename and mime type
   form.append("image", file.buffer, {
     filename: file.originalname || "face.jpg",
     contentType: file.mimetype,
   });
-
   return form;
 }
 
-// ─── Controller handlers ───────────────────────────────────────────────────
+// ─── Native Native Controllers ──────────────────────────────────────────────
 
-/** POST /auth/signup — register a new user */
 async function signup(req, res, next) {
   try {
-    logger.info(`[AUTH] Signup attempt: ${req.body?.email}`);
-    await proxyToPyServer({ method: "POST", path: "/auth/signup", req, res });
+    const { email, password, full_name, phone, dob } = req.body;
+    logger.info(`[AUTH] Signup attempt: ${email}`);
+
+    const existing = await User.findOne({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+
+    const hashed_password = await bcrypt.hash(password, 10);
+    const user = await User.create({
+      email,
+      hashed_password,
+      full_name,
+      phone,
+      dob,
+      role: "user"
+    });
+
+    const userObj = user.toJSON();
+    delete userObj.hashed_password;
+    res.json(userObj);
   } catch (err) {
     next(err);
   }
 }
 
-/** POST /auth/login — credential login, returns JWT */
 async function login(req, res, next) {
   try {
-    logger.info(`[AUTH] Login attempt: ${req.body?.email}`);
-    await proxyToPyServer({ method: "POST", path: "/auth/login", req, res });
+    const { email, password } = req.body;
+    logger.info(`[AUTH] Login attempt: ${email}`);
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const valid = await bcrypt.compare(password, user.hashed_password);
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const access_token = generateToken(user);
+    const userObj = user.toJSON();
+    delete userObj.hashed_password;
+
+    res.json({ access_token, token_type: "bearer", user: userObj });
   } catch (err) {
     next(err);
   }
 }
 
-/** GET /auth/me — return currently authenticated user profile */
 async function getMe(req, res, next) {
   try {
-    await proxyToPyServer({ method: "GET", path: "/auth/me", req, res });
+    const email = req.user.email;
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const userObj = user.toJSON();
+    delete userObj.hashed_password;
+    res.json(userObj);
   } catch (err) {
     next(err);
   }
 }
 
-/** PATCH /auth/profile — update user profile fields */
 async function updateProfile(req, res, next) {
   try {
-    logger.info(`[AUTH] Profile update: ${req.user?.email}`);
-    await proxyToPyServer({ method: "PATCH", path: "/auth/profile", req, res });
+    const email = req.user.email;
+    const { full_name, phone, dob } = req.body;
+    logger.info(`[AUTH] Profile update: ${email}`);
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (full_name !== undefined) user.full_name = full_name;
+    if (phone !== undefined) user.phone = phone;
+    if (dob !== undefined) user.dob = dob;
+
+    await user.save();
+    
+    const userObj = user.toJSON();
+    delete userObj.hashed_password;
+    res.json(userObj);
   } catch (err) {
     next(err);
   }
 }
 
-/** DELETE /auth/profile — permanently delete user account */
 async function deleteProfile(req, res, next) {
   try {
-    logger.warn(`[AUTH] Account deletion requested: ${req.user?.email}`);
-    await proxyToPyServer({ method: "DELETE", path: "/auth/profile", req, res });
+    const email = req.user.email;
+    const { password } = req.body;
+    logger.warn(`[AUTH] Account deletion requested: ${email}`);
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const valid = await bcrypt.compare(password, user.hashed_password);
+    if (!valid) {
+      return res.status(403).json({ error: "Invalid password" });
+    }
+
+    // TODO: also send request to py_server to delete face data and chromadb data
+    await proxyToPyServer({ method: "DELETE", path: "/auth/profile/data", req, res, stream: false });
+    
+    await user.destroy();
+    res.json({ status: "success", message: "Profile and associated data deleted successfully." });
   } catch (err) {
     next(err);
   }
 }
 
-/** POST /auth/forgot-password — send OTP to email for password reset */
 async function forgotPassword(req, res, next) {
   try {
-    logger.info(`[AUTH] Forgot password: ${req.body?.email}`);
-    await proxyToPyServer({ method: "POST", path: "/auth/forgot-password", req, res });
+    const { email } = req.body;
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "Please provide a valid email address." });
+    }
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "No account found with this email address." });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await redisClient.set(`reset_password_otp:${email}`, otp, { EX: 600 });
+    logger.debug(`Generated OTP for ${email}: ${otp}`);
+
+    // In a real scenario, implement sendEmail. For now, just logging:
+    logger.info(`Password reset OTP for ${email} is ${otp}`);
+
+    res.json({ message: "A password reset code has been generated.", email_sent: false });
   } catch (err) {
     next(err);
   }
 }
 
-/** POST /auth/reset-password — verify OTP and set new password */
 async function resetPassword(req, res, next) {
   try {
-    logger.info(`[AUTH] Password reset attempt: ${req.body?.email}`);
-    await proxyToPyServer({ method: "POST", path: "/auth/reset-password", req, res });
+    const { email, otp, new_password } = req.body;
+    if (!email || !email.includes("@")) return res.status(400).json({ error: "Please provide a valid email address." });
+    if (!otp) return res.status(400).json({ error: "Please enter the OTP sent to your email." });
+    if (!new_password || new_password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters long." });
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ error: "No account found with this email address." });
+
+    const storedOtp = await redisClient.get(`reset_password_otp:${email}`);
+    if (!storedOtp) return res.status(400).json({ error: "OTP has expired. Please request a new one." });
+    if (storedOtp !== otp) return res.status(400).json({ error: "Invalid OTP. Please check and try again." });
+
+    user.hashed_password = await bcrypt.hash(new_password, 10);
+    await user.save();
+    await redisClient.del(`reset_password_otp:${email}`);
+
+    res.json({ message: "Password reset successfully. You can now login with your new password." });
   } catch (err) {
     next(err);
   }
 }
 
 // ─── Face Auth Controllers ─────────────────────────────────────────────────
+// These must proxy to py_server because facial embeddings logic sits there.
+// However, the python server expects these endpoints. We will pass them through.
 
-/**
- * POST /auth/face/register
- * Accepts: multipart/form-data with fields { userid, image }
- * Requires: authenticated user (JWT must be valid)
- */
 async function faceRegister(req, res, next) {
   try {
-    if (!req.file) {
-      return res.status(400).json({
-        error: "BadRequest",
-        message: "Face image file is required.",
-      });
-    }
-
+    if (!req.file) return res.status(400).json({ error: "Face image file is required." });
     const userId = req.body?.userid;
-    if (!userId) {
-      return res.status(400).json({
-        error: "BadRequest",
-        message: "userid field is required for face registration.",
-      });
-    }
+    if (!userId) return res.status(400).json({ error: "userid field is required for face registration." });
 
     logger.info(`[AUTH/FACE] Register face for user: ${userId}`);
-
-    // Build a fresh FormData to forward to py_server
     const formData = buildFormData(req.file, { userid: userId });
 
-    await proxyToPyServer({
-      method: "POST",
-      path: "/auth/face/register",
-      req,
-      res,
-      formData,
-    });
-  } catch (err) {
-    next(err);
-  }
+    await proxyToPyServer({ method: "POST", path: "/auth/face/register", req, res, formData });
+  } catch (err) { next(err); }
 }
 
-/**
- * POST /auth/face/login
- * Accepts: multipart/form-data with field { image }
- * Public endpoint — no JWT required before this call
- */
 async function faceLogin(req, res, next) {
   try {
-    if (!req.file) {
-      return res.status(400).json({
-        error: "BadRequest",
-        message: "Face image file is required for facial login.",
-      });
-    }
+    if (!req.file) return res.status(400).json({ error: "Face image file is required for facial login." });
 
     logger.info(`[AUTH/FACE] Face login attempt from ${req.ip}`);
-
     const formData = buildFormData(req.file);
 
-    await proxyToPyServer({
-      method: "POST",
-      path: "/auth/face/login",
-      req,
-      res,
-      formData,
+    // Call py_server to perform facial recognition
+    const pyRes = await pyAxios.post("/auth/face/login", formData, {
+      headers: formData.getHeaders()
+    });
+
+    const result = pyRes.data; // Expected: { user_id: number, confidence: number, message: string }
+    if (!result || !result.user_id) {
+       return res.status(401).json({ error: "User not found for recognized face" });
+    }
+
+    const user = await User.findByPk(result.user_id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const access_token = generateToken(user);
+    const userObj = user.toJSON();
+    delete userObj.hashed_password;
+
+    res.json({
+      status: "success",
+      message: result.message || "Facial login successful",
+      confidence: result.confidence,
+      access_token,
+      token_type: "bearer",
+      user: userObj
     });
   } catch (err) {
+    if (err.response) {
+       return res.status(err.response.status).json({ error: err.response.data?.detail || "Face login failed in AI server" });
+    }
     next(err);
   }
 }
 
-/** GET /auth/face/status — check if current user has facial login enabled */
 async function faceStatus(req, res, next) {
   try {
     await proxyToPyServer({ method: "GET", path: "/auth/face/status", req, res });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 }
 
-/** DELETE /auth/face — remove current user's facial login data */
 async function deleteFace(req, res, next) {
   try {
-    logger.info(`[AUTH/FACE] Remove face login: ${req.user?.email}`);
     await proxyToPyServer({ method: "DELETE", path: "/auth/face", req, res });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 }
 
 module.exports = {
@@ -235,6 +285,5 @@ module.exports = {
   faceLogin,
   faceStatus,
   deleteFace,
-  // Export multer instance so routes can use it as middleware
   upload,
 };

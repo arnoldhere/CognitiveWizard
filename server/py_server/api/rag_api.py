@@ -90,7 +90,7 @@ def ingest_documents(
         logger.exception("RAG ingest failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to ingest RAG documents.",
+            detail=str(exc),
         ) from exc
 
 
@@ -147,7 +147,7 @@ async def upload_document(
         logger.exception("RAG upload failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process uploaded document for RAG.",
+            detail=str(exc),
         ) from exc
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
@@ -250,7 +250,7 @@ def chat(
         logger.exception("RAG chat failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate RAG response.",
+            detail=str(exc),
         ) from exc
 
 
@@ -411,7 +411,7 @@ def delete_chat_session_endpoint(
         logger.error(f"Failed to delete chat session {session_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete chat session.",
+            detail=str(e),
         )
 
 
@@ -479,7 +479,7 @@ def chat_langchain(
         logger.exception("LangChain RAG chat failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate LangChain RAG response.",
+            detail=str(exc),
         ) from exc
 
 
@@ -517,5 +517,5 @@ def delete_rag_document(
         logger.exception(f"Failed to delete document {canonical_document_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete document.",
+            detail=str(e),
         )

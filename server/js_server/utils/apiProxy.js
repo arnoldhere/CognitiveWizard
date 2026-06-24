@@ -99,27 +99,48 @@ function buildForwardHeaders(req) {
  */
 function normalisePyError(error) {
   if (error.response) {
-    // py_server returned an HTTP error (4xx / 5xx)
     const { status, data } = error.response;
-    const message =
-      data?.detail ||
-      data?.message ||
-      `py_server returned HTTP ${status}`;
-    return { status, message, detail: data };
-  }
 
-  if (error.request) {
-    // Request was sent but no response received (py_server down / timeout)
-    logger.error("[PROXY] py_server unreachable", { message: error.message });
+    if (data && typeof data === "object") {
+      const payload = { ...data };
+      if (!payload.message && payload.detail) {
+        payload.message = payload.detail;
+      }
+      if (!payload.error) {
+        payload.error = payload.error || error.response.statusText || "Error";
+      }
+      return { status, payload };
+    }
+
     return {
-      status: 503,
-      message: "AI service is temporarily unavailable. Please try again shortly.",
-      detail: null,
+      status,
+      payload: {
+        error: error.response.statusText || "Error",
+        message: data || `py_server returned HTTP ${status}`,
+        detail: data,
+      },
     };
   }
 
-  // Unexpected Axios configuration error
-  return { status: 500, message: "Internal proxy error.", detail: null };
+  if (error.request) {
+    logger.error("[PROXY] py_server unreachable", { message: error.message });
+    return {
+      status: 503,
+      payload: {
+        error: "ServiceUnavailable",
+        message: "AI service is temporarily unavailable. Please try again shortly.",
+      },
+    };
+  }
+
+  return {
+    status: 500,
+    payload: {
+      error: "InternalProxyError",
+      message: "Internal proxy error.",
+      detail: error.message,
+    },
+  };
 }
 
 /**
@@ -190,8 +211,8 @@ async function proxyToPyServer({
       res.status(response.status).json(response.data);
     }
   } catch (error) {
-    const { status, message, detail } = normalisePyError(error);
-    res.status(status).json({ error: message, detail: detail || undefined });
+    const { status, payload } = normalisePyError(error);
+    res.status(status).json(payload);
   }
 }
 

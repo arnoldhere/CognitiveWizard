@@ -60,6 +60,7 @@ class FaceLoginResponse(BaseModel):
 
 
 class TokenData(BaseModel):
+    id: int
     email: str
     role: str
 

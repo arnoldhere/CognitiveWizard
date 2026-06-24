@@ -26,6 +26,23 @@ const morganMiddleware = require("./middlewares/requestLogger");
 const { globalLimiter } = require("./middlewares/rateLimiter");
 const { notFoundHandler, globalErrorHandler } = require("./middlewares/errorHandler");
 
+// ─── Database & Cache Services ──────────────────────────────────────────────
+const { connectMySQL } = require("./config/db");
+const { connectMongo } = require("./config/mongo");
+const { connectRedis } = require("./config/redis");
+
+async function initializeServices() {
+  try {
+    await Promise.all([connectMySQL(), connectMongo(), connectRedis()]);
+    logger.info("[INIT] All gateway services started successfully.");
+  } catch (error) {
+    logger.error("[INIT] Failed to start required services.", { error: error.message });
+    process.exit(1);
+  }
+}
+
+initializeServices();
+
 // ─── Route modules ────────────────────────────────────────────────────────
 const authRoutes = require("./routes/auth/authRoutes");
 const ragRoutes = require("./routes/user/ragRoutes");
