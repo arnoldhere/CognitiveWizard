@@ -1,7 +1,11 @@
 const { Sequelize } = require('sequelize');
 const logger = require('../utils/logger');
 
-const dbUri = (process.env.DATABASE_URL).toString();
+const dbUri = process.env.DATABASE_URL;
+if (!dbUri) {
+  throw new Error("DATABASE_URL environment variable is missing.");
+}
+
 const connectionString = dbUri.replace('mysql+pymysql://', 'mysql://');
 // const connectionString = 'mysql://root:root@localhost:3306/cognitive_wizard';
 const sequelize = new Sequelize(connectionString, {
