@@ -23,3 +23,6 @@ weights/
 .mycli-fts
 logs/
 media/
+.mycli/
+.mycli.conf
+
