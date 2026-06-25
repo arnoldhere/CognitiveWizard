@@ -1,7 +1,7 @@
 const { Sequelize } = require('sequelize');
 const logger = require('../utils/logger');
 
-const dbUri = process.env.DATABASE_URL;
+const dbUri = (process.env.DATABASE_URL).toString();
 const connectionString = dbUri.replace('mysql+pymysql://', 'mysql://');
 // const connectionString = 'mysql://root:root@localhost:3306/cognitive_wizard';
 const sequelize = new Sequelize(connectionString, {
