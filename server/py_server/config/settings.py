@@ -2,7 +2,9 @@ import os
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load from server/.env (two directories up from py_server/config/settings.py)
+env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../.env'))
+load_dotenv(dotenv_path=env_path)
 
 
 @dataclass

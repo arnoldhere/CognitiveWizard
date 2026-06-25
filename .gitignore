@@ -22,3 +22,4 @@ weights/
 .venv
 .mycli-fts
 logs/
+media/

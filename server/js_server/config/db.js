@@ -1,9 +1,9 @@
 const { Sequelize } = require('sequelize');
 const logger = require('../utils/logger');
 
-// const dbUri = process.env.SQLALCHEMY_DATABASE_URL || 'mysql://root:root@localhost:3306/cognitive_wizard';
-// const connectionString = dbUri.replace('mysql+pymysql://', 'mysql://');
-const connectionString = 'mysql://root:root@localhost:3306/cognitive_wizard';
+const dbUri = process.env.DATABASE_URL;
+const connectionString = dbUri.replace('mysql+pymysql://', 'mysql://');
+// const connectionString = 'mysql://root:root@localhost:3306/cognitive_wizard';
 const sequelize = new Sequelize(connectionString, {
   dialect: 'mysql',
   logging: msg => logger.debug(`[Sequelize] ${msg}`),
@@ -20,6 +20,7 @@ async function connectMySQL() {
     await sequelize.authenticate();
     logger.info('[DB] Successfully connected to MySQL via Sequelize');
   } catch (error) {
+    console.log(connectionString);
     logger.error('[DB] Unable to connect to MySQL:', error);
   }
 }

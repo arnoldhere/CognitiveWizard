@@ -143,12 +143,17 @@ async function deleteProfile(req, res, next) {
       return res.status(403).json({ error: "Invalid password" });
     }
 
-    // TODO: also send request to py_server to delete face data and chromadb data
-    await proxyToPyServer({ method: "DELETE", path: "/auth/profile/data", req, res, stream: false });
+    // Call py_server to delete face data and chromadb data
+    await pyAxios.delete("/auth/profile/data", {
+      headers: { Authorization: req.headers.authorization }
+    });
     
     await user.destroy();
     res.json({ status: "success", message: "Profile and associated data deleted successfully." });
   } catch (err) {
+    if (err.response) {
+       return res.status(err.response.status).json({ error: err.response.data?.detail || "Failed to delete profile AI data" });
+    }
     next(err);
   }
 }

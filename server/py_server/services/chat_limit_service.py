@@ -21,19 +21,26 @@ class ChatLimitService:
 
     def _ensure_tracking_window(self, db: Session, user: User) -> User:
         now = datetime.now()
+        # Determine if we need to (re)initialize the tracking counters
         should_initialize = user.chat_limit is None or user.chat_limit_reset_at is None
         should_reset = (
             user.chat_limit_reset_at is not None and now >= user.chat_limit_reset_at
         )
 
-        if should_initialize or should_reset:
-            user.chat_limit = 0
-            user.chat_limit_reset_at = now + timedelta(days=1)
-            db.add(user)
-            db.commit()
-            db.refresh(user)
+        # Load the persisted user record from DB (if not already an ORM instance)
+        db_user = db.query(User).filter(User.id == user.id).first()
+        if db_user is None:
+            # No user found in DB – nothing to update, return the original object
+            return user
 
-        return user
+        # Update counters on the persisted user
+        if should_initialize or should_reset:
+            db_user.chat_limit = 0
+            db_user.chat_limit_reset_at = now + timedelta(days=1)
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+        return db_user
 
     def check_limit(self, db: Session, user: User) -> Tuple[bool, int, int]:
         user = self._ensure_tracking_window(db, user)
