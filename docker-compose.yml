@@ -20,6 +20,8 @@ services:
       - "3000:3000"
     depends_on:
       - ai-backend
+    env_file:
+      - ./server/js_server/.env
     environment:
       PY_SERVER_URL: http://ai-backend:8000
     restart: unless-stopped

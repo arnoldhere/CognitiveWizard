@@ -25,4 +25,5 @@ logs/
 media/
 .mycli/
 .mycli.conf
-
+.hf_cache/
+local-hf-cache/
