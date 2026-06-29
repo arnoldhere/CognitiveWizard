@@ -5,28 +5,21 @@ const FaceEmbedding = sequelize.define('FaceEmbedding', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    autoIncrement: true
+    autoIncrement: true,
   },
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: {
-      model: 'users',
-      key: 'id'
-    },
-    onDelete: 'CASCADE'
+    index: true
   },
   vector_id: {
-    type: DataTypes.BIGINT,
-    allowNull: false
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    index: true
   }
 }, {
   tableName: 'face_embeddings',
-  timestamps: false
+  timestamps: false,
 });
 
 module.exports = FaceEmbedding;

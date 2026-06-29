@@ -1,68 +1,67 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
+const User = require('./User');
 
 const PaymentTransaction = sequelize.define('PaymentTransaction', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    autoIncrement: true
+    autoIncrement: true,
   },
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'users',
-      key: 'id'
+      model: User,
+      key: 'id',
     },
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   },
   plan: {
     type: DataTypes.STRING(50),
-    allowNull: false
+    allowNull: false,
   },
   amount: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
   },
   amount_inr: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
   },
   currency: {
     type: DataTypes.STRING(10),
     allowNull: false,
-    defaultValue: 'INR'
+    defaultValue: 'INR',
   },
   razorpay_order_id: {
     type: DataTypes.STRING(100),
     unique: true,
-    allowNull: false
+    allowNull: false,
   },
   razorpay_payment_id: {
     type: DataTypes.STRING(100),
     unique: true,
-    allowNull: true
+    allowNull: true,
   },
   razorpay_signature: {
     type: DataTypes.STRING(255),
-    allowNull: true
+    allowNull: true,
   },
   status: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    defaultValue: 'created'
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
+    defaultValue: 'created',
   },
   paid_at: {
     type: DataTypes.DATE,
-    allowNull: true
-  }
+    allowNull: true,
+  },
 }, {
   tableName: 'payment_transactions',
-  timestamps: false
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false,
 });
 
 module.exports = PaymentTransaction;

@@ -5,36 +5,34 @@ const RAGDocument = sequelize.define('RAGDocument', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    autoIncrement: true
+    autoIncrement: true,
   },
   user_id: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
   },
   document_name: {
     type: DataTypes.STRING(255),
-    allowNull: false
+    allowNull: false,
   },
   chunk_index: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 0
+    defaultValue: 0,
   },
   snippet: {
     type: DataTypes.TEXT,
-    allowNull: true
+    allowNull: true,
   },
   metadata_json: {
     type: DataTypes.TEXT,
-    allowNull: true
+    allowNull: true,
   },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  }
 }, {
   tableName: 'rag_documents',
-  timestamps: false
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false,
 });
 
 module.exports = RAGDocument;

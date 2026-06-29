@@ -5,7 +5,7 @@ Tests for quiz_generator module
 import pytest
 import json
 from unittest.mock import patch, MagicMock
-from services.quiz import quiz_generator
+from utils.json_extractor import extract_json
 
 
 class TestExtractJson:
@@ -27,8 +27,7 @@ class TestExtractJson:
         [{"question": "Q", "options": ["A", "B", "C", "D"], "answer": "A"}]
         Hope you like it!
         """
-
-        success, json_str = quiz_generator._extract_json(text)
+        success, json_str = extract_json(text)
 
         assert success is True
         assert json.loads(json_str) is not None
@@ -40,8 +39,7 @@ class TestExtractJson:
         [{"question": "Q", "options": ["A", "B", "C", "D"], "answer": "A"}]
         ```
         """
-
-        success, json_str = quiz_generator._extract_json(text)
+        success, json_str = extract_json(text)
 
         assert success is True
         assert json.loads(json_str) is not None
@@ -49,15 +47,14 @@ class TestExtractJson:
     def test_extract_json_invalid(self):
         """Test extraction fails for truly invalid input"""
         text = "This is not JSON at all"
-
-        success, json_str = quiz_generator._extract_json(text)
+        success, json_str = extract_json(text)
 
         assert success is False
         assert json_str == ""
 
     def test_extract_empty_string(self):
         """Test extraction from empty string"""
-        success, json_str = quiz_generator._extract_json("")
+        success, json_str = extract_json("")
 
         assert success is False
 

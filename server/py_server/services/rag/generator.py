@@ -11,25 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 logger = logging.getLogger(__name__)
 
 
-def _extract_response_text(response):
-    if response is None:
-        return ""
-    if hasattr(response, "content"):
-        return str(response.content)
-    if hasattr(response, "generations"):
-        generations = getattr(response, "generations")
-        if generations and generations[0] and hasattr(generations[0][0], "text"):
-            return str(generations[0][0].text)
-    if isinstance(response, list) and response:
-        first = response[0]
-        if hasattr(first, "content"):
-            return str(first.content)
-        if isinstance(first, dict) and "generated_text" in first:
-            return str(first["generated_text"])
-        return str(first)
-    return str(response)
-
-
+from utils.json_extractor import extract_model_response
 class Generator:
     def __init__(self, mode: str = "api"):
         if mode not in ["api", "local"]:
@@ -71,7 +53,7 @@ class Generator:
                         "RAG model client does not support chat-style invocation"
                     )
 
-                answer = _extract_response_text(response).strip()
+                answer = extract_model_response(response).strip()
                 token_usage = None
                 if hasattr(response, "usage"):
                     token_usage = {

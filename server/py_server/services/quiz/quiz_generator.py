@@ -11,64 +11,7 @@ from . import quiz_validator
 logger = logging.getLogger(__name__)
 
 
-def _extract_json(text: str) -> Tuple[bool, str]:
-    """
-    Extract JSON from potentially malformed LLM response.
-
-    Args:
-        text: Raw text response from LLM
-
-    Returns:
-        tuple: (success, json_string)
-    """
-    text = text.strip()
-    logger.debug(f"Extracting JSON from text of length {len(text)}")
-
-    # Try direct parsing first
-    try:
-        json.loads(text)
-        logger.debug("Text is valid JSON")
-        return True, text
-    except json.JSONDecodeError:
-        pass
-
-    # Remove common markdown code blocks
-    text_cleaned = re.sub(r"^```(?:json)?\s*\n?", "", text)
-    text_cleaned = re.sub(r"\n?```\s*$", "", text_cleaned)
-    text_cleaned = text_cleaned.strip()
-
-    # Try parsing cleaned text
-    try:
-        json.loads(text_cleaned)
-        logger.debug("Text is valid JSON after removing markdown")
-        return True, text_cleaned
-    except json.JSONDecodeError:
-        pass
-
-    # Try to extract JSON array [...] - prioritize this as we expect arrays
-    json_match = re.search(r"\[[\s\S]*\]", text_cleaned)
-    if json_match:
-        json_str = json_match.group(0)
-        try:
-            json.loads(json_str)
-            logger.debug("Extracted valid JSON array from text")
-            return True, json_str
-        except json.JSONDecodeError as e:
-            logger.debug(f"Array extraction failed: {e}")
-
-    # Try to find JSON object {...}
-    json_match = re.search(r"\{[\s\S]*\}", text_cleaned)
-    if json_match:
-        json_str = json_match.group(0)
-        try:
-            json.loads(json_str)
-            logger.debug("Extracted valid JSON object from text")
-            return True, json_str
-        except json.JSONDecodeError as e:
-            logger.debug(f"Object extraction failed: {e}")
-
-    logger.warning("Could not extract valid JSON from response")
-    return False, ""
+from utils.json_extractor import extract_json, extract_model_response
 
 
 def _parse_response(response_text: str) -> Tuple[bool, List[Dict]]:
@@ -83,7 +26,7 @@ def _parse_response(response_text: str) -> Tuple[bool, List[Dict]]:
     """
     try:
         logger.debug(f"Raw response (first 300 chars): {response_text[:300]}")
-        success, json_str = _extract_json(response_text)
+        success, json_str = extract_json(response_text)
         if not success:
             logger.error("Failed to extract JSON from response")
             logger.debug(f"Full response was: {response_text}")
@@ -118,34 +61,7 @@ def _parse_response(response_text: str) -> Tuple[bool, List[Dict]]:
         return False, []
 
 
-def _extract_model_response(response: Any) -> str:
-    if response is None:
-        return ""
-    if hasattr(response, "content"):
-        return str(response.content)
-    if hasattr(response, "choices"):
-        try:
-            choice = response.choices[0]
-            if hasattr(choice, "message") and choice.message:
-                return str(choice.message["content"]).strip()
-            if isinstance(choice, dict) and choice.get("message"):
-                return str(choice["message"]["content"]).strip()
-        except Exception:
-            pass
-    if hasattr(response, "generations"):
-        generations = getattr(response, "generations")
-        if generations and generations[0] and hasattr(generations[0][0], "text"):
-            return str(generations[0][0].text)
-    if isinstance(response, list) and response:
-        first = response[0]
-        if hasattr(first, "content"):
-            return str(first.content)
-        if isinstance(first, dict) and first.get("message"):
-            return str(first["message"]["content"]).strip()
-        if isinstance(first, dict) and first.get("generated_text"):
-            return str(first["generated_text"]).strip()
-        return str(first)
-    return str(response)
+
 
 
 def generate_quiz(
@@ -204,7 +120,7 @@ def generate_quiz(
         if not response:
             raise ValueError("Empty response from the model")
 
-        response_text = _extract_model_response(response).strip()
+        response_text = extract_model_response(response).strip()
         logger.debug(f"Received response of length {len(response_text)}")
 
         # Parse and validate

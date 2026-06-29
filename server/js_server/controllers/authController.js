@@ -11,6 +11,7 @@ const logger = require("../utils/logger");
 const User = require("../models/User");
 const { generateToken } = require("../utils/jwtHelper");
 const { redisClient } = require("../config/redis");
+const { FaceEmbedding } = require("../models");
 // If you have a nodemailer integration, you'd require it here.
 // For now, we mimic the python behavior of trying to send email or falling back to log.
 
@@ -120,7 +121,7 @@ async function updateProfile(req, res, next) {
     if (dob !== undefined) user.dob = dob;
 
     await user.save();
-    
+
     const userObj = user.toJSON();
     delete userObj.hashed_password;
     res.json(userObj);
@@ -144,15 +145,14 @@ async function deleteProfile(req, res, next) {
     }
 
     // Call py_server to delete face data and chromadb data
-    await pyAxios.delete("/auth/profile/data", {
-      headers: { Authorization: req.headers.authorization }
-    });
-    
+    await pyAxios.delete(`/auth/profile/data-raw/${user.id}`);
+
+    await FaceEmbedding.destroy({ where: { user_id: user.id } });
     await user.destroy();
     res.json({ status: "success", message: "Profile and associated data deleted successfully." });
   } catch (err) {
     if (err.response) {
-       return res.status(err.response.status).json({ error: err.response.data?.detail || "Failed to delete profile AI data" });
+      return res.status(err.response.status).json({ error: err.response.data?.detail || "Failed to delete profile AI data" });
     }
     next(err);
   }
@@ -220,7 +220,19 @@ async function faceRegister(req, res, next) {
     logger.info(`[AUTH/FACE] Register face for user: ${userId}`);
     const formData = buildFormData(req.file, { userid: userId });
 
-    await proxyToPyServer({ method: "POST", path: "/auth/face/register", req, res, formData });
+    const pyRes = await pyAxios.post("/auth/face/register-raw", formData, {
+      headers: formData.getHeaders()
+    });
+
+    const result = pyRes.data;
+    if (result.data && result.data.vec_id) {
+      await FaceEmbedding.create({
+        user_id: parseInt(userId, 10),
+        vector_id: parseInt(result.data.vec_id, 10)
+      });
+    }
+
+    res.json(result);
   } catch (err) { next(err); }
 }
 
@@ -232,16 +244,50 @@ async function faceLogin(req, res, next) {
     const formData = buildFormData(req.file);
 
     // Call py_server to perform facial recognition
-    const pyRes = await pyAxios.post("/auth/face/login", formData, {
+    const pyRes = await pyAxios.post("/auth/face/login-raw", formData, {
       headers: formData.getHeaders()
     });
 
-    const result = pyRes.data; // Expected: { user_id: number, confidence: number, message: string }
-    if (!result || !result.user_id) {
-       return res.status(401).json({ error: "User not found for recognized face" });
+    const result = pyRes.data; // Expected: { status: "success", matches: [{vector_id, score}] }
+    if (!result || !result.matches || result.matches.length === 0) {
+      return res.status(401).json({ error: "No matching face found" });
     }
 
-    const user = await User.findByPk(result.user_id);
+    const vectorIds = result.matches.map(m => m.vector_id);
+    const mappings = await FaceEmbedding.findAll({
+      where: { vector_id: vectorIds }
+    });
+
+    if (mappings.length === 0) {
+       return res.status(401).json({ error: "Face not recognized in database" });
+    }
+
+    const userScores = {};
+    result.matches.forEach(match => {
+      const mapping = mappings.find(m => m.vector_id === match.vector_id);
+      if (mapping) {
+        if (!userScores[mapping.user_id]) userScores[mapping.user_id] = [];
+        userScores[mapping.user_id].push(match.score);
+      }
+    });
+
+    let bestUser = null;
+    let bestScore = 0;
+    for (const [userId, scores] of Object.entries(userScores)) {
+      const maxScore = Math.max(...scores);
+      if (maxScore > 0.7 && scores.length >= 1) {
+        if (maxScore > bestScore) {
+          bestScore = maxScore;
+          bestUser = userId;
+        }
+      }
+    }
+
+    if (!bestUser) {
+      return res.status(401).json({ error: "Face not recognized" });
+    }
+
+    const user = await User.findByPk(bestUser);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -252,15 +298,15 @@ async function faceLogin(req, res, next) {
 
     res.json({
       status: "success",
-      message: result.message || "Facial login successful",
-      confidence: result.confidence,
+      message: "Authenticated successfully",
+      confidence: bestScore,
       access_token,
       token_type: "bearer",
       user: userObj
     });
   } catch (err) {
     if (err.response) {
-       return res.status(err.response.status).json({ error: err.response.data?.detail || "Face login failed in AI server" });
+      return res.status(err.response.status).json({ error: err.response.data?.detail || "Face login failed in AI server" });
     }
     next(err);
   }
@@ -268,13 +314,26 @@ async function faceLogin(req, res, next) {
 
 async function faceStatus(req, res, next) {
   try {
-    await proxyToPyServer({ method: "GET", path: "/auth/face/status", req, res });
+    const count = await FaceEmbedding.count({ where: { user_id: req.user.id } });
+    res.json({ has_face_login: count > 0 });
   } catch (err) { next(err); }
 }
 
 async function deleteFace(req, res, next) {
   try {
-    await proxyToPyServer({ method: "DELETE", path: "/auth/face", req, res });
+    const embeddings = await FaceEmbedding.findAll({ where: { user_id: req.user.id } });
+    if (embeddings.length === 0) {
+       return res.json({ status: "success", message: "No face data found" });
+    }
+
+    const vectorIds = embeddings.map(e => e.vector_id);
+
+    await pyAxios.delete("/auth/face-raw", {
+      data: { user_id: req.user.id, vector_ids: vectorIds }
+    });
+
+    await FaceEmbedding.destroy({ where: { user_id: req.user.id } });
+    res.json({ status: "success", message: "Facial login setup removed." });
   } catch (err) { next(err); }
 }
 

@@ -23,11 +23,6 @@ async function connectMySQL() {
   try {
     await sequelize.authenticate();
     logger.info('[DB] Successfully connected to MySQL via Sequelize');
-    
-    // Import models and trigger sync
-    const models = require('../models');
-    await sequelize.sync({ alter: true });
-    logger.info('[DB] MySQL schema synced successfully');
   } catch (error) {
     // console.log(connectionString);
     logger.error('[DB] Unable to connect to MySQL:', error);

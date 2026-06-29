@@ -13,14 +13,10 @@ import os
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 from langchain_core.documents import Document
 from services.chat_message_store import store_chat_message
-from services.chat_session_service import update_chat_session_activity
+from utils.json_extractor import extract_model_response
 from config.settings import settings
-from models.rag_document import RAGDocument
-from models.rag_log import RAGQueryLog
 from services.rag.chains.v1_rag_chain import build_retrieval_qa_chain
 from services.rag.hybrid_retriver import HybridRetriever
 from services.rag.memory.chat_memory import get_memory
@@ -105,7 +101,7 @@ class LangChainRAGService:
         documents: List[str],
         metadata: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None,
-        db: Optional[Session] = None,
+        
     ):
         """Preprocess and ingest documents into the knowledge base."""
         if not user_id:
@@ -152,7 +148,7 @@ class LangChainRAGService:
 
         self._documents_ingested[user_id] += len(documents)
         self._persist_user_state(user_id)
-        self._persist_uploaded_document_metadata(user_id, title, chunks, metadata, db)
+        
 
         return {
             "status": "success",
@@ -195,7 +191,7 @@ class LangChainRAGService:
         use_rag: bool = True,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        db: Optional[Session] = None,
+        
     ):
         """
         Process a query using LangChain RAG chain.
@@ -319,20 +315,7 @@ class LangChainRAGService:
                     session_id,
                 )
 
-        if db is not None and user_id and answer and mode_used != "error":
-            self._log_query_for_evaluation(
-                db=db,
-                user_id=user_id,
-                session_id=session_id,
-                question=query,
-                answer=answer,
-                sources=sources,
-                retrieval_ms=retrieval_ms,
-                generation_ms=generation_ms,
-                total_ms=round((time.perf_counter() - total_start) * 1000, 2),
-                mode_used=mode_used,
-                warning=warning,
-            )
+
 
         response_payload = {
             "answer": answer,
@@ -356,59 +339,9 @@ class LangChainRAGService:
 
         return response_payload
 
-    def _log_query_for_evaluation(
-        self,
-        db: Session,
-        user_id: str,
-        session_id: Optional[str],
-        question: str,
-        answer: str,
-        sources: List[Dict[str, Any]],
-        retrieval_ms: Optional[float],
-        generation_ms: Optional[float],
-        total_ms: float,
-        mode_used: str,
-        warning: Optional[str],
-    ) -> None:
-        """Persist a lightweight RAG eval log without affecting chat success."""
-        contexts = [
-            source.get("text") or source.get("snippet")
-            for source in sources
-            if source.get("text") or source.get("snippet")
-        ]
-        if not contexts:
-            return
 
-        try:
-            db.add(
-                RAGQueryLog(
-                    user_id=int(user_id),
-                    session_id=session_id,
-                    question=question,
-                    answer=answer,
-                    contexts=contexts,
-                    context_count=len(contexts),
-                    latency_retrieval_ms=retrieval_ms,
-                    latency_generation_ms=generation_ms,
-                    latency_total_ms=total_ms,
-                    sources=[
-                        {
-                            "title": source.get("title"),
-                            "score": source.get("score"),
-                            "source_url": source.get("source_url"),
-                        }
-                        for source in sources
-                    ],
-                    log_metadata={
-                        "mode_used": mode_used,
-                        "warning": warning,
-                    },
-                )
-            )
-        except Exception as exc:
-            logger.warning("Failed to stage RAG evaluation log: %s", exc)
 
-    def status(self, user_id: Optional[str] = None, db: Optional[Session] = None):
+    def status(self, user_id: Optional[str] = None):
         """Get the status of the user's knowledge base."""
         self._ensure_user_loaded(user_id)
 
@@ -458,7 +391,7 @@ class LangChainRAGService:
         self,
         user_id: str,
         document_name: str,
-        db: Optional[Session] = None,
+        
     ) -> bool:
         """Delete a specific uploaded document from the LangChain RAG knowledge base."""
         try:
@@ -539,23 +472,7 @@ class LangChainRAGService:
     # Private Helper Methods
     # =====================
 
-    def _extract_response_text(self, response: Any) -> str:
-        if response is None:
-            return ""
-        if hasattr(response, "content"):
-            return str(response.content).strip()
-        if hasattr(response, "generations"):
-            generations = getattr(response, "generations")
-            if generations and generations[0] and hasattr(generations[0][0], "text"):
-                return str(generations[0][0].text).strip()
-        if isinstance(response, list) and response:
-            first = response[0]
-            if hasattr(first, "content"):
-                return str(first.content).strip()
-            if isinstance(first, dict) and first.get("generated_text"):
-                return str(first["generated_text"]).strip()
-            return str(first).strip()
-        return str(response).strip()
+
 
     def _extract_token_usage(self, response: Any, query: Optional[str] = None) -> Optional[Dict[str, int]]:
         from utils.token_helper import extract_token_usage
@@ -598,7 +515,7 @@ class LangChainRAGService:
                     "LLM client does not support chat-style invocation"
                 )
 
-            answer = self._extract_response_text(response)
+            answer = extract_model_response(response).strip()
             token_usage = self._extract_token_usage(response, query=query)
             return answer, token_usage
         except Exception as e:
@@ -728,52 +645,7 @@ class LangChainRAGService:
         except Exception as e:
             logger.warning(f"Failed to persist user state: {e}")
 
-    def _persist_uploaded_document_metadata(
-        self,
-        user_id: str,
-        title: str,
-        chunks: List[str],
-        metadata: Optional[Dict[str, Any]],
-        db: Optional[Session],
-    ) -> None:
-        """Save document metadata to the relational database for auditing and reference."""
-        if db is None:
-            return
 
-        try:
-            for idx, chunk_text in enumerate(chunks, start=1):
-                rag_doc = RAGDocument(
-                    user_id=int(user_id),
-                    document_name=title,
-                    chunk_index=idx,
-                    snippet=chunk_text[:280],
-                    metadata_json=json.dumps(metadata or {}),
-                )
-                db.add(rag_doc)
-            db.commit()
-        except Exception as exc:
-            logger.warning(f"Failed to persist RAG metadata for user {user_id}: {exc}.")
-            try:
-                db.rollback()
-            except Exception:
-                pass
-
-    def _get_uploaded_documents_from_db(self, user_id: str, db: Session) -> List[str]:
-        """Return the set of document titles stored for a user in the RAG metadata DB."""
-        try:
-            rows = (
-                db.query(RAGDocument.document_name)
-                .filter(RAGDocument.user_id == int(user_id))
-                .distinct()
-                .order_by(RAGDocument.document_name)
-                .all()
-            )
-            return [row[0] for row in rows]
-        except Exception as exc:
-            logger.warning(
-                f"Failed to load RAG uploaded document names from DB for user {user_id}: {exc}"
-            )
-            return []
 
     def _load_user_state(self, user_id: str) -> None:
         """Load user state from disk."""

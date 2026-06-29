@@ -1,89 +1,90 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
+const User = require('./User');
 
 const Grade = sequelize.define('Grade', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    autoIncrement: true
+    autoIncrement: true,
   },
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'users',
-      key: 'id'
+      model: User,
+      key: 'id',
     },
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   },
   quiz_topic: {
     type: DataTypes.STRING(255),
-    allowNull: false
+    allowNull: false,
   },
   difficulty: {
     type: DataTypes.STRING(50),
-    allowNull: false
+    allowNull: false,
   },
   total_questions: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
   },
   correct_answers: {
     type: DataTypes.INTEGER,
-    allowNull: true
+    allowNull: true,
   },
   score_percentage: {
     type: DataTypes.FLOAT,
-    allowNull: true
+    allowNull: true,
   },
   result: {
     type: DataTypes.STRING(20),
     allowNull: false,
-    defaultValue: 'pending'
+    defaultValue: 'pending',
   },
   pass_threshold: {
     type: DataTypes.FLOAT,
     allowNull: false,
-    defaultValue: 60.0
+    defaultValue: 60.0,
   },
   time_limit_seconds: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 480
+    defaultValue: 480,
   },
   time_taken: {
     type: DataTypes.INTEGER,
-    allowNull: true
+    allowNull: true,
   },
   question_set: {
     type: DataTypes.JSON,
-    allowNull: false
+    allowNull: false,
   },
   answer_key: {
     type: DataTypes.JSON,
-    allowNull: false
+    allowNull: false,
   },
   user_answers: {
     type: DataTypes.JSON,
-    allowNull: true
+    allowNull: true,
   },
   feedback: {
     type: DataTypes.JSON,
-    allowNull: true
+    allowNull: true,
   },
   started_at: {
     type: DataTypes.DATE,
-    allowNull: true
+    allowNull: true,
   },
   submitted_at: {
     type: DataTypes.DATE,
-    allowNull: true
+    allowNull: true,
   }
 }, {
   tableName: 'grades',
   timestamps: true,
   createdAt: 'created_at',
-  updatedAt: 'updated_at'
+  updatedAt: 'updated_at',
 });
 
 module.exports = Grade;

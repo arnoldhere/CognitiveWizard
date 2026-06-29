@@ -2,20 +2,8 @@ import logging
 import mimetypes
 import os
 import tempfile
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Request
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-from api.auth_api import get_current_active_user
-from config.db import get_db
-from models.rag_document import RAGDocument
-from models.user import User
-from schemas.chat_schema import (
-    ChatSessionCreateRequest,
-    ChatSessionDeleteResponse,
-    ChatSessionHistoryResponse,
-    ChatSessionRenameRequest,
-    ChatSessionResponse,
-)
 from schemas.rag_schema import (
     RAGIngestRequest,
     RAGQueryRequest,
@@ -23,16 +11,6 @@ from schemas.rag_schema import (
     RAGStatusResponse,
     RAGUploadResponse,
 )
-from services.chat_limit_service import chat_limit_service
-from services.chat_session_service import (
-    create_chat_session,
-    get_chat_session,
-    list_chat_sessions,
-    rename_chat_session,
-    soft_delete_chat_session,
-)
-from services.data_cleanup_service import DataCleanupService
-from services.chat_message_store import fetch_chat_history
 from services.rag.v0_rag_service import rag_service
 from services.rag.source_files import (
     get_user_source_path,
@@ -41,19 +19,25 @@ from services.rag.source_files import (
 )
 from services.rag.v1_rag_service import langchain_rag_service
 from services.summarization.input_handlers import Document_handler
+from services.chat_message_store import fetch_chat_history
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
 
+def get_user_id(request: Request) -> str:
+    user_id = request.headers.get("x-user-id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID required")
+    return user_id
 
 @router.get("/source/{filename}")
 def get_uploaded_source(
     filename: str,
-    current_user: User = Depends(get_current_active_user),
+    user_id: str = Depends(get_user_id),
 ):
     safe_name = safe_filename(filename)
-    source_path = get_user_source_path(str(current_user.id), safe_name)
+    source_path = get_user_source_path(user_id, safe_name)
     if not source_path.exists() or not source_path.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -72,14 +56,14 @@ def get_uploaded_source(
 @router.post("/ingest")
 def ingest_documents(
     request: RAGIngestRequest,
-    current_user: User = Depends(get_current_active_user),
+    user_id: str = Depends(get_user_id),
 ):
     """JSON ingestion endpoint retained for compatibility."""
     try:
         result = rag_service.preprocess(
             documents=request.documents,
             metadata=request.metadata,
-            user_id=str(current_user.id),
+            user_id=user_id,
         )
         return result
     except ValueError as exc:
@@ -94,11 +78,10 @@ def ingest_documents(
         ) from exc
 
 
-@router.post("/upload", response_model=RAGUploadResponse)
-async def upload_document(
+@router.post("/upload-raw", response_model=RAGUploadResponse)
+async def upload_document_raw(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    user_id: str = Depends(get_user_id),
 ):
     """Upload a PDF/DOCX file and ingest it into the user's RAG knowledge base."""
     extension = os.path.splitext(file.filename or "")[1].lower()
@@ -118,7 +101,7 @@ async def upload_document(
         text = Document_handler.extract_text(temp_file_path)
         source_url = persist_uploaded_file(
             temp_file_path,
-            str(current_user.id),
+            user_id,
             file.filename or "uploaded-file",
         )
         result = langchain_rag_service.preprocess(
@@ -128,8 +111,7 @@ async def upload_document(
                 "source_url": source_url,
                 "content_type": file.content_type,
             },
-            user_id=str(current_user.id),
-            db=db,
+            user_id=user_id,
         )
 
         return RAGUploadResponse(
@@ -157,365 +139,117 @@ async def upload_document(
                 logger.warning("Failed to delete temp upload file: %s", temp_file_path)
 
 
-@router.get("/status", response_model=RAGStatusResponse)
-def rag_status(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    user_id = str(current_user.id)
-    payload = langchain_rag_service.status(user_id=user_id, db=db)
-    payload["chat_limit_info"] = chat_limit_service.get_user_status(db, current_user)
-    return RAGStatusResponse(**payload)
+@router.get("/status-raw")
+def rag_status_raw(user_id: str = Depends(get_user_id)):
+    payload = langchain_rag_service.status(user_id=user_id)
+    return payload
 
 
-@router.get("/status-langchain", response_model=RAGStatusResponse)
-def rag_status_langchain(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
+@router.get("/status-langchain-raw")
+def rag_status_langchain_raw(user_id: str = Depends(get_user_id)):
     """Get the status of the user's LangChain RAG knowledge base."""
-    user_id = str(current_user.id)
-    payload = langchain_rag_service.status(user_id=user_id, db=db)
-    payload["chat_limit_info"] = chat_limit_service.get_user_status(db, current_user)
-    return RAGStatusResponse(**payload)
+    payload = langchain_rag_service.status(user_id=user_id)
+    return payload
 
 
-@router.post("/chat", response_model=RAGResponse)
-def chat(
+@router.post("/chat-raw", response_model=RAGResponse)
+def chat_raw(
     req: RAGQueryRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    user_id: str = Depends(get_user_id),
 ):
-    """
-    RAG Chat endpoint - supports both v0 and v1 (LangChain).
-    Use use_langchain parameter to switch between implementations.
-    """
-    user_id = str(current_user.id)
-
-    can_send, messages_used, _messages_remaining = chat_limit_service.check_limit(
-        db, current_user
-    )
-    if not can_send:
-        user_status = chat_limit_service.get_user_status(db, current_user)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=(
-                f"Daily chat limit reached. You have used {messages_used}/{user_status['max_per_day']} messages today. "
-                "Please upgrade to a subscription plan to increase your daily limit."
-            ),
-        )
-
     try:
-        # Route to appropriate RAG service based on use_langchain parameter
-        selected_service = langchain_rag_service if req.use_langchain else rag_service
-
-        if req.use_langchain:
-            logger.info(f"Langchain mode enabled...")
-
-        if req.session_id:
-            session = get_chat_session(db, current_user.id, req.session_id)
-            if not session:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Chat session not found or access denied.",
-                )
-            session_id = session.session_id
-        else:
-            session = create_chat_session(
-                db,
-                current_user.id,
-                title=None,
-                initial_prompt=req.query,
-            )
-            session_id = session.session_id
-
-        result = selected_service.query(
+        ans, mode, sources, log_meta = rag_service.query(
             query=req.query,
-            use_rag=bool(req.use_rag),
+            use_rag=req.use_rag,
             user_id=user_id,
-            session_id=session_id,
-            db=db if req.use_langchain else None,
+            session_id=req.session_id,
         )
 
-        user = chat_limit_service.increment_message_count(db, current_user)
-        result["chat_limit_info"] = chat_limit_service.get_user_status(db, user)
-        result["session_id"] = session_id
-        result["session_title"] = session.title
-        return RAGResponse(**result)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
-    except Exception as exc:
+        # Truncate context string if present
+        if log_meta and log_meta.get("context_str"):
+            log_meta["context_str"] = log_meta["context_str"][:2000]
+
+        return RAGResponse(
+            status="success",
+            answer=ans,
+            mode_used=mode,
+            sources=sources,
+            contexts=[s["text"] for s in sources] if sources else [],
+            context_count=len(sources),
+            log_metadata=log_meta,
+        )
+    except Exception as e:
         logger.exception("RAG chat failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
-        ) from exc
+            detail="Failed to process chat query.",
+        ) from e
 
 
-@router.post("/sessions", response_model=ChatSessionResponse)
-def create_chat_session_endpoint(
-    request: ChatSessionCreateRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    chat_session = create_chat_session(
-        db,
-        current_user.id,
-        title=request.title,
-        initial_prompt=request.initial_prompt,
-    )
-    return ChatSessionResponse(
-        session_id=chat_session.session_id,
-        title=chat_session.title,
-        active=chat_session.active,
-        message_count=chat_session.message_count,
-        session_metadata=chat_session.chat_metadata,
-        created_at=chat_session.created_at,
-        last_message_at=chat_session.last_message_at,
-    )
-
-
-@router.get("/sessions", response_model=list[ChatSessionResponse])
-def list_chat_sessions_endpoint(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    sessions = list_chat_sessions(db, current_user.id)
-    return [
-        ChatSessionResponse(
-            session_id=session.session_id,
-            title=session.title,
-            active=session.active,
-            message_count=session.message_count,
-            session_metadata=session.chat_metadata,
-            created_at=session.created_at,
-            last_message_at=session.last_message_at,
-        )
-        for session in sessions
-    ]
-
-
-@router.get("/sessions/{session_id}", response_model=ChatSessionResponse)
-def get_chat_session_endpoint(
-    session_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    chat_session = get_chat_session(db, current_user.id, session_id)
-    if not chat_session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found.",
-        )
-    return ChatSessionResponse(
-        session_id=chat_session.session_id,
-        title=chat_session.title,
-        active=chat_session.active,
-        message_count=chat_session.message_count,
-        session_metadata=chat_session.chat_metadata,
-        created_at=chat_session.created_at,
-        last_message_at=chat_session.last_message_at,
-    )
-
-
-@router.get("/sessions/{session_id}/history", response_model=ChatSessionHistoryResponse)
-def get_chat_session_history_endpoint(
-    session_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    chat_session = get_chat_session(db, current_user.id, session_id)
-    if not chat_session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found.",
-        )
-    messages = fetch_chat_history(session_id)
-    return ChatSessionHistoryResponse(
-        session_id=chat_session.session_id,
-        title=chat_session.title,
-        messages=[
-            {
-                "role": msg["role"],
-                "content": msg["content"],
-                "created_at": msg["created_at"],
-                "metadata": msg.get("metadata"),
-            }
-            for msg in messages
-        ],
-    )
-
-
-@router.put("/sessions/{session_id}", response_model=ChatSessionResponse)
-def rename_chat_session_endpoint(
-    session_id: str,
-    request: ChatSessionRenameRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    chat_session = rename_chat_session(db, current_user.id, session_id, request.title)
-    if not chat_session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found.",
-        )
-    return ChatSessionResponse(
-        session_id=chat_session.session_id,
-        title=chat_session.title,
-        active=chat_session.active,
-        message_count=chat_session.message_count,
-        session_metadata=chat_session.chat_metadata,
-        created_at=chat_session.created_at,
-        last_message_at=chat_session.last_message_at,
-    )
-
-
-@router.delete("/sessions/{session_id}", response_model=ChatSessionDeleteResponse)
-def delete_chat_session_endpoint(
-    session_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Delete a chat session and all associated data from all storage systems."""
-    # Verify the session belongs to the user
-    chat_session = get_chat_session(db, current_user.id, session_id)
-    if not chat_session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Chat session not found.",
-        )
-
-    try:
-        # Comprehensive cleanup from all systems
-        cleanup_result = DataCleanupService.cleanup_chat_session_data(
-            db, current_user.id, session_id
-        )
-
-        if cleanup_result["status"] == "error":
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete chat session completely.",
-            )
-
-        return ChatSessionDeleteResponse(
-            session_id=session_id,
-            deleted=True,
-            active=False,
-            message="Chat session and all associated messages permanently deleted.",
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to delete chat session {session_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        )
-
-
-@router.post("/chat-langchain", response_model=RAGResponse)
-def chat_langchain(
+@router.post("/chat-langchain-raw", response_model=RAGResponse)
+def chat_langchain_raw(
     req: RAGQueryRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    user_id: str = Depends(get_user_id),
 ):
-    """
-    LangChain RAG Chat endpoint - dedicated endpoint for LangChain-based RAG.
-    This is equivalent to calling /chat with use_langchain=true.
-    """
-    user_id = str(current_user.id)
-
-    can_send, messages_used, _messages_remaining = chat_limit_service.check_limit(
-        db, current_user
-    )
-    if not can_send:
-        user_status = chat_limit_service.get_user_status(db, current_user)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=(
-                f"Daily chat limit reached. You have used {messages_used}/{user_status['max_per_day']} messages today. "
-                "Please upgrade to a subscription plan to increase your daily limit."
-            ),
-        )
-
     try:
-        if req.session_id:
-            session = get_chat_session(db, current_user.id, req.session_id)
-            if not session:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Chat session not found or access denied.",
-                )
-            session_id = session.session_id
-        else:
-            session = create_chat_session(
-                db,
-                current_user.id,
-                title=None,
-                initial_prompt=req.query,
-            )
-            session_id = session.session_id
-
-        result = langchain_rag_service.query(
+        ans, mode, sources, log_meta = langchain_rag_service.query(
             query=req.query,
-            use_rag=bool(req.use_rag),
+            use_rag=req.use_rag,
             user_id=user_id,
-            session_id=session_id,
-            db=db,
+            session_id=req.session_id,
         )
 
-        user = chat_limit_service.increment_message_count(db, current_user)
-        result["chat_limit_info"] = chat_limit_service.get_user_status(db, user)
-        result["session_id"] = session_id
-        result["session_title"] = session.title
-        return RAGResponse(**result)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
-    except Exception as exc:
+        # Truncate context string if present
+        if log_meta and log_meta.get("context_str"):
+            log_meta["context_str"] = log_meta["context_str"][:2000]
+
+        return RAGResponse(
+            status="success",
+            answer=ans,
+            mode_used=mode,
+            sources=sources,
+            contexts=[s["text"] for s in sources] if sources else [],
+            context_count=len(sources),
+            log_metadata=log_meta,
+        )
+    except Exception as e:
         logger.exception("LangChain RAG chat failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
-        ) from exc
+            detail="Failed to process chat query.",
+        ) from e
 
 
 @router.delete("/documents/{document_name}")
-def delete_rag_document(
+def delete_document(
     document_name: str,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    user_id: str = Depends(get_user_id),
 ):
-    """Delete a specific uploaded document from the user's knowledge base."""
-    canonical_document_name = safe_filename(document_name)
-    if not canonical_document_name or canonical_document_name != document_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid document name.",
-        )
-    try:
-        deleted_service = langchain_rag_service.delete_uploaded_document(
-            str(current_user.id), canonical_document_name, db=db
-        )
+    safe_name = safe_filename(document_name)
+    success = langchain_rag_service.delete_document(user_id, safe_name)
 
-        if deleted_service:
-            db.commit()
-            return {
-                "message": f"Document '{canonical_document_name}' deleted successfully."
-            }
-
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found.",
+            detail="Document not found or could not be deleted.",
         )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Failed to delete document {canonical_document_name}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        )
+
+    return {"detail": f"Document '{safe_name}' deleted successfully."}
+
+@router.get("/sessions-raw/{session_id}/history")
+def get_session_history_raw(
+    session_id: str,
+    user_id: str = Depends(get_user_id),
+):
+    history = fetch_chat_history(session_id)
+    return history
+
+from services.chat_message_store import delete_chat_history
+
+@router.delete("/sessions-raw/{session_id}/history")
+def delete_session_history_raw(
+    session_id: str,
+    user_id: str = Depends(get_user_id),
+):
+    delete_chat_history(session_id)
+    return {"detail": "History deleted"}

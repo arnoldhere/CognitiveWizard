@@ -1,24 +1,19 @@
 from collections import defaultdict
-import shutil
 import logging
 from datetime import datetime
 import os
 
 import cv2
-from sqlalchemy.orm import Session
 
 from config.chroma_index import chroma_service
-from config.settings import settings
-from models.face_embeddings import FaceEmbedding
 from services.facial_service.face_embedding import embedder
-from services.facial_service.get_user import get_user_by_vector_id
 from services.facial_service.liveness import verify_liveness
 from utils.decode_image import decode_image, normalize
 
 logger = logging.getLogger(__name__)
 
 
-async def register(image_bytes, userid, db: Session):
+async def register(image_bytes, userid):
     # Decode image
     img = decode_image(image_bytes)
 
@@ -30,15 +25,6 @@ async def register(image_bytes, userid, db: Session):
 
     if embedding is None:
         return {"error": "No face detected or embedding failed"}
-    """
-    # can be added if needs to be sure the registered face is from a live person at registration time
-    live, live_score, live_message = verify_liveness(image_bytes, img, bbox)
-    logger.info(
-        f"Liveness check: live={live}, score={live_score:.4f}, message='{live_message}'"
-    )
-    if not live:
-        return {"error": f"Liveness check failed: {live_message}"}
-        """
 
     # Optional: Save cropped face if you still need to see it
     x1, y1, x2, y2 = bbox.astype(int)
@@ -53,45 +39,17 @@ async def register(image_bytes, userid, db: Session):
     if vec_id is None:
         return {"error": "Unable to save face embeddings"}
 
-    try:
-        # MySQL metadata
-        new_embedding = FaceEmbedding(user_id=int(userid), vector_id=int(vec_id))
-        db.add(new_embedding)
-        db.commit()
-        db.refresh(new_embedding)
-    except Exception as e:
-        db.rollback()
-        chroma_service.delete_vector(int(vec_id), src="face")
-        return {"error": f"Unable to save face metadata: {str(e)}"}
-
     return {"message": "Face registered successfully", "vec_id": vec_id}
 
 
-async def delete_user_face_data(db: Session, user_id: int):
+async def delete_user_face_data(user_id: int, vector_ids: list[int]):
     """
-    Delete all facial data associated with a user:
-    - Face embeddings from MySQL
-    - Face vectors from ChromaDB
-    - Stored face image files
-    Args:
-        db: Database session
-        user_id: ID of the user whose face data to delete
+    Delete face vectors from ChromaDB and stored face image files
     """
     try:
-        # 1. Get all face embeddings for this user
-        face_embeddings = (
-            db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user_id).all()
-        )
-
-        if not face_embeddings:
-            return {"status": "success", "message": "No face data found for user"}
-
-        vector_ids_deleted = []
-
-        # 2. Delete face image files and Chroma vectors
-        for embedding in face_embeddings:
-            chroma_service.delete_vector(embedding.vector_id, src="face")
-            vector_ids_deleted.append(embedding.vector_id)
+        # Delete face image files and Chroma vectors
+        for vector_id in vector_ids:
+            chroma_service.delete_vector(vector_id, src="face")
 
         # Delete face image file
         face_image_path = f"media/faces/{user_id}.jpg"
@@ -103,34 +61,20 @@ async def delete_user_face_data(db: Session, user_id: int):
                     f"Warning: Could not delete face image {face_image_path}: {e}"
                 )
 
-        # 3. Delete records from MySQL face_embeddings table
-        db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user_id).delete()
-        db.commit()
-
         return {
             "status": "success",
             "message": "Face data deleted successfully",
-            "deleted_vectors": len(vector_ids_deleted),
-            "vector_ids": vector_ids_deleted,
+            "deleted_vectors": len(vector_ids),
         }
 
     except Exception as e:
-        db.rollback()
         logger.error(f"Error deleting face data for user {user_id}: {e}")
         return {"status": "error", "message": f"Failed to delete face data: {str(e)}"}
 
 
-async def user_has_face_data(db: Session, user_id: int):
+async def login_with_face(image_bytes):
     """
-    Check whether the user already has facial login data registered.
-    """
-    count = db.query(FaceEmbedding).filter(FaceEmbedding.user_id == user_id).count()
-    return count > 0
-
-
-async def login_with_face(image_bytes, db: Session):
-    """
-    Authenticate user for login with face
+    Authenticate user for login with face - returns matched vectors
     """
     # ========
     # decode the image
@@ -153,12 +97,6 @@ async def login_with_face(image_bytes, db: Session):
     if not live:
         return {"error": f"Liveness check failed: {live_message}"}
 
-    # Optional: Save cropped face if you still need to see it
-    x1, y1, x2, y2 = bbox.astype(int)
-    face_crop = image[y1:y2, x1:x2]
-    os.makedirs("media/faces", exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # cv2.imwrite(f"media/faces/login_at_{timestamp}.jpg", face_crop) # save cropped img at login time
     # ========
     # normalize the image
     # ========
@@ -169,45 +107,8 @@ async def login_with_face(image_bytes, db: Session):
     results = chroma_service.search_top_k(embedding, src="face", k=3)
     if not results:
         return {"error": "No matching face found..."}
-    # ========
-    # extract vectorids and map to userid
-    # ========
-    vector_ids = [r["vector_id"] for r in results]
-    mapping = get_user_by_vector_id(vector_ids, db)
-    if not mapping:
-        return {"error": "No users mapped with the face"}
-    # ========
-    # aggregate scores per user
-    # ========
-    user_scores = defaultdict(list)
-
-    for r in results:
-        vid = r["vector_id"]
-        score = r["score"]
-
-        if vid in mapping:
-            user_id = mapping[vid]
-            user_scores[user_id].append(score)
-
-    if not user_scores:
-        return {"error": "No valid user match"}
-    # ============
-    # final decision call
-    # ============
-    best_user = None
-    best_score = 0
-    for user_id, scores in user_scores.items():
-        max_score = max(scores)
-        avg_score = sum(scores) / len(scores)
-        count = len(scores)
-        if max_score > 0.7 and count >= 1:
-            if max_score > best_score:
-                best_score = max_score
-                best_user = user_id
-    if best_user is None:
-        return {"error": "Face not recognized"}
+        
     return {
-        "message": "Authenticated sucessfully",
-        "user_id": best_user,
-        "confidence": best_score,
+        "status": "success",
+        "matches": results
     }

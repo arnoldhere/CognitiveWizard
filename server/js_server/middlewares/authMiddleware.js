@@ -30,7 +30,7 @@ const JWT_ALGORITHM = process.env.JWT_ALGORITHM || "HS256";
  *
  * @type {import('express').RequestHandler}
  */
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const authHeader = req.headers["authorization"] || "";
 
   if (!authHeader.startsWith("Bearer ")) {
@@ -48,8 +48,16 @@ function authenticate(req, res, next) {
       algorithms: [JWT_ALGORITHM],
     });
 
+    let userId = decoded.id;
+    if (!userId) {
+       const { User } = require("../models");
+       const user = await User.findOne({ where: { email: decoded.sub } });
+       if (user) userId = user.id;
+    }
+
     // Attach decoded payload to request for downstream middleware/routes
     req.user = {
+      id: userId,
       email: decoded.sub,
       role: decoded.role || "user",
       raw: decoded,

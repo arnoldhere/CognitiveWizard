@@ -9,49 +9,7 @@ from utils.prompt_builder.wizard_prompt import build_wizard_prompt
 
 logger = logging.getLogger(__name__)
 
-def _extract_json(text: str) -> Tuple[bool, str]:
-    text = text.strip()
-    try:
-        json.loads(text)
-        return True, text
-    except json.JSONDecodeError:
-        pass
-
-    text_cleaned = re.sub(r"^```(?:json)?\s*\n?", "", text)
-    text_cleaned = re.sub(r"\n?```\s*$", "", text_cleaned)
-    text_cleaned = text_cleaned.strip()
-
-    try:
-        json.loads(text_cleaned)
-        return True, text_cleaned
-    except json.JSONDecodeError:
-        pass
-
-    json_match = re.search(r"\{[\s\S]*\}", text_cleaned)
-    if json_match:
-        json_str = json_match.group(0)
-        try:
-            json.loads(json_str)
-            return True, json_str
-        except json.JSONDecodeError:
-            pass
-
-    return False, ""
-
-
-def _extract_model_response(response: Any) -> str:
-    if response is None:
-        return ""
-    if hasattr(response, "content"):
-        return str(response.content)
-    if hasattr(response, "choices"):
-        try:
-            choice = response.choices[0]
-            if hasattr(choice, "message") and choice.message:
-                return str(choice.message["content"]).strip()
-        except Exception:
-            pass
-    return str(response)
+from utils.json_extractor import extract_json, extract_model_response
 
 def generate_wizard_content(topic: str, content_type: str, details: str = None) -> Tuple[bool, Dict]:
     try:
@@ -62,7 +20,7 @@ def generate_wizard_content(topic: str, content_type: str, details: str = None) 
 
         messages = [
             SystemMessage(
-                content="You are an expert AI educational planner. Generate ONLY valid JSON without explanation."
+                content="You are an expert AI educational planner. Generate ONLY valid JSON without explanation. generate only study related plan"
             ),
             HumanMessage(content=prompt_text),
         ]
@@ -72,9 +30,9 @@ def generate_wizard_content(topic: str, content_type: str, details: str = None) 
         else:
             response = llm.generate([messages])
 
-        response_text = _extract_model_response(response).strip()
+        response_text = extract_model_response(response).strip()
         
-        success, json_str = _extract_json(response_text)
+        success, json_str = extract_json(response_text)
         if not success:
             logger.error("Failed to extract JSON from wizard response")
             return False, {}

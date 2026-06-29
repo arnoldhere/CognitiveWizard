@@ -1,87 +1,63 @@
-/**
- * controllers/ragController.js
- * ============================
- * Controller functions for RAG (Retrieval-Augmented Generation) routes.
- *
- * Handles:
- *  - Document upload (PDF/DOCX) — requires multipart/form-data via multer
- *  - RAG chat (plain JSON body)
- *  - Chat session CRUD (create / list / get / rename / delete)
- *  - RAG status queries
- *  - Uploaded document management (list / delete)
- *  - Source file fetch (binary stream)
- *
- * All operations are proxied to py_server which owns the RAG vector DB,
- * LangChain integration, and MongoDB chat history.
- */
-
 const multer = require("multer");
 const FormData = require("form-data");
-const { proxyToPyServer } = require("../utils/apiProxy");
+const { proxyToPyServer, pyAxios } = require("../utils/apiProxy");
 const logger = require("../utils/logger");
+const chatSessionService = require("../services/chatSessionService");
+const chatLimitService = require("../services/chatLimitService");
+const { RAGDocument, RAGQueryLog } = require("../models");
 
-// ─── Multer config: memory storage for document uploads ───────────────────
+// Multer config: memory storage for document uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 20 * 1024 * 1024, // 20 MB max document size
-    files: 1,
-  },
+  limits: { fileSize: 20 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     const ext = (file.originalname || "").split(".").pop()?.toLowerCase();
     if (!["pdf", "docx"].includes(ext)) {
-      return cb(
-        new Error("Unsupported file type. Please upload a PDF or DOCX file."),
-        false
-      );
+      return cb(new Error("Unsupported file type. Please upload a PDF or DOCX file."), false);
     }
     cb(null, true);
   },
 });
 
-// ─── Document endpoints ───────────────────────────────────────────────────
-
-/**
- * POST /rag/upload
- * Upload a PDF/DOCX document and ingest it into the user's RAG knowledge base.
- * Requires: authenticated user, multipart/form-data with field { file }
- */
+/** POST /rag/upload */
 async function uploadDocument(req, res, next) {
   try {
     if (!req.file) {
-      return res.status(400).json({
-        error: "BadRequest",
-        message: "A PDF or DOCX document file is required.",
-      });
+      return res.status(400).json({ error: "BadRequest", message: "A PDF or DOCX document file is required." });
     }
 
-    logger.info(
-      `[RAG] Document upload: ${req.file.originalname} (${req.file.size} bytes) by ${req.user?.email}`
-    );
+    logger.info(`[RAG] Document upload: ${req.file.originalname} by ${req.user?.email}`);
 
-    // Rebuild FormData to forward to py_server
     const formData = new FormData();
     formData.append("file", req.file.buffer, {
       filename: req.file.originalname,
       contentType: req.file.mimetype,
     });
-
-    await proxyToPyServer({
-      method: "POST",
-      path: "/rag/upload",
-      req,
-      res,
-      formData,
+    
+    // Call py_server to process upload (chunking + chromadb)
+    const aiResponse = await pyAxios.post("/rag/upload-raw", formData, {
+      headers: { ...formData.getHeaders(), "x-user-id": req.user.id },
     });
+
+    const result = aiResponse.data;
+
+    // Save to local RAGDocument model
+    if (result.chunks && result.chunks > 0) {
+      await RAGDocument.create({
+        user_id: req.user.id,
+        document_name: req.file.originalname || "uploaded-file",
+        chunk_index: result.chunks,
+      });
+    }
+
+    res.json(result);
   } catch (err) {
+    if (err.response) return res.status(err.response.status).json(err.response.data);
     next(err);
   }
 }
 
-/**
- * POST /rag/ingest
- * JSON-body document ingestion (legacy v0 compatibility).
- */
+/** POST /rag/ingest */
 async function ingestDocuments(req, res, next) {
   try {
     await proxyToPyServer({ method: "POST", path: "/rag/ingest", req, res });
@@ -90,193 +66,167 @@ async function ingestDocuments(req, res, next) {
   }
 }
 
-/**
- * GET /rag/source/:filename
- * Fetch a previously uploaded source document for inline viewing (binary stream).
- */
+/** GET /rag/source/:filename */
 async function getSource(req, res, next) {
   try {
     await proxyToPyServer({
       method: "GET",
       path: `/rag/source/${req.params.filename}`,
-      req,
-      res,
-      stream: true,
+      req, res, stream: true,
     });
   } catch (err) {
     next(err);
   }
 }
 
-/**
- * DELETE /rag/documents/:document_name
- * Remove a specific uploaded document from the user's knowledge base.
- */
+/** DELETE /rag/documents/:document_name */
 async function deleteDocument(req, res, next) {
   try {
-    logger.info(
-      `[RAG] Delete document: ${req.params.document_name} by ${req.user?.email}`
-    );
-    await proxyToPyServer({
-      method: "DELETE",
-      path: `/rag/documents/${req.params.document_name}`,
-      req,
-      res,
-    });
+    await proxyToPyServer({ method: "DELETE", path: `/rag/documents/${req.params.document_name}`, req, res });
+    await RAGDocument.destroy({ where: { user_id: req.user.id, document_name: req.params.document_name } });
   } catch (err) {
     next(err);
   }
 }
 
-// ─── RAG Status endpoints ─────────────────────────────────────────────────
-
-/** GET /rag/status — get user's RAG knowledge base status */
+/** GET /rag/status */
 async function getRagStatus(req, res, next) {
   try {
-    await proxyToPyServer({ method: "GET", path: "/rag/status", req, res });
+    const aiResponse = await pyAxios.get("/rag/status-raw", { headers: { "x-user-id": req.user.id } });
+    const payload = aiResponse.data;
+    payload.chat_limit_info = await chatLimitService.getUserStatus(req.user);
+    res.json(payload);
   } catch (err) {
     next(err);
   }
 }
 
-/** GET /rag/status-langchain — get LangChain RAG status */
+/** GET /rag/status-langchain */
 async function getRagStatusLangchain(req, res, next) {
   try {
-    await proxyToPyServer({ method: "GET", path: "/rag/status-langchain", req, res });
+    const aiResponse = await pyAxios.get("/rag/status-langchain-raw", { headers: { "x-user-id": req.user.id } });
+    const payload = aiResponse.data;
+    payload.chat_limit_info = await chatLimitService.getUserStatus(req.user);
+    res.json(payload);
   } catch (err) {
     next(err);
   }
 }
 
-// ─── Chat endpoints ───────────────────────────────────────────────────────
+async function handleChat(req, res, next, endpoint) {
+  try {
+    const { query, session_id } = req.body || {};
+    
+    // 1. Check Limits in Express
+    const limitCheck = await chatLimitService.checkLimit(req.user);
+    if (!limitCheck.canSend) {
+      const userStatus = await chatLimitService.getUserStatus(req.user);
+      return res.status(403).json({
+        detail: "Chat limit reached.",
+        user_status: userStatus
+      });
+    }
 
-/**
- * POST /rag/chat
- * General RAG chat: supports v0 (default) and v1 (LangChain) via use_langchain flag.
- */
+    // 2. Call py_server
+    const aiResponse = await pyAxios.post(endpoint, req.body, { headers: { "x-user-id": req.user.id } });
+    const result = aiResponse.data;
+
+    // 3. Increment usage & session count
+    await chatLimitService.incrementMessageCount(req.user);
+    if (session_id) {
+      await chatSessionService.incrementSessionMessageCount(session_id, req.user.id);
+    }
+    
+    result.user_status = await chatLimitService.getUserStatus(req.user);
+    
+    // Save Log
+    if (result.log_metadata) {
+      await RAGQueryLog.create({
+        user_id: req.user.id,
+        session_id: session_id || null,
+        question: query,
+        answer: result.answer,
+        contexts: result.contexts || [],
+        context_count: result.context_count || 0,
+        latency_retrieval_ms: result.log_metadata.latency_retrieval_ms,
+        latency_generation_ms: result.log_metadata.latency_generation_ms,
+        latency_total_ms: result.log_metadata.latency_total_ms,
+        sources: result.sources || []
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.response) return res.status(err.response.status).json(err.response.data);
+    next(err);
+  }
+}
+
 async function chat(req, res, next) {
-  try {
-    const { query, session_id } = req.body || {};
-    logger.info(
-      `[RAG/CHAT] Query from ${req.user?.email}: "${String(query || "").substring(0, 60)}..."`,
-      { session_id }
-    );
-    await proxyToPyServer({ method: "POST", path: "/rag/chat", req, res });
-  } catch (err) {
-    next(err);
-  }
+  await handleChat(req, res, next, "/rag/chat-raw");
 }
 
-/**
- * POST /rag/chat-langchain
- * Dedicated LangChain RAG chat endpoint.
- */
 async function chatLangchain(req, res, next) {
-  try {
-    const { query, session_id } = req.body || {};
-    logger.info(
-      `[RAG/LANGCHAIN] Query from ${req.user?.email}: "${String(query || "").substring(0, 60)}..."`,
-      { session_id }
-    );
-    await proxyToPyServer({ method: "POST", path: "/rag/chat-langchain", req, res });
-  } catch (err) {
-    next(err);
-  }
+  await handleChat(req, res, next, "/rag/chat-langchain-raw");
 }
 
-// ─── Chat Session endpoints ───────────────────────────────────────────────
-
-/** POST /rag/sessions — create a new chat session */
+/** POST /rag/sessions */
 async function createSession(req, res, next) {
   try {
-    await proxyToPyServer({ method: "POST", path: "/rag/sessions", req, res });
-  } catch (err) {
-    next(err);
-  }
+    const session = await chatSessionService.createChatSession(req.user.id, req.body.title);
+    res.json({ status: "success", data: session });
+  } catch (err) { next(err); }
 }
 
-/** GET /rag/sessions — list all chat sessions for current user */
+/** GET /rag/sessions */
 async function listSessions(req, res, next) {
   try {
-    await proxyToPyServer({ method: "GET", path: "/rag/sessions", req, res });
-  } catch (err) {
-    next(err);
-  }
+    const sessions = await chatSessionService.listChatSessions(req.user.id);
+    res.json({ status: "success", data: sessions });
+  } catch (err) { next(err); }
 }
 
-/** GET /rag/sessions/:session_id — get a specific chat session */
+/** GET /rag/sessions/:session_id */
 async function getSession(req, res, next) {
   try {
-    await proxyToPyServer({
-      method: "GET",
-      path: `/rag/sessions/${req.params.session_id}`,
-      req,
-      res,
-    });
-  } catch (err) {
-    next(err);
-  }
+    const session = await chatSessionService.getChatSession(req.params.session_id, req.user.id);
+    if (!session || !session.active) return res.status(404).json({ detail: "Session not found" });
+    res.json({ status: "success", data: session });
+  } catch (err) { next(err); }
 }
 
-/** GET /rag/sessions/:session_id/history — get message history for a session */
+/** GET /rag/sessions/:session_id/history */
 async function getSessionHistory(req, res, next) {
   try {
-    await proxyToPyServer({
-      method: "GET",
-      path: `/rag/sessions/${req.params.session_id}/history`,
-      req,
-      res,
-    });
-  } catch (err) {
-    next(err);
-  }
+    // Mongo history is fetched via python still, so proxy it OR port it. We'll proxy to python raw.
+    await proxyToPyServer({ method: "GET", path: `/rag/sessions-raw/${req.params.session_id}/history`, req, res });
+  } catch (err) { next(err); }
 }
 
-/** PUT /rag/sessions/:session_id — rename a chat session */
+/** PUT /rag/sessions/:session_id */
 async function renameSession(req, res, next) {
   try {
-    await proxyToPyServer({
-      method: "PUT",
-      path: `/rag/sessions/${req.params.session_id}`,
-      req,
-      res,
-    });
-  } catch (err) {
-    next(err);
-  }
+    const session = await chatSessionService.renameChatSession(req.params.session_id, req.user.id, req.body.title);
+    if (!session) return res.status(404).json({ detail: "Session not found" });
+    res.json({ status: "success", data: session });
+  } catch (err) { next(err); }
 }
 
-/** DELETE /rag/sessions/:session_id — delete a chat session and all its messages */
+/** DELETE /rag/sessions/:session_id */
 async function deleteSession(req, res, next) {
   try {
-    logger.info(
-      `[RAG/SESSION] Delete session: ${req.params.session_id} by ${req.user?.email}`
-    );
-    await proxyToPyServer({
-      method: "DELETE",
-      path: `/rag/sessions/${req.params.session_id}`,
-      req,
-      res,
-    });
-  } catch (err) {
-    next(err);
-  }
+    const deleted = await chatSessionService.softDeleteChatSession(req.params.session_id, req.user.id);
+    if (!deleted) return res.status(404).json({ detail: "Session not found" });
+    
+    // Also delete mongo history via python
+    await pyAxios.delete(`/rag/sessions-raw/${req.params.session_id}/history`, { headers: { "x-user-id": req.user.id } });
+    
+    res.json({ status: "success", detail: "Session and history deleted" });
+  } catch (err) { next(err); }
 }
 
 module.exports = {
-  upload,
-  uploadDocument,
-  ingestDocuments,
-  getSource,
-  deleteDocument,
-  getRagStatus,
-  getRagStatusLangchain,
-  chat,
-  chatLangchain,
-  createSession,
-  listSessions,
-  getSession,
-  getSessionHistory,
-  renameSession,
-  deleteSession,
+  upload, uploadDocument, ingestDocuments, getSource, deleteDocument,
+  getRagStatus, getRagStatusLangchain, chat, chatLangchain,
+  createSession, listSessions, getSession, getSessionHistory, renameSession, deleteSession,
 };
