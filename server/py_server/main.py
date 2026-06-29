@@ -1,3 +1,4 @@
+from config.settings import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.auth_api import router as auth_router
@@ -6,7 +7,6 @@ from api.rag_api import router as rag_router
 from api.summarization_api import router as summarization_router
 from api.subscription_api import router as subscription_router
 from api.wizard_api import router as wizard_router
-from config.settings import settings
 import logging
 
 # Setup logging
