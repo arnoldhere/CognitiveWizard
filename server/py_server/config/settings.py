@@ -6,14 +6,7 @@ from dotenv import load_dotenv
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
 load_dotenv(dotenv_path=env_path)
 
-# Set HF_ENDPOINT early in the process environment so huggingface_hub uses it
-if os.getenv("HF_ENDPOINT"):
-    os.environ["HF_ENDPOINT"] = os.getenv("HF_ENDPOINT")
-elif os.getenv("HF_BASE_URL"):
-    # Fallback to extract from HF_BASE_URL if set
-    url = os.getenv("HF_BASE_URL")
-    if "router.huggingface.co" in url:
-        os.environ["HF_ENDPOINT"] = "https://router.huggingface.co"
+
 
 @dataclass
 class Settings:
@@ -40,7 +33,6 @@ class Settings:
     HUGGINGFACEHUB_API_TOKEN: str = os.getenv(
         "HUGGINGFACEHUB_API_TOKEN", os.getenv("HF_API_KEY", "")
     )
-    HF_ENDPOINT: str = os.getenv("HF_ENDPOINT", "https://router.huggingface.co")
     HF_BASE_URL: str = os.getenv(
         "HF_BASE_URL", "https://router.huggingface.co/hf-inference/models"
     )

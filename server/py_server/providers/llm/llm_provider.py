@@ -62,7 +62,8 @@ class Provider:
                         temperature=self.temperature,
                         repo_id=model_id,
                         max_new_tokens=self.max_new_tokens,
-                        huggingfacehub_api_token=token,
+                        huggingfacehub_api_token=settings.HF_API_KEY
+                        or settings.HUGGINGFACEHUB_API_TOKEN,
                         **sampling_kwargs,
                     )
                     return ChatHuggingFace(llm=endpoint)

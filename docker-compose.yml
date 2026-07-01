@@ -11,6 +11,9 @@ services:
       - ./server/py_server/.env
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
 
   api-gateway:

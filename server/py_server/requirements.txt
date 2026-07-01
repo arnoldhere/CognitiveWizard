@@ -37,20 +37,20 @@ pillow==11.0.0
 
 # NLP / LLM
 torch==2.5.1
-transformers==4.47.1
+transformers>=4.47.1
 tiktoken==0.8.0
-sentence-transformers==3.3.1
-huggingface_hub==0.27.0
-datasets==3.2.0
+sentence-transformers>=3.3.1
+huggingface_hub>=1.0.0
+datasets>=3.2.0
 
 # LangChain
-langchain==0.3.13
-langchain-core==0.3.28
-langchain-community==0.3.13
-langchain-openai==0.2.14
-langchain-anthropic==0.3.1
-langchain-huggingface==0.1.2
-langchain-chroma==0.2.0
+langchain>=0.3.13
+langchain-core>=0.3.28
+langchain-community>=0.3.13
+langchain-openai>=0.2.14
+langchain-anthropic>=0.3.1
+langchain-huggingface>=1.0.0
+langchain-chroma>=0.2.0
 
 # Evaluation
 ragas==0.2.10
