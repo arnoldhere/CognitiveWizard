@@ -101,7 +101,6 @@ class LangChainRAGService:
         documents: List[str],
         metadata: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None,
-        
     ):
         """Preprocess and ingest documents into the knowledge base."""
         if not user_id:
@@ -148,7 +147,6 @@ class LangChainRAGService:
 
         self._documents_ingested[user_id] += len(documents)
         self._persist_user_state(user_id)
-        
 
         return {
             "status": "success",
@@ -191,7 +189,6 @@ class LangChainRAGService:
         use_rag: bool = True,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        
     ):
         """
         Process a query using LangChain RAG chain.
@@ -238,7 +235,9 @@ class LangChainRAGService:
                     if isinstance(chain_result, dict):
                         raw_answer = chain_result.get("answer", chain_result)
                         answer = self._extract_response_text(raw_answer)
-                        token_usage = self._extract_token_usage(chain_result, query=query)
+                        token_usage = self._extract_token_usage(
+                            chain_result, query=query
+                        )
                         original_docs = chain_result.get("original_docs", [])
                     else:
                         answer = self._extract_response_text(chain_result)
@@ -301,21 +300,11 @@ class LangChainRAGService:
                     },
                 )
                 assistant_created_at = assistant_message.get("created_at")
-                if db is not None:
-                    update_chat_session_activity(
-                        db,
-                        session_id=session_id,
-                        user_id=int(user_id),
-                        last_message_at=datetime.datetime.utcnow(),
-                        increment_messages=2,
-                    )
             except Exception:
                 logger.warning(
                     "Failed to persist chat history for session %s",
                     session_id,
                 )
-
-
 
         response_payload = {
             "answer": answer,
@@ -339,8 +328,6 @@ class LangChainRAGService:
 
         return response_payload
 
-
-
     def status(self, user_id: Optional[str] = None):
         """Get the status of the user's knowledge base."""
         self._ensure_user_loaded(user_id)
@@ -350,23 +337,7 @@ class LangChainRAGService:
             docs_ingested = 0
             uploaded_documents = []
             chunks_ingested = 0
-        elif db is not None:
-            uploaded_documents = self._get_uploaded_documents_from_db(user_id, db)
-            docs_ingested = len(uploaded_documents)
-            chunks_ingested = (
-                db.query(func.count(RAGDocument.id))
-                .filter(RAGDocument.user_id == int(user_id))
-                .scalar()
-                or 0
-            )
-            recent_rows = (
-                db.query(RAGDocument.snippet)
-                .filter(RAGDocument.user_id == int(user_id))
-                .order_by(RAGDocument.created_at.desc())
-                .limit(3)
-                .all()
-            )
-            recent_chunks = [row[0] for row in reversed(recent_rows)]
+
         elif user_id not in self._chunk_store:
             docs_ingested = 0
             uploaded_documents = []
@@ -391,7 +362,6 @@ class LangChainRAGService:
         self,
         user_id: str,
         document_name: str,
-        
     ) -> bool:
         """Delete a specific uploaded document from the LangChain RAG knowledge base."""
         try:
@@ -404,12 +374,6 @@ class LangChainRAGService:
                     ]
                 }
             )
-
-            if db is not None:
-                db.query(RAGDocument).filter(
-                    RAGDocument.user_id == int(user_id),
-                    RAGDocument.document_name == document_name,
-                ).delete(synchronize_session=False)
 
             file_path = get_user_source_path(str(user_id), document_name)
             # to enforce a canonical path containment check in delete_uploaded_document right before file operations: resolve the candidate path and ensure it is within the expected user upload directory, then only delete if it is a regular file.
@@ -472,9 +436,9 @@ class LangChainRAGService:
     # Private Helper Methods
     # =====================
 
-
-
-    def _extract_token_usage(self, response: Any, query: Optional[str] = None) -> Optional[Dict[str, int]]:
+    def _extract_token_usage(
+        self, response: Any, query: Optional[str] = None
+    ) -> Optional[Dict[str, int]]:
         from utils.token_helper import extract_token_usage
 
         prompt_text = query
@@ -644,8 +608,6 @@ class LangChainRAGService:
             # json.dump(state, f, indent=2)
         except Exception as e:
             logger.warning(f"Failed to persist user state: {e}")
-
-
 
     def _load_user_state(self, user_id: str) -> None:
         """Load user state from disk."""

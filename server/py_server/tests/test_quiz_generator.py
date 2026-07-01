@@ -6,6 +6,7 @@ import pytest
 import json
 from unittest.mock import patch, MagicMock
 from utils.json_extractor import extract_json
+from services.quiz import quiz_generator
 
 
 class TestExtractJson:
