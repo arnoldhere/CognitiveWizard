@@ -204,7 +204,7 @@ def Summarization(
     text: str,
     mode: str = "brief",
     model_mode: str = DEFAULT_MODEL_MODE,
-    max_chunks: int = 15,
+    max_chunks: int = 10,
 ) -> Tuple[bool, str, Optional[Dict[str, int]]]:
 
     try:

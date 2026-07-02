@@ -11,25 +11,26 @@ from schemas.rag_schema import (
     RAGStatusResponse,
     RAGUploadResponse,
 )
-from services.rag.v0_rag_service import rag_service
+from services.rag.v1_rag_service import langchain_rag_service
 from services.rag.source_files import (
     get_user_source_path,
     persist_uploaded_file,
     safe_filename,
 )
-from services.rag.v1_rag_service import langchain_rag_service
 from services.summarization.input_handlers import Document_handler
-from services.chat_message_store import fetch_chat_history
+from services.chat_message_store import fetch_chat_history, delete_chat_history
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
+
 
 def get_user_id(request: Request) -> str:
     user_id = request.headers.get("x-user-id")
     if not user_id:
         raise HTTPException(status_code=401, detail="User ID required")
     return user_id
+
 
 @router.get("/source/{filename}")
 def get_uploaded_source(
@@ -58,9 +59,9 @@ def ingest_documents(
     request: RAGIngestRequest,
     user_id: str = Depends(get_user_id),
 ):
-    """JSON ingestion endpoint retained for compatibility."""
+    """JSON ingestion endpoint — uses LangChain RAG service."""
     try:
-        result = rag_service.preprocess(
+        result = langchain_rag_service.preprocess(
             documents=request.documents,
             metadata=request.metadata,
             user_id=user_id,
@@ -157,24 +158,30 @@ def chat_raw(
     req: RAGQueryRequest,
     user_id: str = Depends(get_user_id),
 ):
+    """RAG chat endpoint — backed by LangChain RAG service."""
     try:
-        ans, mode, sources, log_meta = rag_service.query(
+        result = langchain_rag_service.query(
             query=req.query,
             use_rag=req.use_rag,
             user_id=user_id,
             session_id=req.session_id,
         )
 
-        # Truncate context string if present
-        if log_meta and log_meta.get("context_str"):
-            log_meta["context_str"] = log_meta["context_str"][:2000]
+        ans = result.get("answer", "")
+        mode = result.get("mode_used", "llm")
+        sources = result.get("sources", [])
+        log_meta = {
+            "warning": result.get("warning"),
+            "token_usage": result.get("token_usage"),
+            "created_at": str(result.get("created_at", "")),
+        }
 
         return RAGResponse(
             status="success",
             answer=ans,
             mode_used=mode,
             sources=sources,
-            contexts=[s["text"] for s in sources] if sources else [],
+            contexts=[s.get("text", s.get("snippet", "")) for s in sources] if sources else [],
             context_count=len(sources),
             log_metadata=log_meta,
         )
@@ -191,16 +198,26 @@ def chat_langchain_raw(
     req: RAGQueryRequest,
     user_id: str = Depends(get_user_id),
 ):
+    """LangChain RAG chat endpoint."""
     try:
-        ans, mode, sources, log_meta = langchain_rag_service.query(
+        result = langchain_rag_service.query(
             query=req.query,
             use_rag=req.use_rag,
             user_id=user_id,
             session_id=req.session_id,
         )
 
+        ans = result.get("answer", "")
+        mode = result.get("mode_used", "llm")
+        sources = result.get("sources", [])
+        log_meta = {
+            "warning": result.get("warning"),
+            "token_usage": result.get("token_usage"),
+            "created_at": str(result.get("created_at", "")),
+        }
+
         # Truncate context string if present
-        if log_meta and log_meta.get("context_str"):
+        if log_meta.get("context_str"):
             log_meta["context_str"] = log_meta["context_str"][:2000]
 
         return RAGResponse(
@@ -208,7 +225,7 @@ def chat_langchain_raw(
             answer=ans,
             mode_used=mode,
             sources=sources,
-            contexts=[s["text"] for s in sources] if sources else [],
+            contexts=[s.get("text", s.get("snippet", "")) for s in sources] if sources else [],
             context_count=len(sources),
             log_metadata=log_meta,
         )
@@ -226,7 +243,7 @@ def delete_document(
     user_id: str = Depends(get_user_id),
 ):
     safe_name = safe_filename(document_name)
-    success = langchain_rag_service.delete_document(user_id, safe_name)
+    success = langchain_rag_service.delete_uploaded_document(user_id, safe_name)
 
     if not success:
         raise HTTPException(
@@ -236,6 +253,7 @@ def delete_document(
 
     return {"detail": f"Document '{safe_name}' deleted successfully."}
 
+
 @router.get("/sessions-raw/{session_id}/history")
 def get_session_history_raw(
     session_id: str,
@@ -244,7 +262,6 @@ def get_session_history_raw(
     history = fetch_chat_history(session_id)
     return history
 
-from services.chat_message_store import delete_chat_history
 
 @router.delete("/sessions-raw/{session_id}/history")
 def delete_session_history_raw(

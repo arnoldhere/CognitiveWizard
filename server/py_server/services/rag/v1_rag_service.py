@@ -1,8 +1,6 @@
 """
 LangChain-based RAG Service - Orchestrator for RAG ingestion, retrieval and response generation.
 Uses modern LangChain LCEL for improved chain composition and LLM integration.
-
-This service provides the same interface as v0_rag_service but uses LangChain internally.
 """
 
 from __future__ import annotations
@@ -36,7 +34,7 @@ TOP_K_RES = settings.TOP_K_RESULTS_RAG
 class LangChainRAGService:
     """
     LangChain-powered RAG Service - Main orchestrator for RAG operations.
-    Provides the same interface as v0_rag_service for compatibility.
+    Handles ingestion, retrieval and generation using LangChain LCEL chains.
     """
 
     def __init__(self):
@@ -234,13 +232,13 @@ class LangChainRAGService:
                     chain_result = chain.invoke(chain_input)
                     if isinstance(chain_result, dict):
                         raw_answer = chain_result.get("answer", chain_result)
-                        answer = self._extract_response_text(raw_answer)
+                        answer = extract_model_response(raw_answer)
                         token_usage = self._extract_token_usage(
                             chain_result, query=query
                         )
                         original_docs = chain_result.get("original_docs", [])
                     else:
-                        answer = self._extract_response_text(chain_result)
+                        answer = extract_model_response(chain_result)
                         original_docs = []
 
                     sources = self._build_sources(original_docs, user_id=user_id)

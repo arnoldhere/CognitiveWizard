@@ -16,7 +16,7 @@ class TestExtractJson:
         """Test extracting valid JSON array"""
         text = '[{"question": "Q", "options": ["A", "B", "C", "D"], "answer": "A"}]'
 
-        success, json_str = quiz_generator._extract_json(text)
+        success, json_str = extract_json(text)
 
         assert success is True
         assert json.loads(json_str) is not None

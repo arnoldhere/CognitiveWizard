@@ -1,78 +1,48 @@
-# Python
-# python==3.11
-
-# Web Framework
-fastapi==0.115.6
-uvicorn[standard]==0.32.1
-gunicorn==23.0.0
-python-multipart==0.0.19
-
-# Background Tasks
-celery==5.4.0
-redis==5.2.1
-kafka-python==2.0.2
-
-# Database
-sqlalchemy==2.0.36
-alembic==1.14.0
-pymysql==1.1.1
-pymongo==4.10.1
-
-# Authentication
-cryptography==44.0.0
-passlib[bcrypt]==1.7.4
-python-jose[cryptography]==3.3.0
-
-# Configuration
-python-dotenv==1.0.1
-certifi==2024.12.14
-
-# Core
-numpy==1.26.4
-pandas==2.2.3
-scikit-learn==1.6.0
-requests==2.32.3
-beautifulsoup4==4.12.3
-pillow==11.0.0
-
-# NLP / LLM
-torch==2.5.1
-transformers>=4.47.1
-tiktoken==0.8.0
-sentence-transformers>=3.3.1
-huggingface_hub>=1.0.0
-datasets>=3.2.0
-
-# LangChain
-langchain>=0.3.13
-langchain-core>=0.3.28
-langchain-community>=0.3.13
-langchain-openai>=0.2.14
-langchain-anthropic>=0.3.1
-langchain-huggingface>=1.0.0
-langchain-chroma>=0.2.0
-
-# Evaluation
-ragas==0.2.10
-deepeval==2.0.8
-
-# Documents
-python-docx==1.1.2
-PyMuPDF==1.25.1
-
-# Vision
-opencv-python==4.10.0.84
-opencv-python-headless==4.10.0.84
-tf-keras==2.17.0
-tensorflow==2.17.0
-onnx==1.16.1
-onnxruntime==1.18.1
-insightface==0.7.3
+fastapi
+redis
+celery
+uvicorn
+numpy
+pandas
+scikit-learn
+transformers
+torch
+kafka-python
+python-dotenv
+sqlalchemy
+pymysql
+cryptography
+passlib[bcrypt]
+python-jose[cryptography]
+certifi
+python-docx
+huggingface_hub
+requests
+beautifulsoup4
+youtube-transcript-api
+PyMuPDF
+pydantic
+alembic
+sentence-transformers
+langchain
+langchain-community
+langchain-core
+langchain-openai
+langchain-anthropic
+tiktoken
+langchain-huggingface
+langchain-chroma
+pymongo
+pydantic[email]
+opencv-python-headless
+tensorflow==2.15.0
 retina-face==0.0.13
-
-# Validation
-pydantic==2.10.4
-pydantic[email]==2.10.4
-
-# Utilities
-youtube-transcript-api>=1.0.1
+insightface==0.7.3
+onnx==1.16.1
+python-multipart
+pymysql
+gunicorn
+pillow
+ragas
+datasets
+deepeval
