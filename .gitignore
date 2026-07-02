@@ -27,3 +27,5 @@ media/
 .mycli.conf
 .hf_cache/
 local-hf-cache/
+.vercel
+.env*
