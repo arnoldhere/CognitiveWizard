@@ -19,17 +19,14 @@ export async function uploadDocument(file) {
 
 export async function askRagQuestion({ query, use_rag = true, signal, use_langchain = true, session_id = null }) {
   try {
-    // Support both v0 (default) and v1 (LangChain) endpoints
     const endpoint = use_langchain ? "/rag/chat-langchain" : "/rag/chat";
     const payload = {
       query,
       use_rag,
       use_langchain,
+      // Always include session_id (null is fine — backend ignores null)
+      session_id: session_id || null,
     };
-
-    if (session_id) {
-      payload.session_id = session_id;
-    }
 
     const response = await API.post(endpoint, payload, { signal });
     return response.data;
@@ -41,7 +38,9 @@ export async function askRagQuestion({ query, use_rag = true, signal, use_langch
 export async function fetchChatSessions() {
   try {
     const response = await API.get("/rag/sessions");
-    return response.data;
+    // Gateway wraps: { status: "success", data: [...sessions] }
+    const payload = response.data;
+    return Array.isArray(payload) ? payload : (payload?.data ?? []);
   } catch (error) {
     throw new Error(getApiErrorMessage(error, "Failed to load chat sessions."));
   }
@@ -53,13 +52,18 @@ export async function createChatSession({ title = null, initial_prompt = null } 
       title,
       initial_prompt,
     });
-    return response.data;
+    // Gateway wraps: { status: "success", data: session }
+    const payload = response.data;
+    return payload?.data ?? payload;
   } catch (error) {
     throw new Error(getApiErrorMessage(error, "Failed to start a new chat session."));
   }
 }
 
 export async function deleteChatSession(session_id) {
+  if (!session_id || session_id === "undefined") {
+    throw new Error("Invalid session ID.");
+  }
   try {
     const response = await API.delete(`/rag/sessions/${session_id}`);
     return response.data;
@@ -69,6 +73,9 @@ export async function deleteChatSession(session_id) {
 }
 
 export async function renameChatSession(session_id, new_title) {
+  if (!session_id || session_id === "undefined") {
+    throw new Error("Invalid session ID.");
+  }
   try {
     const response = await API.put(`/rag/sessions/${session_id}`, {
       title: new_title,
@@ -80,6 +87,9 @@ export async function renameChatSession(session_id, new_title) {
 }
 
 export async function fetchChatSessionHistory(session_id) {
+  if (!session_id || session_id === "undefined") {
+    return { messages: [] };
+  }
   try {
     const response = await API.get(`/rag/sessions/${session_id}/history`);
     return response.data;

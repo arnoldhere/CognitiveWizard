@@ -64,9 +64,25 @@ export function AuthProvider({ children }) {
             (response) => response,
             (error) => {
                 const requestUrl = error.config?.url || "";
-                const isAuthRequest = requestUrl.startsWith("/auth/login") || requestUrl.startsWith("/auth/signup");
+                // Do NOT clear the session for non-auth 401s.
+                // Only clear if the 401 comes from a protected route where
+                // the JWT itself was rejected — not from missing x-user-id
+                // headers on internal proxy calls.
+                const isAuthEndpoint = (
+                    requestUrl.startsWith("/auth/login") ||
+                    requestUrl.startsWith("/auth/signup")
+                );
+                // RAG session history proxies to /rag/sessions-raw/... which
+                // may 401 when the gateway forgets to forward x-user-id.
+                // This is a proxy bug — NOT an invalid JWT — so skip logout.
+                const isRagProxy = requestUrl.startsWith("/rag/");
 
-                if (error.response?.status === 401 && token && !isAuthRequest) {
+                if (
+                    error.response?.status === 401 &&
+                    token &&
+                    !isAuthEndpoint &&
+                    !isRagProxy
+                ) {
                     clearSession();
                 }
 

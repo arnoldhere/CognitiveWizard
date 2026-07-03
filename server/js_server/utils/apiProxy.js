@@ -76,6 +76,12 @@ function buildForwardHeaders(req) {
     forwarded["Content-Type"] = req.headers["content-type"];
   }
 
+  // Propagate authenticated user ID so FastAPI can identify the caller.
+  // req.user is populated by the authenticate middleware after JWT verification.
+  if (req.user?.id) {
+    forwarded["x-user-id"] = String(req.user.id);
+  }
+
   // Propagate original client IP for py_server logging
   const clientIp =
     req.headers["x-forwarded-for"] ||

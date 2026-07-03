@@ -152,7 +152,7 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
   }, [status?.chat_limit_info]);
 
   useEffect(() => {
-    if (!selectedSession) {
+    if (!selectedSession || !selectedSession.session_id) {
       setMessages([
         createMessage(
           "bot",
@@ -174,7 +174,14 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
         const data = await fetchChatSessionHistory(selectedSession.session_id);
         if (!mounted) return;
 
-        const sessionMessages = (data.messages ?? []).map((item) =>
+        // Handle both response shapes:
+        //  - plain array  : [...messages]  (current py_server /sessions-raw/:id/history)
+        //  - wrapped object: { messages: [...] }  (future-proof)
+        const rawMessages = Array.isArray(data)
+          ? data
+          : (data?.messages ?? []);
+
+        const sessionMessages = rawMessages.map((item) =>
           createMessage(item.role, item.content, {
             createdAt: item.created_at,
             metadata: item.metadata,

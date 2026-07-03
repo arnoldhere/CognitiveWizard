@@ -198,9 +198,25 @@ async function getSession(req, res, next) {
 /** GET /rag/sessions/:session_id/history */
 async function getSessionHistory(req, res, next) {
   try {
-    // Mongo history is fetched via python still, so proxy it OR port it. We'll proxy to python raw.
-    await proxyToPyServer({ method: "GET", path: `/rag/sessions-raw/${req.params.session_id}/history`, req, res });
-  } catch (err) { next(err); }
+    const { session_id } = req.params;
+
+    // Guard against undefined session_id reaching py_server
+    if (!session_id || session_id === "undefined") {
+      return res.status(400).json({ detail: "Invalid session ID" });
+    }
+
+    // proxyToPyServer does NOT inject x-user-id (only Authorization is forwarded).
+    // Use pyAxios directly so the FastAPI backend can authorise the request.
+    const aiResponse = await pyAxios.get(
+      `/rag/sessions-raw/${session_id}/history`,
+      { headers: { "x-user-id": req.user.id } }
+    );
+
+    res.json(aiResponse.data);
+  } catch (err) {
+    if (err.response) return res.status(err.response.status).json(err.response.data);
+    next(err);
+  }
 }
 
 /** PUT /rag/sessions/:session_id */
