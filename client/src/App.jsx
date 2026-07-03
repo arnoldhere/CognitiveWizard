@@ -17,8 +17,6 @@ import "./App.css";
 import ErrorBoundary from "./components/utils/ErrorBoundary";
 import SummarizerPage from "./pages/Summarize";
 import WizardModule from "./pages/WizardModule";
-import FaceRegister from "./pages/FaceRegister";
-import FaceLogin from "./pages/FaceLogin";
 import ForgotPassword from "./pages/ForgotPassword";
 
 function AppRoutes() {
@@ -71,22 +69,6 @@ function AppRoutes() {
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/face-register"
-            element={
-              <ProtectedRoute>
-                <FaceRegister />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/face-login"
-            element={
-              <PublicRoute>
-                <FaceLogin />
-              </PublicRoute>
             }
           />
 

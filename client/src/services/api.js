@@ -69,38 +69,6 @@ export const uploadSummaryFile = async (file, mode = "brief", model_mode = "api"
   }, "Failed to summarize the uploaded file. Please try again.");
 };
 
-export const sendFaceData = async (user_id, imageData) => {
-  const data = new FormData();
-  data.append("userid", user_id);
-  data.append("image", imageData);
-  const res = await API.post("/auth/face/register", data, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-  return res.data;
-};
-
-export const faceLogin = async (imageData) => {
-  const data = new FormData();
-  data.append("image", imageData);
-  const res = await API.post("/auth/face/login", data, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-  return res.data;
-};
-
-export const getFaceLoginStatus = async () => {
-  const res = await API.get("/auth/face/status");
-  return res.data;
-};
-
-export const removeFaceLogin = async () => {
-  const res = await API.delete("/auth/face");
-  return res.data;
-};
 
 export const getSubscriptionPlans = async () => {
   const res = await API.get("/subscriptions/plans");
@@ -109,7 +77,7 @@ export const getSubscriptionPlans = async () => {
 
 export const createSubscriptionOrder = async (payload) => {
   const res = await API.post("/subscriptions/order", payload);
-  return res.data;
+  return res.data?.data ?? res.data;
 };
 
 export const confirmSubscriptionPayment = async (payload) => {

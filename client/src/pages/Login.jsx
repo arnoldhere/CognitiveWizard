@@ -9,7 +9,6 @@ import {
     Typography,
     Box,
     Alert,
-    Divider,
     InputAdornment,
     Link as MuiLink,
 } from "@mui/material";
@@ -17,7 +16,6 @@ import {
     EmailOutlined,
     LockOutlined,
     Psychology,
-    FaceRetouchingNatural,
 } from "@mui/icons-material";
 
 export default function Login() {
@@ -53,7 +51,7 @@ export default function Login() {
                         <h1 className="page-title">Resume your focused learning workspace.</h1>
                         <p className="section-copy">
                             Sign in to access your private RAG sessions, quiz history,
-                            quick summaries, profile settings, and face login setup.
+                            quick summaries, and profile settings.
                         </p>
                     </div>
 
@@ -92,17 +90,6 @@ export default function Login() {
 
                             <Button type="submit" fullWidth variant="contained" disabled={loading}>
                                 {loading ? "Signing In..." : "Sign In"}
-                            </Button>
-
-                            <Divider>OR</Divider>
-
-                            <Button
-                                fullWidth
-                                variant="outlined"
-                                onClick={() => navigate("/face-login")}
-                                startIcon={<FaceRetouchingNatural />}
-                            >
-                                Continue with Face Login
                             </Button>
 
                             <Box sx={{ textAlign: "center" }}>

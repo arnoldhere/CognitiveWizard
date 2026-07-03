@@ -1,7 +1,6 @@
 from config.settings import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.auth_api import router as auth_router
 from api.quiz_api import router as quiz_router
 from api.rag_api import router as rag_router
 from api.summarization_api import router as summarization_router
@@ -27,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router)
+# Note: auth_api (facial recognition endpoints) deprecated → server/py_server/deprecated/
 app.include_router(quiz_router)
 app.include_router(summarization_router)
 app.include_router(rag_router)

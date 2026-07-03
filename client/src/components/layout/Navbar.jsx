@@ -84,7 +84,6 @@ export default function Navbar() {
                 {showProfile && (
                   <div className="profile-dropdown" role="menu">
                     <Link to="/profile" role="menuitem" onClick={closeMenu}>My Profile</Link>
-                    <Link to="/face-register" role="menuitem" onClick={closeMenu}>Face Login Setup</Link>
                     <button
                       role="menuitem"
                       onClick={() => { closeMenu(); logout(); }}

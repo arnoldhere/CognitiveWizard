@@ -5,8 +5,6 @@ import { useAuth } from "../hooks/useAuth";
 import {
     getQuizResults,
     deleteProfile,
-    getFaceLoginStatus,
-    removeFaceLogin,
     getQuizResultDetail,
     getSubscriptionPlans,
     createSubscriptionOrder,
@@ -34,7 +32,7 @@ import {
     TextField,
     CircularProgress,
 } from "@mui/material";
-import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, Face2Outlined, CheckCircle, Close } from "@mui/icons-material";
+import { Face2Outlined, Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, CheckCircle, Close } from "@mui/icons-material";
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -77,11 +75,6 @@ export default function Profile() {
     const [profileError, setProfileError] = useState(null);
     const [profileSuccess, setProfileSuccess] = useState(null);
 
-    const [faceLoginStatus, setFaceLoginStatus] = useState(null);
-    const [faceLoading, setFaceLoading] = useState(true);
-    const [faceError, setFaceError] = useState(null);
-    const [faceDeleteLoading, setFaceDeleteLoading] = useState(false);
-    const [faceDeleteSuccess, setFaceDeleteSuccess] = useState(null);
 
     // Subscription states
     const [subscriptionPlans, setSubscriptionPlans] = useState([]);
@@ -186,21 +179,6 @@ export default function Profile() {
         }
     };
 
-    const loadFaceLoginStatus = useCallback(async () => {
-        try {
-            setFaceLoading(true);
-            setFaceError(null);
-            const data = await getFaceLoginStatus();
-            setFaceLoginStatus(Boolean(data.has_face_login));
-        } catch (err) {
-            console.error("Error fetching face login status:", err);
-            setFaceError("Unable to load facial login status.");
-            setFaceLoginStatus(false);
-        } finally {
-            setFaceLoading(false);
-        }
-    }, []);
-
     const loadSubscriptionPlans = useCallback(async () => {
         try {
             setSubscriptionLoading(true);
@@ -217,10 +195,9 @@ export default function Profile() {
 
     useEffect(() => {
         if (user) {
-            loadFaceLoginStatus();
             loadSubscriptionPlans();
         }
-    }, [user, loadFaceLoginStatus, loadSubscriptionPlans]);
+    }, [user, loadSubscriptionPlans]);
 
     useEffect(() => {
         if (user) {
@@ -232,28 +209,6 @@ export default function Profile() {
         }
     }, [user]);
 
-    const handleRemoveFaceSetup = async () => {
-        const confirmed = window.confirm(
-            "Remove facial login setup? You can re-add it later from this profile page."
-        );
-        if (!confirmed) return;
-
-        try {
-            setFaceDeleteLoading(true);
-            setFaceDeleteSuccess(null);
-            setFaceError(null);
-            await removeFaceLogin();
-            setFaceLoginStatus(false);
-            setFaceDeleteSuccess("Facial login setup removed successfully.");
-        } catch (err) {
-            console.error("Error removing facial login setup:", err);
-            setFaceError(
-                err.response?.data?.detail || err.message || "Failed to remove facial login setup."
-            );
-        } finally {
-            setFaceDeleteLoading(false);
-        }
-    };
 
     useEffect(() => {
         if (tabValue === 1 && results.data.length === 0) {
@@ -646,108 +601,7 @@ export default function Profile() {
                         </Paper>
                     </Box>
 
-                    {/* Security Section */}
-                    <Box sx={{ mb: 5 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 3, color: "#f1f5f9" }}>
-                            Security settings
-                        </Typography>
 
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 4,
-                                borderRadius: 3,
-                                display: "flex",
-                                flexDirection: { xs: "column", md: "row" },
-                                alignItems: { xs: "flex-start", md: "center" },
-                                justifyContent: "space-between",
-                                gap: 3,
-                                background: "rgba(255, 255, 255, 0.01)",
-                                border: "1px solid rgba(255, 255, 255, 0.05)",
-                            }}
-                        >
-                            <Box>
-                                <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#f1f5f9" }}>
-                                    Facial Recognition Login
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                    Secure your account using face recognition for instant, keyless logins.
-                                </Typography>
-
-                                <Chip
-                                    label={
-                                        faceLoading
-                                            ? "Checking status..."
-                                            : faceLoginStatus
-                                                ? "Face Login Activated"
-                                                : "Not Configured"
-                                    }
-                                    variant="outlined"
-                                    sx={{
-                                        mt: 2,
-                                        fontWeight: 700,
-                                        color: faceLoading ? "#93c5fd" : faceLoginStatus ? "#34d399" : "#fbbf24",
-                                        borderColor: faceLoading ? "rgba(59, 130, 246, 0.25)" : faceLoginStatus ? "rgba(16, 185, 129, 0.25)" : "rgba(245, 158, 11, 0.25)",
-                                        backgroundColor: faceLoading ? "rgba(59, 130, 246, 0.06)" : faceLoginStatus ? "rgba(16, 185, 129, 0.06)" : "rgba(245, 158, 11, 0.06)",
-                                    }}
-                                />
-                                {faceError && (
-                                    <Alert severity="error" sx={{ mt: 3 }}>
-                                        {faceError}
-                                    </Alert>
-                                )}
-                                {faceDeleteSuccess && (
-                                    <Alert severity="success" sx={{ mt: 3 }}>
-                                        {faceDeleteSuccess}
-                                    </Alert>
-                                )}
-                            </Box>
-
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                                <Button
-                                    variant="contained"
-                                    onClick={() => navigate("/face-register")}
-                                    sx={{
-                                        borderRadius: 2,
-                                        textTransform: "none",
-                                        fontWeight: 700,
-                                        px: 3,
-                                        py: 1.25,
-                                        background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
-                                        color: "#ffffff",
-                                        "&:hover": {
-                                            background: "linear-gradient(90deg, #6d28d9, #0891b2)"
-                                        }
-                                    }}
-                                >
-                                    {faceLoginStatus ? "Re-configure Face" : "Setup Face Login"}
-                                </Button>
-                                {faceLoginStatus && !faceLoading ? (
-                                    <Button
-                                        variant="outlined"
-                                        color="error"
-                                        onClick={handleRemoveFaceSetup}
-                                        disabled={faceDeleteLoading}
-                                        sx={{
-                                            borderRadius: 2,
-                                            textTransform: "none",
-                                            fontWeight: 700,
-                                            px: 3,
-                                            py: 1.25,
-                                            borderColor: "rgba(239, 68, 68, 0.4)",
-                                            color: "#fca5a5",
-                                            "&:hover": {
-                                                borderColor: "#ef4444",
-                                                backgroundColor: "rgba(239, 68, 68, 0.06)"
-                                            }
-                                        }}
-                                    >
-                                        {faceDeleteLoading ? "Removing..." : "Remove Face Setup"}
-                                    </Button>
-                                ) : null}
-                            </Box>
-                        </Paper>
-                    </Box>
 
                     {/* Danger Zone */}
                     <Box>
@@ -781,7 +635,7 @@ export default function Profile() {
                                     Delete Account Permanent
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: '#e2e8f0', mt: 0.5 }}>
-                                    This will delete your credentials, facial bio, quiz milestones, and document index databases permanently.
+                                    This will delete your credentials, quiz milestones, and document index databases permanently.
                                 </Typography>
                             </Box>
 
@@ -869,7 +723,7 @@ export default function Profile() {
                                         <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5 }}>
                                             per month
                                         </Typography>
-                                        
+
                                         <Divider sx={{ my: 2.5, borderColor: "rgba(255,255,255,0.06)" }} />
 
                                         <Typography variant="body2" sx={{ mb: 3.5, color: "#cbd5e1", fontWeight: 600 }}>
@@ -877,24 +731,24 @@ export default function Profile() {
                                         </Typography>
 
                                         {isCurrent ? (
-                                            <Chip 
-                                                label="Active Plan" 
+                                            <Chip
+                                                label="Active Plan"
                                                 icon={<CheckCircle style={{ color: "#ffffff" }} />}
-                                                sx={{ 
-                                                    fontWeight: 700, 
-                                                    backgroundColor: "#06b6d4", 
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    backgroundColor: "#06b6d4",
                                                     color: "#ffffff",
                                                     px: 1.5
-                                                }} 
+                                                }}
                                             />
                                         ) : (
                                             <Button
                                                 variant="contained"
                                                 fullWidth
                                                 onClick={() => handlePurchaseSubscription(plan)}
-                                                sx={{ 
-                                                    mt: 2, 
-                                                    py: 1.25, 
+                                                sx={{
+                                                    mt: 2,
+                                                    py: 1.25,
                                                     fontWeight: 700,
                                                     borderRadius: 2.5,
                                                     background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
@@ -1025,9 +879,9 @@ export default function Profile() {
                     Confirm Delete Profile
                 </DialogTitle>
                 <DialogContent sx={{ pt: 2 }}>
-                    <Alert 
-                        severity="error" 
-                        sx={{ 
+                    <Alert
+                        severity="error"
+                        sx={{
                             mb: 3,
                             bgcolor: "rgba(239, 68, 68, 0.08)",
                             border: "1px solid rgba(239, 68, 68, 0.2)",

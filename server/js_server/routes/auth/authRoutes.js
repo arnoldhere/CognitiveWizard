@@ -3,21 +3,19 @@
  * ==========================
  * Express router for all /auth/* endpoints.
  *
+ * Facial authentication routes have been deprecated and removed.
+ *
  * Route delegation:
  *  ┌─────────────────────────────┬───────────────────────────────────────────┐
- *  │ Express Route               │ Delegated to (py_server FastAPI)          │
+ *  │ Express Route               │ Handled by                                │
  *  ├─────────────────────────────┼───────────────────────────────────────────┤
- *  │ POST  /auth/signup          │ POST  /auth/signup                        │
- *  │ POST  /auth/login           │ POST  /auth/login                         │
- *  │ GET   /auth/me              │ GET   /auth/me              (auth req.)   │
- *  │ PATCH /auth/profile         │ PATCH /auth/profile         (auth req.)   │
- *  │ DELETE/auth/profile         │ DELETE/auth/profile         (auth req.)   │
- *  │ POST  /auth/forgot-password │ POST  /auth/forgot-password               │
- *  │ POST  /auth/reset-password  │ POST  /auth/reset-password                │
- *  │ POST  /auth/face/register   │ POST  /auth/face/register   (auth req.)   │
- *  │ POST  /auth/face/login      │ POST  /auth/face/login                    │
- *  │ GET   /auth/face/status     │ GET   /auth/face/status     (auth req.)   │
- *  │ DELETE/auth/face            │ DELETE/auth/face            (auth req.)   │
+ *  │ POST  /auth/signup          │ authController.signup  (native)           │
+ *  │ POST  /auth/login           │ authController.login   (native)           │
+ *  │ GET   /auth/me              │ authController.getMe   (auth req.)        │
+ *  │ PATCH /auth/profile         │ authController.updateProfile (auth req.)  │
+ *  │ DELETE/auth/profile         │ authController.deleteProfile (auth req.)  │
+ *  │ POST  /auth/forgot-password │ authController.forgotPassword             │
+ *  │ POST  /auth/reset-password  │ authController.resetPassword              │
  *  └─────────────────────────────┴───────────────────────────────────────────┘
  *
  * Middlewares applied:
@@ -36,11 +34,6 @@ const {
   deleteProfile,
   forgotPassword,
   resetPassword,
-  faceRegister,
-  faceLogin,
-  faceStatus,
-  deleteFace,
-  upload,
 } = require("../../controllers/authController");
 
 const router = Router();
@@ -60,15 +53,6 @@ router.post("/forgot-password", authLimiter, forgotPassword);
 /** Verify OTP and set new password */
 router.post("/reset-password", authLimiter, resetPassword);
 
-// ─── Face Login (Public — no existing token needed) ───────────────────────
-/** Authenticate using facial recognition */
-router.post(
-  "/face/login",
-  authLimiter,
-  upload.single("image"),  // Parse face image
-  faceLogin
-);
-
 // ─── Protected Auth Routes ────────────────────────────────────────────────
 /** Get currently authenticated user's profile */
 router.get("/me", authenticate, getMe);
@@ -78,20 +62,5 @@ router.patch("/profile", authenticate, updateProfile);
 
 /** Permanently delete account and all associated data */
 router.delete("/profile", authenticate, deleteProfile);
-
-// ─── Face Auth (Protected) ────────────────────────────────────────────────
-/** Register a face image for facial login */
-router.post(
-  "/face/register",
-  authenticate,
-  upload.single("image"),  // Parse face image
-  faceRegister
-);
-
-/** Check if current user has facial login configured */
-router.get("/face/status", authenticate, faceStatus);
-
-/** Remove current user's facial login data */
-router.delete("/face", authenticate, deleteFace);
 
 module.exports = router;

@@ -7,7 +7,6 @@ const Grade = require('./Grade');
 const PaymentTransaction = require('./PaymentTransaction');
 const RAGDocument = require('./RAGDocument');
 const RAGQueryLog = require('./RAGLog');
-const FaceEmbedding = require('./FaceEmbedding');
 
 // Define relationships
 User.hasMany(Grade, { foreignKey: 'user_id', as: 'grades' });
@@ -28,5 +27,4 @@ module.exports = {
   PaymentTransaction,
   RAGDocument,
   RAGQueryLog,
-  FaceEmbedding
 };
