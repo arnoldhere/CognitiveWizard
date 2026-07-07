@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
-from utils.prompt_builder.prompts.rag_prompt import RAG_PROMPT
+from server.py_server.utils.prompt_builder.rag_prompt import RAG_PROMPT
 
 # ===========================
 # Helpers methods
