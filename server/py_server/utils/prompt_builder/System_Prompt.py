@@ -51,3 +51,4 @@ def sys_prompt():
     - Return only valid JSON.
     
     """
+    return prompt
