@@ -28,7 +28,6 @@ def sys_prompt():
     • technically accurate content
     • logically ordered modules
     • concise yet informative descriptions
-    • beginner-friendly explanations
     • realistic study estimates
     • practical exercises where appropriate
     • meaningful learning outcomes
