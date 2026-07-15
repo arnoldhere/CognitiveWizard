@@ -7,7 +7,6 @@ env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env")
 load_dotenv(dotenv_path=env_path)
 
 
-
 @dataclass
 class Settings:
     MEDIA_DIR: str = os.getenv("MEDIA_DIR")

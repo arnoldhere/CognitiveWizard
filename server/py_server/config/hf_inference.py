@@ -62,7 +62,7 @@ class HFClientManager:
 
 
 """
-example usage for API clien
+example usage for API client
 """
 # client = HFClientManager.get_client()
 # res = client.text_generation(
