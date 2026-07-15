@@ -9,6 +9,8 @@ import {
     getSubscriptionPlans,
     createSubscriptionOrder,
     confirmSubscriptionPayment,
+    getSubscriptionStatus,
+    cancelSubscription,
     updateProfile,
 } from "../services/api";
 import QuizResultsHistory from "../components/quiz/QuizResultsHistory";
@@ -31,8 +33,10 @@ import {
     DialogActions,
     TextField,
     CircularProgress,
+    LinearProgress,
+    Tooltip,
 } from "@mui/material";
-import { Face2Outlined, Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, CheckCircle, Close } from "@mui/icons-material";
+import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, CheckCircle, Close, AccessTime, Cancel } from "@mui/icons-material";
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -77,6 +81,7 @@ export default function Profile() {
 
 
     // Subscription states
+    // Subscription plans and status state
     const [subscriptionPlans, setSubscriptionPlans] = useState([]);
     const [subscriptionLoading, setSubscriptionLoading] = useState(false);
     const [subscriptionError, setSubscriptionError] = useState(null);
@@ -84,6 +89,13 @@ export default function Profile() {
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
     const [paymentError, setPaymentError] = useState(null);
+    // Subscription status (expiry date, days left, etc.)
+    const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+    // Cancel subscription states
+    const [cancelLoading, setCancelLoading] = useState(false);
+    const [cancelError, setCancelError] = useState(null);
+    const [cancelSuccess, setCancelSuccess] = useState(null);
+    const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
     const formatDuration = (seconds) => {
         if (seconds === null || seconds === undefined) {
@@ -183,8 +195,15 @@ export default function Profile() {
         try {
             setSubscriptionLoading(true);
             setSubscriptionError(null);
-            const plans = await getSubscriptionPlans();
+
+            // Load plans list and subscription status in parallel
+            const [plans, status] = await Promise.all([
+                getSubscriptionPlans(),
+                getSubscriptionStatus().catch(() => null), // non-fatal — user may not be subscribed
+            ]);
+
             setSubscriptionPlans(plans);
+            setSubscriptionStatus(status);
         } catch (err) {
             console.error("Error fetching subscription plans:", err);
             setSubscriptionError("Unable to load subscription plans.");
@@ -192,6 +211,30 @@ export default function Profile() {
             setSubscriptionLoading(false);
         }
     }, []);
+
+    /** Cancel the active subscription after user confirms. */
+    const handleCancelSubscription = async () => {
+        try {
+            setCancelLoading(true);
+            setCancelError(null);
+            setCancelSuccess(null);
+
+            await cancelSubscription();
+
+            // Refresh user context and subscription status
+            await refreshUser();
+            const status = await getSubscriptionStatus().catch(() => null);
+            setSubscriptionStatus(status);
+
+            setCancelSuccess("Your subscription has been cancelled. You are now on the free tier.");
+            setCancelConfirmOpen(false);
+        } catch (err) {
+            console.error("Error cancelling subscription:", err);
+            setCancelError(err?.message || "Failed to cancel subscription. Please try again.");
+        } finally {
+            setCancelLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (user) {
@@ -259,11 +302,12 @@ export default function Profile() {
                             razorpay_signature: response.razorpay_signature,
                         });
 
-                        // Refresh user data to show updated subscription
+                        // Refresh user data and subscription status
                         await refreshUser();
+                        const newStatus = await getSubscriptionStatus().catch(() => null);
+                        setSubscriptionStatus(newStatus);
                         setPaymentModalOpen(false);
                         setSelectedPlan(null);
-                        alert("Subscription purchased successfully!");
                     } catch (err) {
                         console.error("Payment confirmation failed:", err);
                         setPaymentError("Payment confirmation failed. Please contact support.");
@@ -679,95 +723,323 @@ export default function Profile() {
                 />
             </TabPanel>
 
-            {/* Subscription plans */}
+            {/* ─── Subscriptions Tab ─────────────────────────────────────── */}
             <TabPanel value={tabValue} index={2}>
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 3.5, color: "#f1f5f9" }}>
-                    Select Subscription Plan
+
+                {/* Section header */}
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1, color: "#f1f5f9" }}>
+                    Subscription Plans
                 </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5 }}>
+                    Upgrade your plan to increase your daily chat limit.
+                </Typography>
+
+                {/* Error loading plans */}
                 {subscriptionError && (
-                    <Alert severity="error" sx={{ mb: 3 }}>
-                        {subscriptionError}
+                    <Alert severity="error" sx={{ mb: 3 }}>{subscriptionError}</Alert>
+                )}
+
+                {/* Cancel operation feedback */}
+                {cancelSuccess && (
+                    <Alert severity="success" sx={{ mb: 3 }} onClose={() => setCancelSuccess(null)}>
+                        {cancelSuccess}
                     </Alert>
                 )}
+                {cancelError && (
+                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setCancelError(null)}>
+                        {cancelError}
+                    </Alert>
+                )}
+
                 {subscriptionLoading ? (
                     <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
                         <CircularProgress color="secondary" />
                     </Box>
                 ) : (
-                    <Grid container spacing={4}>
-                        {subscriptionPlans.map((plan) => {
-                            const isCurrent = user?.subscription_plan === plan.id;
-                            return (
-                                <Grid item xs={12} md={4} key={plan.id}>
-                                    <Paper
-                                        elevation={0}
-                                        sx={{
-                                            p: 4,
-                                            textAlign: "center",
-                                            borderRadius: 4,
-                                            background: isCurrent ? "rgba(6, 182, 212, 0.05)" : "rgba(255, 255, 255, 0.02)",
-                                            border: isCurrent ? "2.5px solid #06b6d4" : "1px solid rgba(255, 255, 255, 0.08)",
-                                            boxShadow: isCurrent ? "0 0 24px rgba(6, 182, 212, 0.15)" : "none",
-                                            position: "relative",
-                                        }}
-                                    >
-                                        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, color: "#f1f5f9" }}>
-                                            {plan.name}
+                    <>
+                        {/* ── Active Subscription Summary Card ── */}
+                        {user?.subscribed && subscriptionStatus && (
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 3,
+                                    mb: 4,
+                                    borderRadius: 4,
+                                    background: "rgba(6, 182, 212, 0.05)",
+                                    border: "1.5px solid rgba(6, 182, 212, 0.35)",
+                                    boxShadow: "0 0 24px rgba(6, 182, 212, 0.08)",
+                                }}
+                            >
+                                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+                                    {/* Left: plan name + dates */}
+                                    <Box>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                                            <CheckCircle sx={{ color: "#06b6d4", fontSize: 20 }} />
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#f1f5f9" }}>
+                                                Active Plan: {user.subscription_plan?.charAt(0).toUpperCase() + user.subscription_plan?.slice(1)}
+                                            </Typography>
+                                        </Box>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Purchased:{" "}
+                                            <strong style={{ color: "#cbd5e1" }}>
+                                                {subscriptionStatus.subscription_started_at
+                                                    ? new Date(subscriptionStatus.subscription_started_at).toLocaleDateString("en-IN", {
+                                                        day: "numeric", month: "long", year: "numeric",
+                                                    })
+                                                    : "—"}
+                                            </strong>
                                         </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, minHeight: 40 }}>
-                                            {plan.description}
+                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
+                                            Expires:{" "}
+                                            <strong style={{ color: "#cbd5e1" }}>
+                                                {subscriptionStatus.subscription_expires_at
+                                                    ? new Date(subscriptionStatus.subscription_expires_at).toLocaleDateString("en-IN", {
+                                                        day: "numeric", month: "long", year: "numeric",
+                                                    })
+                                                    : "—"}
+                                            </strong>
                                         </Typography>
-                                        <Typography variant="h3" sx={{ fontWeight: 900, color: "#06b6d4", mb: 0.5 }}>
-                                            ₹ {plan.amount_inr}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5 }}>
-                                            per month
-                                        </Typography>
+                                    </Box>
 
-                                        <Divider sx={{ my: 2.5, borderColor: "rgba(255,255,255,0.06)" }} />
-
-                                        <Typography variant="body2" sx={{ mb: 3.5, color: "#cbd5e1", fontWeight: 600 }}>
-                                            Daily Limit: {plan.daily_chat_limit} chat sessions
-                                        </Typography>
-
-                                        {isCurrent ? (
-                                            <Chip
-                                                label="Active Plan"
-                                                icon={<CheckCircle style={{ color: "#ffffff" }} />}
+                                    {/* Right: days remaining badge */}
+                                    <Box sx={{ textAlign: "center", minWidth: 120 }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, justifyContent: "center", mb: 0.5 }}>
+                                            <AccessTime sx={{
+                                                fontSize: 16,
+                                                color: subscriptionStatus.days_left <= 5
+                                                    ? (subscriptionStatus.days_left <= 1 ? "#ef4444" : "#f97316")
+                                                    : "#06b6d4"
+                                            }} />
+                                            <Typography
+                                                variant="h5"
                                                 sx={{
-                                                    fontWeight: 700,
-                                                    backgroundColor: "#06b6d4",
-                                                    color: "#ffffff",
-                                                    px: 1.5
-                                                }}
-                                            />
-                                        ) : (
-                                            <Button
-                                                variant="contained"
-                                                fullWidth
-                                                onClick={() => handlePurchaseSubscription(plan)}
-                                                sx={{
-                                                    mt: 2,
-                                                    py: 1.25,
-                                                    fontWeight: 700,
-                                                    borderRadius: 2.5,
-                                                    background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
-                                                    color: "#ffffff",
-                                                    "&:hover": {
-                                                        background: "linear-gradient(90deg, #6d28d9, #0891b2)"
-                                                    }
+                                                    fontWeight: 900,
+                                                    color: subscriptionStatus.days_left <= 5
+                                                        ? (subscriptionStatus.days_left <= 1 ? "#ef4444" : "#f97316")
+                                                        : "#06b6d4",
                                                 }}
                                             >
-                                                Subscribe Now
-                                            </Button>
-                                        )}
-                                    </Paper>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
+                                                {subscriptionStatus.days_left ?? 0}
+                                            </Typography>
+                                        </Box>
+                                        <Typography variant="caption" color="text.secondary">
+                                            day{subscriptionStatus.days_left !== 1 ? "s" : ""} left
+                                        </Typography>
+
+                                        {/* Progress bar showing remaining time out of 30 days */}
+                                        <Tooltip title={`${subscriptionStatus.days_left} of 30 days remaining`}>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={Math.min(100, ((subscriptionStatus.days_left ?? 0) / 30) * 100)}
+                                                sx={{
+                                                    mt: 1,
+                                                    height: 6,
+                                                    borderRadius: 3,
+                                                    backgroundColor: "rgba(255,255,255,0.08)",
+                                                    "& .MuiLinearProgress-bar": {
+                                                        borderRadius: 3,
+                                                        backgroundColor: subscriptionStatus.days_left <= 5
+                                                            ? (subscriptionStatus.days_left <= 1 ? "#ef4444" : "#f97316")
+                                                            : "#06b6d4",
+                                                    },
+                                                }}
+                                            />
+                                        </Tooltip>
+                                    </Box>
+                                </Box>
+
+                                {/* Expiry warning */}
+                                {subscriptionStatus.days_left !== null && subscriptionStatus.days_left <= 5 && (
+                                    <Alert
+                                        severity={subscriptionStatus.days_left <= 1 ? "error" : "warning"}
+                                        icon={<AccessTime />}
+                                        sx={{ mt: 2, borderRadius: 2 }}
+                                    >
+                                        {subscriptionStatus.days_left <= 1
+                                            ? "Your subscription expires today! Renew now to avoid losing access."
+                                            : `Your subscription expires in ${subscriptionStatus.days_left} days. Renew before it lapses.`}
+                                    </Alert>
+                                )}
+
+                                {/* Cancel subscription button */}
+                                <Box sx={{ mt: 2.5, display: "flex", justifyContent: "flex-end" }}>
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        startIcon={<Cancel />}
+                                        onClick={() => setCancelConfirmOpen(true)}
+                                        sx={{
+                                            color: "#ef4444",
+                                            borderColor: "rgba(239, 68, 68, 0.4)",
+                                            fontWeight: 700,
+                                            "&:hover": {
+                                                borderColor: "#ef4444",
+                                                background: "rgba(239, 68, 68, 0.06)",
+                                            },
+                                        }}
+                                    >
+                                        Cancel Subscription
+                                    </Button>
+                                </Box>
+                            </Paper>
+                        )}
+
+                        {/* ── Plan Cards ── */}
+                        <Grid container spacing={4}>
+                            {subscriptionPlans.map((plan) => {
+                                const isCurrent = user?.subscription_plan === plan.id;
+                                // Disable subscribe button when user has ANY active subscription
+                                const isSubscribed = !!user?.subscribed;
+
+                                return (
+                                    <Grid item xs={12} md={4} key={plan.id}>
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                p: 4,
+                                                textAlign: "center",
+                                                borderRadius: 4,
+                                                background: isCurrent
+                                                    ? "rgba(6, 182, 212, 0.05)"
+                                                    : "rgba(255, 255, 255, 0.02)",
+                                                border: isCurrent
+                                                    ? "2.5px solid #06b6d4"
+                                                    : "1px solid rgba(255, 255, 255, 0.08)",
+                                                boxShadow: isCurrent
+                                                    ? "0 0 24px rgba(6, 182, 212, 0.15)"
+                                                    : "none",
+                                                opacity: isSubscribed && !isCurrent ? 0.6 : 1,
+                                                position: "relative",
+                                                transition: "opacity 0.2s ease",
+                                            }}
+                                        >
+                                            <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, color: "#f1f5f9" }}>
+                                                {plan.name}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, minHeight: 40 }}>
+                                                {plan.description}
+                                            </Typography>
+                                            <Typography variant="h3" sx={{ fontWeight: 900, color: "#06b6d4", mb: 0.5 }}>
+                                                ₹ {plan.amount_inr}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5 }}>
+                                                per month
+                                            </Typography>
+
+                                            <Divider sx={{ my: 2.5, borderColor: "rgba(255,255,255,0.06)" }} />
+
+                                            <Typography variant="body2" sx={{ mb: 3.5, color: "#cbd5e1", fontWeight: 600 }}>
+                                                Daily Limit: {plan.daily_chat_limit} chat sessions
+                                            </Typography>
+
+                                            {isCurrent ? (
+                                                /* Active plan badge */
+                                                <Chip
+                                                    label="Active Plan"
+                                                    icon={<CheckCircle style={{ color: "#ffffff" }} />}
+                                                    sx={{
+                                                        fontWeight: 700,
+                                                        backgroundColor: "#06b6d4",
+                                                        color: "#ffffff",
+                                                        px: 1.5,
+                                                    }}
+                                                />
+                                            ) : (
+                                                /* Subscribe button — disabled if user has any active plan */
+                                                <Tooltip
+                                                    title={
+                                                        isSubscribed
+                                                            ? "Cancel your current plan first to switch plans"
+                                                            : ""
+                                                    }
+                                                >
+                                                    <span style={{ display: "block" }}>
+                                                        <Button
+                                                            variant="contained"
+                                                            fullWidth
+                                                            disabled={isSubscribed}
+                                                            onClick={() => handlePurchaseSubscription(plan)}
+                                                            sx={{
+                                                                mt: 2,
+                                                                py: 1.25,
+                                                                fontWeight: 700,
+                                                                borderRadius: 2.5,
+                                                                background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+                                                                color: "#ffffff",
+                                                                "&:hover": {
+                                                                    background: "linear-gradient(90deg, #6d28d9, #0891b2)",
+                                                                },
+                                                                "&.Mui-disabled": {
+                                                                    background: "rgba(255,255,255,0.06)",
+                                                                    color: "rgba(255,255,255,0.3)",
+                                                                },
+                                                            }}
+                                                        >
+                                                            Subscribe Now
+                                                        </Button>
+                                                    </span>
+                                                </Tooltip>
+                                            )}
+                                        </Paper>
+                                    </Grid>
+                                );
+                            })}
+                        </Grid>
+                    </>
                 )}
             </TabPanel>
+
+            {/* ─── Cancel Subscription Confirmation Dialog ───────────────── */}
+            <Dialog
+                open={cancelConfirmOpen}
+                onClose={() => !cancelLoading && setCancelConfirmOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        bgcolor: "#161b27",
+                        backgroundImage: "none",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        borderRadius: 3,
+                    },
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, color: "#f1f5f9" }}>
+                    Cancel Subscription?
+                </DialogTitle>
+                <DialogContent>
+                    <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+                        Cancelling will immediately remove your premium access and revert you to the free tier (5 chats/day).
+                        This action cannot be undone.
+                    </Alert>
+                    {cancelError && (
+                        <Alert severity="error" sx={{ borderRadius: 2 }}>{cancelError}</Alert>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 3, pt: 0, gap: 1 }}>
+                    <Button
+                        onClick={() => setCancelConfirmOpen(false)}
+                        disabled={cancelLoading}
+                        sx={{ color: "#94a3b8", fontWeight: 600 }}
+                    >
+                        Keep Plan
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleCancelSubscription}
+                        disabled={cancelLoading}
+                        startIcon={cancelLoading ? <CircularProgress size={16} /> : <Cancel />}
+                        sx={{
+                            fontWeight: 700,
+                            backgroundColor: "#ef4444",
+                            "&:hover": { backgroundColor: "#dc2626" },
+                            "&.Mui-disabled": { backgroundColor: "rgba(239,68,68,0.4)" },
+                        }}
+                    >
+                        {cancelLoading ? "Cancelling..." : "Yes, Cancel"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Quiz detail Dialog */}
             <Dialog

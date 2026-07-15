@@ -49,6 +49,16 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  /** Date when the subscription was activated */
+  subscription_started_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  /** Date when the subscription expires (30 days after start) */
+  subscription_expires_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
   phone: {
     type: DataTypes.STRING(30),
     allowNull: true,

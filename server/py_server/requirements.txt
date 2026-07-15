@@ -1,48 +1,77 @@
-fastapi
-redis
-celery
-uvicorn
-numpy
-pandas
-scikit-learn
-transformers
-torch
-kafka-python
-python-dotenv
-sqlalchemy
-pymysql
-cryptography
-passlib[bcrypt]
-python-jose[cryptography]
-certifi
-python-docx
-huggingface_hub
-requests
-beautifulsoup4
-youtube-transcript-api
-PyMuPDF
-pydantic
-alembic
-sentence-transformers
-langchain
-langchain-community
-langchain-core
-langchain-openai
-langchain-anthropic
-tiktoken
-langchain-huggingface
-langchain-chroma
-pymongo
-pydantic[email]
+# Web Framework
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+gunicorn==23.0.0
+python-multipart==0.0.20
+
+# Task Queue & Cache
+celery==5.5.3
+redis==6.2.0
+
+# Environment
+python-dotenv==1.1.1
+certifi==2025.7.14
+
+# Database
+sqlalchemy==2.0.41
+alembic==1.16.4
+pymysql==1.1.1
+pymongo==4.13.2
+
+# Authentication & Security
+cryptography==45.0.5
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.5.0
+
+# Validation
+pydantic==2.11.7
+pydantic[email]==2.11.7
+
+# AI / ML
+numpy==2.2.6
+pandas==2.3.1
+scikit-learn==1.7.1
+
+torch>=2.3,<3.0
+transformers==4.53.3
+sentence-transformers==5.0.0
+accelerate>=1.8.1
+safetensors>=0.5.3
+
+# LangChain
+langchain==0.3.27
+langchain-core==0.3.72
+langchain-community==0.3.27
+langchain-openai==0.3.28
+langchain-anthropic==0.3.17
+langchain-huggingface==0.3.1
+langchain-chroma==0.2.5
+tiktoken==0.9.0
+
+# Vector Store
+chromadb==1.0.15
+
+# Hugging Face
+huggingface_hub>=0.34.3
+
+# RAG Evaluation
+ragas==0.3.0
+datasets==4.0.0
+
+# Computer Vision
 opencv-python-headless
-tensorflow==2.15.0
-retina-face==0.0.13
-insightface==0.7.3
-onnx==1.16.1
-python-multipart
-pymysql
-gunicorn
-pillow
-ragas
-datasets
-deepeval
+Pillow==11.3.0
+onnx==1.18.0
+onnxruntime==1.22.1
+
+# Document Processing
+PyMuPDF==1.26.3
+python-docx==1.2.0
+
+# Web Scraping & APIs
+requests==2.32.4
+beautifulsoup4==4.13.4
+youtube-transcript-api==1.2.2
+
+# Messaging
+kafka-python==2.2.15

@@ -5,13 +5,16 @@ from services.wizard_service import generate_wizard_content
 
 router = APIRouter(prefix="/wizard", tags=["wizard"])
 
+
 class WizardRawRequest(BaseModel):
     topic: str
     content_type: str
     details: Optional[str] = None
 
+
 class WizardRawResponse(BaseModel):
     content: Dict[str, Any]
+
 
 @router.post("/generate-raw", response_model=WizardRawResponse)
 async def generate_raw_content(request: WizardRawRequest):

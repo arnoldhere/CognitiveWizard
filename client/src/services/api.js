@@ -85,6 +85,18 @@ export const confirmSubscriptionPayment = async (payload) => {
   return res.data;
 };
 
+/** Get the authenticated user's current subscription status (plan, expiry, days left). */
+export const getSubscriptionStatus = async () => {
+  const res = await API.get("/subscriptions/status");
+  return res.data;
+};
+
+/** Cancel the authenticated user's active subscription. */
+export const cancelSubscription = async () => {
+  const res = await API.delete("/subscriptions/cancel");
+  return res.data;
+};
+
 export const getQuizResults = async ({
   skip = 0,
   limit = 10,
