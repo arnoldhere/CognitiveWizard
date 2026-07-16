@@ -33,7 +33,7 @@ async function uploadDocument(req, res, next) {
       filename: req.file.originalname,
       contentType: req.file.mimetype,
     });
-    
+
     // Call py_server to process upload (chunking + chromadb)
     const aiResponse = await pyAxios.post("/rag/upload-raw", formData, {
       headers: { ...formData.getHeaders(), "x-user-id": req.user.id },
@@ -46,7 +46,6 @@ async function uploadDocument(req, res, next) {
       await RAGDocument.create({
         user_id: req.user.id,
         document_name: req.file.originalname || "uploaded-file",
-        chunk_index: result.chunks,
       });
     }
 
@@ -116,7 +115,7 @@ async function getRagStatusLangchain(req, res, next) {
 async function handleChat(req, res, next, endpoint) {
   try {
     const { query, session_id } = req.body || {};
-    
+
     // 1. Check Limits in Express
     const limitCheck = await chatLimitService.checkLimit(req.user);
     if (!limitCheck.canSend) {
@@ -136,9 +135,9 @@ async function handleChat(req, res, next, endpoint) {
     if (session_id) {
       await chatSessionService.incrementSessionMessageCount(session_id, req.user.id);
     }
-    
+
     result.user_status = await chatLimitService.getUserStatus(req.user);
-    
+
     // Save Log
     if (result.log_metadata) {
       await RAGQueryLog.create({
@@ -233,10 +232,10 @@ async function deleteSession(req, res, next) {
   try {
     const deleted = await chatSessionService.softDeleteChatSession(req.params.session_id, req.user.id);
     if (!deleted) return res.status(404).json({ detail: "Session not found" });
-    
+
     // Also delete mongo history via python
     await pyAxios.delete(`/rag/sessions-raw/${req.params.session_id}/history`, { headers: { "x-user-id": req.user.id } });
-    
+
     res.json({ status: "success", detail: "Session and history deleted" });
   } catch (err) { next(err); }
 }

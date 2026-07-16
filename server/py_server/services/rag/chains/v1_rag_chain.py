@@ -35,15 +35,15 @@ def _doc_text(doc: Any) -> str:
 
 
 def _format_docs(docs: List[Any]) -> str:
-    """Join document/chunks texts for retrieval context, with numbered entries."""
+    """Join document/chunks texts for retrieval context."""
     if not docs:
         return "No relevant chunks found."
     formatted_docs = []
-    for idx, doc in enumerate(docs, start=1):
+    for doc in docs:
         text = _doc_text(doc).strip()
         if not text:
             continue
-        formatted_docs.append(f"Chunk {idx}: {text}")
+        formatted_docs.append(text)
     return (
         "\n\n".join(formatted_docs)
         if formatted_docs

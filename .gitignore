@@ -4,7 +4,7 @@ node_modules/
 .env
 /cogwiz
 demo.py
-server/media/
+server/media/*
 server/vectorDB
 *vectorDB/
 alembic.ini

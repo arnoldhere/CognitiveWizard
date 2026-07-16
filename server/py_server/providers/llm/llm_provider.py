@@ -25,6 +25,7 @@ class Provider:
         self.hf_task = hf_task
         self.top_p = top_p
         self.top_k = top_k
+        self.hf_provider = settings.HF_PROVIDER
 
         # Explicitly set HF_TOKEN in the environment so that huggingface_hub's
         # internal HfApi() routing calls can have the authorization to inspect gated models.
@@ -69,6 +70,7 @@ class Provider:
                         temperature=self.temperature,
                         repo_id=model_id,
                         max_new_tokens=self.max_new_tokens,
+                        provider=self.hf_provider,
                         huggingfacehub_api_token=self.hf_token,
                         **sampling_kwargs,
                     )
@@ -81,6 +83,7 @@ class Provider:
                     huggingfacehub_api_token=self.hf_token,
                     task=self.hf_task or "text-generation",
                     max_new_tokens=self.max_new_tokens,
+                    provider=self.hf_provider,
                 )
                 return endpoint
 
@@ -93,6 +96,7 @@ class Provider:
                     huggingfacehub_api_token=token,
                     task=self.hf_task or "text-generation",
                     max_new_tokens=self.max_new_tokens,
+                    provider=self.hf_provider,
                 )
                 return ChatHuggingFace(llm=endpoint) if use_chat else endpoint
 

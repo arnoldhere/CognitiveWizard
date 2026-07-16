@@ -42,7 +42,7 @@ class Settings:
         "QUIZ_GENERATOR_MODEL", "meta-llama/Llama-3.1-8B-Instruct"
     )
     QUIZ_GENERATOR_MODEL_LOCAL: str = os.getenv("QUIZ_GENERATOR_MODEL_LOCAL")
-    HF_PROVIDER: str = os.getenv("HF_PROVIDER", "")
+    HF_PROVIDER: str = os.getenv("HF_PROVIDER", None)
     # ===========
     # Database configurations
     # ===========

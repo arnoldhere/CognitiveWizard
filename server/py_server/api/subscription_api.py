@@ -54,6 +54,7 @@ SUBSCRIPTION_PLANS = {
 
 # ─── Pydantic models ─────────────────────────────────────────────────────────
 
+
 class SubscriptionPlan(BaseModel):
     id: str
     name: str
@@ -84,6 +85,7 @@ class VerifySignatureResponse(BaseModel):
 
 class ExpiryNotifyRequest(BaseModel):
     """Payload sent from js_server when triggering expiry reminder emails."""
+
     email: str
     full_name: str
     plan: str
@@ -92,6 +94,7 @@ class ExpiryNotifyRequest(BaseModel):
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
+
 
 @router.get("/plans", response_model=list[SubscriptionPlan])
 def list_subscription_plans():
@@ -140,7 +143,9 @@ def create_subscription_order_raw(request: SubscriptionOrderRequest):
         }
 
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -166,7 +171,9 @@ def verify_signature(request: VerifySignatureRequest):
 
 
 @router.post("/notify-expiry")
-async def notify_subscription_expiry(request: ExpiryNotifyRequest, background_tasks: BackgroundTasks):
+async def notify_subscription_expiry(
+    request: ExpiryNotifyRequest, background_tasks: BackgroundTasks
+):
     """
     Send a subscription expiry reminder email to the given user.
     The email is dispatched in the background so the response is immediate.
@@ -182,10 +189,14 @@ async def notify_subscription_expiry(request: ExpiryNotifyRequest, background_ta
             days_left=request.days_left,
             expires_at=request.expires_at,
         )
-        logger.info(f"[SUBSCRIPTION] Expiry reminder queued for {request.email}, {request.days_left} days left")
+        logger.info(
+            f"[SUBSCRIPTION] Expiry reminder queued for {request.email}, {request.days_left} days left"
+        )
         return {"status": "queued", "email": request.email}
     except Exception as exc:
-        logger.error(f"[SUBSCRIPTION] Failed to queue expiry email for {request.email}: {exc}")
+        logger.error(
+            f"[SUBSCRIPTION] Failed to queue expiry email for {request.email}: {exc}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send expiry notification email.",

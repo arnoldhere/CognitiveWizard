@@ -1,6 +1,7 @@
 import logging
 from langchain_chroma import Chroma
 from config.settings import settings
+from chromadb.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,9 @@ class VectorDBFactory:
             embedding_function=embeddings,
             persist_directory=persist_directory,
             collection_metadata={"hnsw:space": "cosine"},
+            client_settings=Settings(
+                anonymized_telemetry=False,
+            ),
         )
 
     @staticmethod

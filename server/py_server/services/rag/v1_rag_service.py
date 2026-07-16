@@ -119,11 +119,10 @@ class LangChainRAGService:
                 metadata={
                     "user_id": user_id,
                     "title": title,
-                    "chunk_index": idx,
                     "source_url": (metadata or {}).get("source_url"),
                 },
             )
-            for idx, chunk in enumerate(chunks, start=1)
+            for chunk in chunks
         ]
 
         user_vectordb = self._get_user_vectordb(user_id)

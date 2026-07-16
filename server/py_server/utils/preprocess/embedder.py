@@ -14,15 +14,15 @@ class EmbeddingFactory:
     Factory class for Hugging Face Inference API embeddings.
     """
 
-    _cached_embeddings = None
+    _cache = {}
 
-    @staticmethod
-    def get_embeddings(
-        model_name: str = settings.DEF_EMBEDD_MODEL, mode: str = "local"
-    ):
-        if mode == "local":
-            if EmbeddingFactory._cached_embeddings is None:
-                EmbeddingFactory._cached_embeddings = HuggingFaceEmbeddings(
+    @classmethod
+    def get_embeddings(cls, model_name=settings.DEF_EMBEDD_MODEL, mode="local"):
+        key = (mode, model_name)
+
+        if key not in cls._cache:
+            if mode == "local":
+                cls._cache[key] = HuggingFaceEmbeddings(
                     model_name=model_name,
                     model_kwargs={
                         "device": DEVICE,
@@ -33,11 +33,10 @@ class EmbeddingFactory:
                         "batch_size": 16,
                     },
                 )
-            return EmbeddingFactory._cached_embeddings
-        elif mode == "inference":
-            if EmbeddingFactory._cached_embeddings is None:
-                EmbeddingFactory._cached_embeddings = HuggingFaceEndpointEmbeddings(
+            elif mode == "inference":
+                cls._cache[key] = HuggingFaceEndpointEmbeddings(
                     model=model_name,
                     huggingfacehub_api_token=settings.HF_API_KEY,
                 )
-            return EmbeddingFactory._cached_embeddings
+
+        return cls._cache[key]

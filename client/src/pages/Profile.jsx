@@ -36,7 +36,7 @@ import {
     LinearProgress,
     Tooltip,
 } from "@mui/material";
-import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, CheckCircle, Close, AccessTime, Cancel } from "@mui/icons-material";
+import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, CheckCircle, Close, AccessTime, Cancel, Face2Outlined } from "@mui/icons-material";
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;

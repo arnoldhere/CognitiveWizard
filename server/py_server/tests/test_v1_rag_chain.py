@@ -16,8 +16,7 @@ class FakeRetriever:
 def test_format_docs_uses_chroma_document_page_content():
     formatted = format_docs([Document(page_content="uploaded source context")])
 
-    assert "Chunk 1:" in formatted
-    assert "uploaded source context" in formatted
+    assert formatted == "uploaded source context"
     assert "page_content=" not in formatted
 
 

@@ -15,11 +15,6 @@ const RAGDocument = sequelize.define('RAGDocument', {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
-  chunk_index: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-  },
   snippet: {
     type: DataTypes.TEXT,
     allowNull: true,
