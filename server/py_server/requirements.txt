@@ -27,16 +27,21 @@ python-jose[cryptography]==3.5.0
 pydantic==2.11.7
 pydantic[email]==2.11.7
 
-# AI / ML
+# Scientific Computing
 numpy==2.2.6
 pandas==2.3.1
 scikit-learn==1.7.1
 
+# PyTorch
 torch>=2.3,<3.0
+
+# Hugging Face Ecosystem
 transformers==4.53.3
+tokenizers==0.21.4
+huggingface_hub==0.36.2
+accelerate==1.8.1
 sentence-transformers==5.0.0
-accelerate>=1.8.1
-safetensors>=0.5.3
+safetensors==0.5.3
 
 # LangChain
 langchain==0.3.27
@@ -48,11 +53,8 @@ langchain-huggingface==0.3.1
 langchain-chroma==0.2.5
 tiktoken==0.9.0
 
-# Vector Store
+# Vector Database
 chromadb==1.0.15
-
-# Hugging Face
-huggingface_hub>=0.34.3
 
 # RAG Evaluation
 ragas==0.3.0
@@ -68,7 +70,7 @@ onnxruntime==1.22.1
 PyMuPDF==1.26.3
 python-docx==1.2.0
 
-# Web Scraping & APIs
+# Networking & APIs
 requests==2.32.4
 beautifulsoup4==4.13.4
 youtube-transcript-api==1.2.2

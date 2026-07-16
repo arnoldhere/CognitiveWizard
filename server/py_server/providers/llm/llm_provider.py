@@ -4,6 +4,7 @@ from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from huggingface_hub import InferenceClient
 from config.settings import settings
+import os
 
 
 class Provider:
@@ -24,6 +25,13 @@ class Provider:
         self.hf_task = hf_task
         self.top_p = top_p
         self.top_k = top_k
+
+        # Explicitly set HF_TOKEN in the environment so that huggingface_hub's
+        # internal HfApi() routing calls can have the authorization to inspect gated models.
+        self.hf_token = settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN
+        if self.hf_token:
+            os.environ["HF_TOKEN"] = self.hf_token
+            os.environ["HUGGINGFACEHUB_API_TOKEN"] = self.hf_token
 
     def get_llm(self, use_chat: bool = True):
         match self.provider:
@@ -48,7 +56,6 @@ class Provider:
                 # Route conversational tasks directly through HF's chat endpoint
                 # This ensures all chat-style tasks use a chat-compatible model client.
                 if self.hf_task == "conversational" or use_chat:
-                    token = settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN
                     model_id = self._clean_model(
                         self.model_name or settings.HF_DEF_MODEL
                     )
@@ -62,8 +69,7 @@ class Provider:
                         temperature=self.temperature,
                         repo_id=model_id,
                         max_new_tokens=self.max_new_tokens,
-                        huggingfacehub_api_token=settings.HF_API_KEY
-                        or settings.HUGGINGFACEHUB_API_TOKEN,
+                        huggingfacehub_api_token=self.hf_token,
                         **sampling_kwargs,
                     )
                     return ChatHuggingFace(llm=endpoint)
@@ -72,8 +78,7 @@ class Provider:
                 endpoint = HuggingFaceEndpoint(
                     repo_id=self.model_name or settings.HF_DEF_MODEL,
                     temperature=self.temperature,
-                    huggingfacehub_api_token=settings.HF_API_KEY
-                    or settings.HUGGINGFACEHUB_API_TOKEN,
+                    huggingfacehub_api_token=self.hf_token,
                     task=self.hf_task or "text-generation",
                     max_new_tokens=self.max_new_tokens,
                 )
@@ -81,7 +86,7 @@ class Provider:
 
             case "inference":
                 model = self._clean_model(self.model_name or settings.HF_DEF_MODEL)
-                token = settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN
+                token = self.hf_token
                 endpoint = HuggingFaceEndpoint(
                     repo_id=model,
                     temperature=self.temperature,
@@ -97,9 +102,7 @@ class Provider:
     def get_raw_inference_client(self) -> InferenceClient:
         """Direct HF InferenceClient — use ONLY for non-LangChain pipelines
         e.g. sentiment classification, embeddings, ASR"""
-        return InferenceClient(
-            token=settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN
-        )
+        return InferenceClient(token=self.hf_token)
 
     @staticmethod
     def _clean_model(name: str) -> str:

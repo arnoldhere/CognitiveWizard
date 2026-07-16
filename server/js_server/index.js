@@ -11,7 +11,6 @@
  *  NODE_ENV            — development | production
  */
 
-"use strict";
 
 // ─── Load environment variables first ─────────────────────────────────────
 require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
