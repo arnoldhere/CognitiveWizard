@@ -2,13 +2,6 @@
  * index.js — Express Gateway Server (js_server)
  * ================================================
  * Entry point for the Cognitive Wizard distributed backend gateway.
- * Environment variables (see .env / .env.example):
- *  JS_SERVER_PORT      — port this server listens on (default: 3000)
- *  PY_SERVER_URL       — FastAPI backend URL (default: http://localhost:8000)
- *  JWT_SECRET_KEY      — must match py_server JWT secret
- *  CORS_ALLOW_ORIGINS  — comma-separated allowed origins
- *  LOG_LEVEL           — winston log level (default: info)
- *  NODE_ENV            — development | production
  */
 
 
@@ -184,7 +177,6 @@ const server = app.listen(PORT, () => {
   logger.info(`  Environment : ${NODE_ENV}`);
   logger.info(`  py_server   : ${PY_SERVER_URL}`);
   logger.info(`  CORS Origins: ${CORS_ORIGINS.join(", ")}`);
-  // logger.info("  Routes      : /auth | /rag | /quiz | /wizard | /summarize | /subscriptions");
   logger.info("──────────────────────────────────────────────────────────");
 });
 

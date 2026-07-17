@@ -16,7 +16,7 @@ User.hasMany(PaymentTransaction, { foreignKey: 'user_id', as: 'payment_transacti
 PaymentTransaction.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // Sync all models (Optional, but good for local dev)
-sequelize.sync({ alter: true }).catch(console.error);
+sequelize.sync().catch(console.error);
 
 module.exports = {
   sequelize,

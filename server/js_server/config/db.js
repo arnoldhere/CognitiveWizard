@@ -7,7 +7,6 @@ if (!dbUri) {
 }
 
 const connectionString = dbUri.replace('mysql+pymysql://', 'mysql://');
-// const connectionString = 'mysql://root:root@localhost:3306/cognitive_wizard';
 const sequelize = new Sequelize(connectionString, {
   dialect: 'mysql',
   logging: msg => logger.debug(`[Sequelize] ${msg}`),
