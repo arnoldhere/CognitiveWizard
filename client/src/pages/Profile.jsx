@@ -36,10 +36,88 @@ import {
     LinearProgress,
     Tooltip,
 } from "@mui/material";
-import { Person, Email, AdminPanelSettings, History, Delete, WarningAmber, SettingsEthernet, CheckCircle, Close, AccessTime, Cancel, Face2Outlined } from "@mui/icons-material";
+import {
+    Person,
+    Email,
+    AdminPanelSettings,
+    History,
+    Delete,
+    WarningAmber,
+    SettingsEthernet,
+    CheckCircle,
+    Close,
+    AccessTime,
+    Cancel,
+    Face2Outlined,
+} from "@mui/icons-material";
 
-function TabPanel(props) {
-    const { children, value, index, ...other } = props;
+/* ─── Teal Palette Constants ─────────────────────────────── */
+const T = {
+    bg:           "#F0FBF8",
+    surface:      "rgba(255,255,255,0.88)",
+    surfaceSolid: "#ffffff",
+    border:       "rgba(13,148,136,0.14)",
+    borderStrong: "rgba(13,148,136,0.28)",
+    borderWhite:  "rgba(255,255,255,0.88)",
+    text:         "#0F2027",
+    textLight:    "#4A6572",
+    muted:        "#7A9BA8",
+    primary:      "#0D9488",
+    primaryDark:  "#0F766E",
+    primaryLight: "#2DD4BF",
+    accent:       "#F97316",
+    cyan:         "#06B6D4",
+    shadow:       "0 12px 40px rgba(13,148,136,0.09)",
+    shadowLg:     "0 20px 60px rgba(13,148,136,0.12)",
+};
+
+/* ─── Shared sx helpers ──────────────────────────────────── */
+const glassCard = {
+    background: T.surface,
+    backdropFilter: "blur(24px)",
+    border: `1px solid ${T.borderWhite}`,
+    outline: `1px solid ${T.border}`,
+    boxShadow: T.shadow,
+    backgroundImage: "none",
+};
+
+const tealGradientBtn = {
+    borderRadius: 2.5,
+    textTransform: "none",
+    fontWeight: 700,
+    fontFamily: '"Plus Jakarta Sans", sans-serif',
+    background: `linear-gradient(135deg, ${T.primary}, ${T.primaryDark})`,
+    color: "#fff",
+    boxShadow: "0 4px 14px rgba(13,148,136,0.28)",
+    position: "relative",
+    overflow: "hidden",
+    "&:hover": {
+        background: `linear-gradient(135deg, #0F9D91, ${T.primaryDark})`,
+        boxShadow: "0 8px 24px rgba(13,148,136,0.40)",
+        transform: "translateY(-1px)",
+    },
+    "&:disabled": {
+        background: "rgba(13,148,136,0.18)",
+        color: "rgba(255,255,255,0.6)",
+        boxShadow: "none",
+    },
+};
+
+const outlinedBtn = {
+    borderRadius: 2.5,
+    textTransform: "none",
+    fontWeight: 700,
+    color: T.textLight,
+    borderColor: T.border,
+    "&:hover": {
+        borderColor: T.primary,
+        color: T.primary,
+        background: "rgba(13,148,136,0.05)",
+    },
+};
+
+/* ─── Tab panel ──────────────────────────────────────────── */
+function TabPanel({ children, value, index, ...other }) {
     return (
         <div
             role="tabpanel"
@@ -53,8 +131,40 @@ function TabPanel(props) {
     );
 }
 
+/* ─── Info Row ───────────────────────────────────────────── */
+function InfoRow({ icon, label, value }) {
+    return (
+        <Grid item xs={12} sm={6}>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 1, gap: 1 }}>
+                <Box
+                    sx={{
+                        display: "inline-flex",
+                        p: 0.7,
+                        borderRadius: 1.5,
+                        background: "rgba(13,148,136,0.08)",
+                        border: "1px solid rgba(13,148,136,0.16)",
+                        color: T.primary,
+                        fontSize: 18,
+                    }}
+                >
+                    {icon}
+                </Box>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ color: T.textLight }}>
+                    {label}
+                </Typography>
+            </Box>
+            <Typography variant="body1" sx={{ color: T.text, fontWeight: 600, pl: 0.5 }}>
+                {value}
+            </Typography>
+        </Grid>
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════════════ */
 export default function Profile() {
-    const navigate = useNavigate()
+    const navigate = useNavigate();
     const { user, logout, refreshUser } = useAuth();
     const [tabValue, setTabValue] = useState(0);
     const [results, setResults] = useState({ data: [], total: 0, pages: 0 });
@@ -64,12 +174,13 @@ export default function Profile() {
     const [detailOpen, setDetailOpen] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
 
-    // Delete profile modal states
+    /* Delete profile */
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [deletePassword, setDeletePassword] = useState("");
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
 
+    /* Profile edit */
     const [profileForm, setProfileForm] = useState({
         full_name: user?.full_name || "",
         phone: user?.phone || "",
@@ -79,9 +190,7 @@ export default function Profile() {
     const [profileError, setProfileError] = useState(null);
     const [profileSuccess, setProfileSuccess] = useState(null);
 
-
-    // Subscription states
-    // Subscription plans and status state
+    /* Subscription */
     const [subscriptionPlans, setSubscriptionPlans] = useState([]);
     const [subscriptionLoading, setSubscriptionLoading] = useState(false);
     const [subscriptionError, setSubscriptionError] = useState(null);
@@ -89,23 +198,21 @@ export default function Profile() {
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
     const [paymentError, setPaymentError] = useState(null);
-    // Subscription status (expiry date, days left, etc.)
     const [subscriptionStatus, setSubscriptionStatus] = useState(null);
-    // Cancel subscription states
     const [cancelLoading, setCancelLoading] = useState(false);
     const [cancelError, setCancelError] = useState(null);
     const [cancelSuccess, setCancelSuccess] = useState(null);
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
+    /* ── helpers ── */
     const formatDuration = (seconds) => {
-        if (seconds === null || seconds === undefined) {
-            return "N/A";
-        }
+        if (seconds === null || seconds === undefined) return "N/A";
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins}m ${secs}s`;
     };
 
+    /* ── data fetchers ── */
     const handleFetchResults = useCallback(async (params) => {
         try {
             setLoading(true);
@@ -124,7 +231,6 @@ export default function Profile() {
         setProfileLoading(true);
         setProfileError(null);
         setProfileSuccess(null);
-
         try {
             const payload = {
                 full_name: profileForm.full_name || null,
@@ -147,30 +253,20 @@ export default function Profile() {
             setDeleteError("Please enter your password");
             return;
         }
-
         try {
             setDeleteLoading(true);
             setDeleteError(null);
-
             await deleteProfile(deletePassword);
-
-            // Close modal and logout
             setDeleteModalOpen(false);
             setDeletePassword("");
-
-            // Show success message
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Logout and redirect
+            await new Promise((resolve) => setTimeout(resolve, 500));
             await logout();
             navigate("/login", {
-                state: { message: "Your profile has been successfully deleted" }
+                state: { message: "Your profile has been successfully deleted" },
             });
         } catch (err) {
             console.error("Error deleting profile:", err);
-            setDeleteError(
-                "Failed to delete profile, Invalid password."
-            );
+            setDeleteError("Failed to delete profile, Invalid password.");
         } finally {
             setDeleteLoading(false);
         }
@@ -195,13 +291,10 @@ export default function Profile() {
         try {
             setSubscriptionLoading(true);
             setSubscriptionError(null);
-
-            // Load plans list and subscription status in parallel
             const [plans, status] = await Promise.all([
                 getSubscriptionPlans(),
-                getSubscriptionStatus().catch(() => null), // non-fatal — user may not be subscribed
+                getSubscriptionStatus().catch(() => null),
             ]);
-
             setSubscriptionPlans(plans);
             setSubscriptionStatus(status);
         } catch (err) {
@@ -212,20 +305,15 @@ export default function Profile() {
         }
     }, []);
 
-    /** Cancel the active subscription after user confirms. */
     const handleCancelSubscription = async () => {
         try {
             setCancelLoading(true);
             setCancelError(null);
             setCancelSuccess(null);
-
             await cancelSubscription();
-
-            // Refresh user context and subscription status
             await refreshUser();
             const status = await getSubscriptionStatus().catch(() => null);
             setSubscriptionStatus(status);
-
             setCancelSuccess("Your subscription has been cancelled. You are now on the free tier.");
             setCancelConfirmOpen(false);
         } catch (err) {
@@ -236,34 +324,6 @@ export default function Profile() {
         }
     };
 
-    useEffect(() => {
-        if (user) {
-            loadSubscriptionPlans();
-        }
-    }, [user, loadSubscriptionPlans]);
-
-    useEffect(() => {
-        if (user) {
-            setProfileForm({
-                full_name: user.full_name || "",
-                phone: user.phone || "",
-                dob: user.dob || "",
-            });
-        }
-    }, [user]);
-
-
-    useEffect(() => {
-        if (tabValue === 1 && results.data.length === 0) {
-            handleFetchResults({
-                skip: 0,
-                limit: 10,
-                sort_by: "submitted_at",
-                sort_order: "desc",
-            });
-        }
-    }, [tabValue, handleFetchResults, results.data.length]);
-
     const handlePurchaseSubscription = (plan) => {
         setSelectedPlan(plan);
         setPaymentModalOpen(true);
@@ -271,17 +331,10 @@ export default function Profile() {
 
     const handleConfirmPayment = async () => {
         if (!selectedPlan) return;
-
         try {
             setPaymentLoading(true);
             setPaymentError(null);
-
-            // Create order
-            const orderData = await createSubscriptionOrder({
-                plan: selectedPlan.id,
-            });
-
-            // Initialize Razorpay
+            const orderData = await createSubscriptionOrder({ plan: selectedPlan.id });
             const options = {
                 key:
                     import.meta.env.VITE_RAZORPAY_KEY_ID ||
@@ -294,15 +347,12 @@ export default function Profile() {
                 order_id: orderData.order_id,
                 handler: async (response) => {
                     try {
-                        // Confirm payment on backend
                         await confirmSubscriptionPayment({
                             plan: selectedPlan.id,
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
                         });
-
-                        // Refresh user data and subscription status
                         await refreshUser();
                         const newStatus = await getSubscriptionStatus().catch(() => null);
                         setSubscriptionStatus(newStatus);
@@ -313,19 +363,12 @@ export default function Profile() {
                         setPaymentError("Payment confirmation failed. Please contact support.");
                     }
                 },
-                prefill: {
-                    name: user?.full_name || "",
-                    email: user?.email || "",
-                },
-                theme: {
-                    color: "#7c3aed",
-                },
+                prefill: { name: user?.full_name || "", email: user?.email || "" },
+                theme: { color: "#0D9488" },
             };
-
             if (!window.Razorpay) {
-                throw new Error("Razorpay checkout script not loaded. Please ensure the Razorpay SDK is available.");
+                throw new Error("Razorpay checkout script not loaded.");
             }
-
             const rzp = new window.Razorpay(options);
             rzp.open();
         } catch (err) {
@@ -336,37 +379,100 @@ export default function Profile() {
         }
     };
 
+    /* ── effects ── */
+    useEffect(() => { if (user) loadSubscriptionPlans(); }, [user, loadSubscriptionPlans]);
+
+    useEffect(() => {
+        if (user) {
+            setProfileForm({
+                full_name: user.full_name || "",
+                phone: user.phone || "",
+                dob: user.dob || "",
+            });
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (tabValue === 1 && results.data.length === 0) {
+            handleFetchResults({ skip: 0, limit: 10, sort_by: "submitted_at", sort_order: "desc" });
+        }
+    }, [tabValue, handleFetchResults, results.data.length]);
+
+    /* ════════════════════════════════════ RENDER ══════════════════════════════ */
     return (
-        <Container maxWidth="lg" sx={{ py: 6 }}>
-            {/* TABS CONTAINER */}
+        <Container maxWidth="lg" sx={{ py: 6, position: "relative", zIndex: 1 }}>
+
+            {/* ── Page Hero ── */}
+            <Box sx={{ mb: 4, display: "flex", alignItems: "center", gap: 3 }}>
+                <Avatar
+                    sx={{
+                        width: 64,
+                        height: 64,
+                        background: `linear-gradient(135deg, ${T.primary}, ${T.cyan})`,
+                        fontSize: "1.6rem",
+                        fontWeight: 800,
+                        border: `3px solid rgba(255,255,255,0.9)`,
+                        boxShadow: "0 4px 16px rgba(13,148,136,0.22)",
+                    }}
+                >
+                    {user?.full_name
+                        ? user.full_name.charAt(0).toUpperCase()
+                        : user?.email?.charAt(0).toUpperCase()}
+                </Avatar>
+                <Box>
+                    <Typography
+                        variant="overline"
+                        sx={{
+                            color: T.primary,
+                            fontWeight: 700,
+                            letterSpacing: 2,
+                            display: "block",
+                        }}
+                    >
+                        My Account
+                    </Typography>
+                    <Typography
+                        variant="h4"
+                        sx={{
+                            fontWeight: 900,
+                            fontFamily: '"Plus Jakarta Sans", sans-serif',
+                            letterSpacing: "-0.02em",
+                            color: T.text,
+                        }}
+                    >
+                        {user?.full_name || user?.email?.split("@")[0] || "Profile"}
+                    </Typography>
+                </Box>
+            </Box>
+
+            {/* ── TABS HEADER ── */}
             <Paper
                 elevation={0}
                 sx={{
-                    borderRadius: 4,
-                    background: "rgba(22, 27, 39, 0.95)",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                    backdropFilter: "blur(20px)",
-                    mb: 4,
+                    ...glassCard,
+                    borderRadius: 3,
+                    mb: 3,
                 }}
             >
                 <Tabs
                     value={tabValue}
-                    onChange={(event, newValue) => setTabValue(newValue)}
+                    onChange={(_, v) => setTabValue(v)}
                     sx={{
-                        px: 3,
+                        px: 2,
                         py: 0.5,
                         "& .MuiTab-root": {
                             textTransform: "none",
                             fontWeight: 700,
-                            color: "#94a3b8",
+                            color: T.muted,
                             minHeight: 52,
-                            "&.Mui-selected": {
-                                color: "#06b6d4",
-                            }
+                            fontFamily: '"Plus Jakarta Sans", sans-serif',
+                            "&.Mui-selected": { color: T.primary },
                         },
                         "& .MuiTabs-indicator": {
-                            backgroundColor: "#06b6d4",
-                        }
+                            backgroundColor: T.primary,
+                            height: 3,
+                            borderRadius: "3px 3px 0 0",
+                        },
                     }}
                 >
                     <Tab label="Account Details" icon={<Person />} iconPosition="start" />
@@ -379,44 +485,45 @@ export default function Profile() {
                 </Tabs>
             </Paper>
 
-            {/* Account Details Tab */}
+            {/* ════════════ TAB 0 — Account Details ════════════ */}
             <TabPanel value={tabValue} index={0}>
-                <Paper
-                    elevation={0}
-                    sx={{
-                        p: { xs: 3, md: 5 },
-                        borderRadius: 4,
-                        background: "rgba(22, 27, 39, 0.95)",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                    }}
-                >
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
+                <Paper elevation={0} sx={{ ...glassCard, borderRadius: 4, p: { xs: 3, md: 5 } }}>
+
+                    {/* Profile Header Row */}
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}>
                         <Avatar
                             sx={{
                                 width: 80,
                                 height: 80,
-                                background: "linear-gradient(135deg, #7c3aed, #06b6d4)",
+                                background: `linear-gradient(135deg, ${T.primary}, ${T.cyan})`,
                                 mr: 2,
-                                fontSize: '2rem',
+                                fontSize: "2rem",
                                 fontWeight: 800,
-                                border: "2px solid rgba(255, 255, 255, 0.15)",
+                                border: `3px solid rgba(255,255,255,0.9)`,
+                                boxShadow: "0 6px 20px rgba(13,148,136,0.20)",
                             }}
                         >
-                            {user?.full_name ? user.full_name.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
+                            {user?.full_name
+                                ? user.full_name.charAt(0).toUpperCase()
+                                : user?.email?.charAt(0).toUpperCase()}
                         </Avatar>
                         <Box>
                             <Typography
                                 variant="overline"
-                                sx={{
-                                    color: '#06b6d4',
-                                    fontWeight: 700,
-                                    letterSpacing: 2,
-                                }}
+                                sx={{ color: T.primary, fontWeight: 700, letterSpacing: 2 }}
                             >
                                 Profile
                             </Typography>
-                            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: '#f1f5f9' }}>
-                                Account details
+                            <Typography
+                                variant="h4"
+                                sx={{
+                                    fontWeight: 800,
+                                    mb: 1,
+                                    color: T.text,
+                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
+                                }}
+                            >
+                                Account Details
                             </Typography>
                             <Chip
                                 label={user?.role?.toUpperCase()}
@@ -424,93 +531,92 @@ export default function Profile() {
                                 variant="outlined"
                                 sx={{
                                     fontWeight: 700,
-                                    color: user?.role === 'admin' ? '#22d3ee' : '#a855f7',
-                                    borderColor: user?.role === 'admin' ? 'rgba(6, 182, 212, 0.3)' : 'rgba(168, 85, 247, 0.3)',
-                                    backgroundColor: user?.role === 'admin' ? 'rgba(6, 182, 212, 0.06)' : 'rgba(168, 85, 247, 0.06)',
+                                    color: user?.role === "admin" ? T.cyan : T.primary,
+                                    borderColor:
+                                        user?.role === "admin"
+                                            ? "rgba(6,182,212,0.35)"
+                                            : "rgba(13,148,136,0.35)",
+                                    backgroundColor:
+                                        user?.role === "admin"
+                                            ? "rgba(6,182,212,0.08)"
+                                            : "rgba(13,148,136,0.08)",
                                 }}
                             />
                         </Box>
                     </Box>
 
-                    <Divider sx={{ my: 3.5, borderColor: "rgba(255,255,255,0.08)" }} />
+                    <Divider sx={{ my: 3.5, borderColor: T.border }} />
 
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Email sx={{ mr: 1, color: '#a855f7' }} />
-                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
-                                    Email Address
-                                </Typography>
-                            </Box>
-                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500 }}>
-                                {user?.email}
-                            </Typography>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Person sx={{ mr: 1, color: '#a855f7' }} />
-                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
-                                    Full Name
-                                </Typography>
-                            </Box>
-                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500 }}>
-                                {user?.full_name || "Not provided"}
-                            </Typography>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <AdminPanelSettings sx={{ mr: 1, color: '#a855f7' }} />
-                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
-                                    User Role
-                                </Typography>
-                            </Box>
-                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500, textTransform: "capitalize" }}>
-                                {user?.role}
-                            </Typography>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <SettingsEthernet sx={{ mr: 1, color: '#a855f7' }} />
-                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
-                                    Phone Number
-                                </Typography>
-                            </Box>
-                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500 }}>
-                                {user?.phone || "Not provided"}
-                            </Typography>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Face2Outlined sx={{ mr: 1, color: '#a855f7' }} />
-                                <Typography variant="subtitle2" fontWeight={700} color="#cbd5e1">
-                                    Date of Birth
-                                </Typography>
-                            </Box>
-                            <Typography variant="body1" sx={{ color: '#f1f5f9', fontWeight: 500 }}>
-                                {user?.dob || "Not provided"}
-                            </Typography>
-                        </Grid>
+                    {/* Info Grid */}
+                    <Grid container spacing={3}>
+                        <InfoRow
+                            icon={<Email fontSize="inherit" />}
+                            label="Email Address"
+                            value={user?.email}
+                        />
+                        <InfoRow
+                            icon={<Person fontSize="inherit" />}
+                            label="Full Name"
+                            value={user?.full_name || "Not provided"}
+                        />
+                        <InfoRow
+                            icon={<AdminPanelSettings fontSize="inherit" />}
+                            label="User Role"
+                            value={user?.role}
+                        />
+                        <InfoRow
+                            icon={<SettingsEthernet fontSize="inherit" />}
+                            label="Phone Number"
+                            value={user?.phone || "Not provided"}
+                        />
+                        <InfoRow
+                            icon={<Face2Outlined fontSize="inherit" />}
+                            label="Date of Birth"
+                            value={user?.dob || "Not provided"}
+                        />
                     </Grid>
 
-                    <Divider sx={{ my: 4.5, borderColor: "rgba(255,255,255,0.08)" }} />
+                    <Divider sx={{ my: 4.5, borderColor: T.border }} />
 
-                    {/* Edit profile details */}
+                    {/* ── Edit Profile ── */}
                     <Box sx={{ mb: 5 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 3, color: "#f1f5f9" }}>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                fontWeight: 800,
+                                mb: 3,
+                                color: T.text,
+                                fontFamily: '"Plus Jakarta Sans", sans-serif',
+                            }}
+                        >
                             Edit Profile Details
                         </Typography>
 
                         {profileSuccess && (
-                            <Alert severity="success" sx={{ mb: 3 }}>
+                            <Alert
+                                severity="success"
+                                sx={{
+                                    mb: 3,
+                                    bgcolor: "rgba(13,148,136,0.08)",
+                                    border: "1px solid rgba(13,148,136,0.24)",
+                                    color: T.primary,
+                                    "& .MuiAlert-icon": { color: T.primary },
+                                    borderRadius: 2,
+                                }}
+                            >
                                 {profileSuccess}
                             </Alert>
                         )}
                         {profileError && (
-                            <Alert severity="error" sx={{ mb: 3 }}>
+                            <Alert
+                                severity="error"
+                                sx={{
+                                    mb: 3,
+                                    bgcolor: "rgba(239,68,68,0.07)",
+                                    border: "1px solid rgba(239,68,68,0.22)",
+                                    borderRadius: 2,
+                                }}
+                            >
                                 {profileError}
                             </Alert>
                         )}
@@ -518,10 +624,10 @@ export default function Profile() {
                         <Paper
                             elevation={0}
                             sx={{
-                                p: 4,
+                                p: { xs: 3, md: 4 },
                                 borderRadius: 3,
-                                background: 'rgba(255, 255, 255, 0.01)',
-                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                background: "rgba(240,251,248,0.7)",
+                                border: `1px solid ${T.border}`,
                             }}
                         >
                             <Grid container spacing={3}>
@@ -533,12 +639,6 @@ export default function Profile() {
                                         value={user?.email || ""}
                                         disabled
                                         variant="outlined"
-                                        sx={{
-                                            "& .MuiOutlinedInput-root": {
-                                                backgroundColor: "rgba(255,255,255,0.02)",
-                                                "& fieldset": { borderColor: "rgba(255,255,255,0.05)" }
-                                            }
-                                        }}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -547,14 +647,10 @@ export default function Profile() {
                                         label="Full Name"
                                         type="text"
                                         value={profileForm.full_name}
-                                        onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })}
+                                        onChange={(e) =>
+                                            setProfileForm({ ...profileForm, full_name: e.target.value })
+                                        }
                                         variant="outlined"
-                                        sx={{
-                                            "& .MuiOutlinedInput-root": {
-                                                backgroundColor: "rgba(255,255,255,0.02)",
-                                                "& fieldset": { borderColor: "rgba(255,255,255,0.08)" }
-                                            }
-                                        }}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -563,53 +659,34 @@ export default function Profile() {
                                         label="Phone"
                                         type="tel"
                                         value={profileForm.phone}
-                                        onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                                        onChange={(e) =>
+                                            setProfileForm({ ...profileForm, phone: e.target.value })
+                                        }
                                         variant="outlined"
-                                        sx={{
-                                            "& .MuiOutlinedInput-root": {
-                                                backgroundColor: "rgba(255,255,255,0.02)",
-                                                "& fieldset": { borderColor: "rgba(255,255,255,0.08)" }
-                                            }
-                                        }}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
                                     <TextField
                                         fullWidth
-                                        label="Date of birth"
+                                        label="Date of Birth"
                                         type="date"
                                         value={profileForm.dob || ""}
-                                        onChange={(e) => setProfileForm({ ...profileForm, dob: e.target.value })}
+                                        onChange={(e) =>
+                                            setProfileForm({ ...profileForm, dob: e.target.value })
+                                        }
                                         InputLabelProps={{ shrink: true }}
                                         variant="outlined"
-                                        sx={{
-                                            "& .MuiOutlinedInput-root": {
-                                                backgroundColor: "rgba(255,255,255,0.02)",
-                                                "& fieldset": { borderColor: "rgba(255,255,255,0.08)" }
-                                            }
-                                        }}
                                     />
                                 </Grid>
                             </Grid>
-                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 4 }}>
+                            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 4 }}>
                                 <Button
                                     variant="contained"
                                     onClick={handleSaveProfile}
                                     disabled={profileLoading}
-                                    sx={{
-                                        borderRadius: 2,
-                                        textTransform: 'none',
-                                        px: 4.5,
-                                        py: 1.25,
-                                        fontWeight: 700,
-                                        background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
-                                        color: "#ffffff",
-                                        "&:hover": {
-                                            background: "linear-gradient(90deg, #6d28d9, #0891b2)"
-                                        }
-                                    }}
+                                    sx={{ ...tealGradientBtn, px: 4.5, py: 1.25 }}
                                 >
-                                    {profileLoading ? 'Saving...' : 'Save changes'}
+                                    {profileLoading ? "Saving…" : "Save Changes"}
                                 </Button>
                                 <Button
                                     variant="outlined"
@@ -625,19 +702,7 @@ export default function Profile() {
                                         }
                                     }}
                                     disabled={profileLoading}
-                                    sx={{
-                                        borderRadius: 2,
-                                        textTransform: 'none',
-                                        px: 4.5,
-                                        py: 1.25,
-                                        fontWeight: 700,
-                                        color: "#cbd5e1",
-                                        borderColor: "rgba(255,255,255,0.12)",
-                                        "&:hover": {
-                                            borderColor: "rgba(255,255,255,0.25)",
-                                            backgroundColor: "rgba(255,255,255,0.04)"
-                                        }
-                                    }}
+                                    sx={{ ...outlinedBtn, px: 4.5, py: 1.25 }}
                                 >
                                     Cancel
                                 </Button>
@@ -645,60 +710,49 @@ export default function Profile() {
                         </Paper>
                     </Box>
 
-
-
-                    {/* Danger Zone */}
+                    {/* ── Danger Zone ── */}
                     <Box>
                         <Typography
                             variant="h6"
-                            sx={{
-                                fontWeight: 800,
-                                mb: 3,
-                                color: "#ef4444",
-                            }}
+                            sx={{ fontWeight: 800, mb: 3, color: "#dc2626", fontFamily: '"Plus Jakarta Sans", sans-serif' }}
                         >
                             Danger Zone
                         </Typography>
-
                         <Paper
                             elevation={0}
                             sx={{
-                                p: 4,
+                                p: { xs: 3, md: 4 },
                                 borderRadius: 3,
                                 display: "flex",
                                 flexDirection: { xs: "column", md: "row" },
                                 alignItems: { xs: "flex-start", md: "center" },
                                 justifyContent: "space-between",
                                 gap: 3,
-                                background: "linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.02) 100%)",
-                                border: "1px solid rgba(239, 68, 68, 0.25)",
+                                background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(220,38,38,0.02) 100%)",
+                                border: "1px solid rgba(239,68,68,0.22)",
                             }}
                         >
                             <Box>
-                                <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#fca5a5" }}>
-                                    Delete Account Permanent
+                                <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#b91c1c" }}>
+                                    Delete Account Permanently
                                 </Typography>
-                                <Typography variant="body2" sx={{ color: '#e2e8f0', mt: 0.5 }}>
+                                <Typography variant="body2" sx={{ color: T.textLight, mt: 0.5 }}>
                                     This will delete your credentials, quiz milestones, and document index databases permanently.
                                 </Typography>
                             </Box>
-
                             <Button
                                 variant="contained"
                                 color="error"
                                 startIcon={<Delete />}
                                 onClick={() => setDeleteModalOpen(true)}
                                 sx={{
-                                    borderRadius: 2,
+                                    borderRadius: 2.5,
                                     textTransform: "none",
                                     fontWeight: 700,
                                     px: 3.5,
                                     py: 1.25,
                                     backgroundColor: "#ef4444",
-                                    color: "#ffffff",
-                                    "&:hover": {
-                                        backgroundColor: "#dc2626",
-                                    }
+                                    "&:hover": { backgroundColor: "#dc2626" },
                                 }}
                             >
                                 Delete Profile
@@ -708,10 +762,10 @@ export default function Profile() {
                 </Paper>
             </TabPanel>
 
-            {/* Quiz History Tab */}
+            {/* ════════════ TAB 1 — Quiz History ════════════ */}
             <TabPanel value={tabValue} index={1}>
                 {error && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
+                    <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
                         {error}
                     </Alert>
                 )}
@@ -723,41 +777,56 @@ export default function Profile() {
                 />
             </TabPanel>
 
-            {/* ─── Subscriptions Tab ─────────────────────────────────────── */}
+            {/* ════════════ TAB 2 — Subscriptions ════════════ */}
             <TabPanel value={tabValue} index={2}>
-
-                {/* Section header */}
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1, color: "#f1f5f9" }}>
+                <Typography
+                    variant="h6"
+                    sx={{
+                        fontWeight: 800,
+                        mb: 1,
+                        color: T.text,
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                    }}
+                >
                     Subscription Plans
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5 }}>
+                <Typography variant="body2" sx={{ color: T.textLight, mb: 3.5 }}>
                     Upgrade your plan to increase your daily chat limit.
                 </Typography>
 
-                {/* Error loading plans */}
                 {subscriptionError && (
-                    <Alert severity="error" sx={{ mb: 3 }}>{subscriptionError}</Alert>
+                    <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                        {subscriptionError}
+                    </Alert>
                 )}
-
-                {/* Cancel operation feedback */}
                 {cancelSuccess && (
-                    <Alert severity="success" sx={{ mb: 3 }} onClose={() => setCancelSuccess(null)}>
+                    <Alert
+                        severity="success"
+                        sx={{
+                            mb: 3,
+                            borderRadius: 2,
+                            bgcolor: "rgba(13,148,136,0.08)",
+                            border: "1px solid rgba(13,148,136,0.22)",
+                            color: T.primary,
+                        }}
+                        onClose={() => setCancelSuccess(null)}
+                    >
                         {cancelSuccess}
                     </Alert>
                 )}
                 {cancelError && (
-                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setCancelError(null)}>
+                    <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setCancelError(null)}>
                         {cancelError}
                     </Alert>
                 )}
 
                 {subscriptionLoading ? (
                     <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                        <CircularProgress color="secondary" />
+                        <CircularProgress sx={{ color: T.primary }} />
                     </Box>
                 ) : (
                     <>
-                        {/* ── Active Subscription Summary Card ── */}
+                        {/* ── Active Subscription Card ── */}
                         {user?.subscribed && subscriptionStatus && (
                             <Paper
                                 elevation={0}
@@ -765,82 +834,130 @@ export default function Profile() {
                                     p: 3,
                                     mb: 4,
                                     borderRadius: 4,
-                                    background: "rgba(6, 182, 212, 0.05)",
-                                    border: "1.5px solid rgba(6, 182, 212, 0.35)",
-                                    boxShadow: "0 0 24px rgba(6, 182, 212, 0.08)",
+                                    background: "rgba(13,148,136,0.05)",
+                                    border: `1.5px solid ${T.borderStrong}`,
+                                    boxShadow: "0 0 24px rgba(13,148,136,0.10)",
                                 }}
                             >
-                                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        flexWrap: "wrap",
+                                        gap: 2,
+                                    }}
+                                >
                                     {/* Left: plan name + dates */}
                                     <Box>
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                                            <CheckCircle sx={{ color: "#06b6d4", fontSize: 20 }} />
-                                            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#f1f5f9" }}>
-                                                Active Plan: {user.subscription_plan?.charAt(0).toUpperCase() + user.subscription_plan?.slice(1)}
+                                            <CheckCircle sx={{ color: T.primary, fontSize: 20 }} />
+                                            <Typography
+                                                variant="subtitle1"
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    color: T.text,
+                                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
+                                                }}
+                                            >
+                                                Active Plan:{" "}
+                                                {user.subscription_plan?.charAt(0).toUpperCase() +
+                                                    user.subscription_plan?.slice(1)}
                                             </Typography>
                                         </Box>
-                                        <Typography variant="body2" color="text.secondary">
+                                        <Typography variant="body2" sx={{ color: T.textLight }}>
                                             Purchased:{" "}
-                                            <strong style={{ color: "#cbd5e1" }}>
+                                            <strong style={{ color: T.text }}>
                                                 {subscriptionStatus.subscription_started_at
-                                                    ? new Date(subscriptionStatus.subscription_started_at).toLocaleDateString("en-IN", {
-                                                        day: "numeric", month: "long", year: "numeric",
-                                                    })
+                                                    ? new Date(
+                                                          subscriptionStatus.subscription_started_at
+                                                      ).toLocaleDateString("en-IN", {
+                                                          day: "numeric",
+                                                          month: "long",
+                                                          year: "numeric",
+                                                      })
                                                     : "—"}
                                             </strong>
                                         </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
+                                        <Typography variant="body2" sx={{ color: T.textLight, mt: 0.4 }}>
                                             Expires:{" "}
-                                            <strong style={{ color: "#cbd5e1" }}>
+                                            <strong style={{ color: T.text }}>
                                                 {subscriptionStatus.subscription_expires_at
-                                                    ? new Date(subscriptionStatus.subscription_expires_at).toLocaleDateString("en-IN", {
-                                                        day: "numeric", month: "long", year: "numeric",
-                                                    })
+                                                    ? new Date(
+                                                          subscriptionStatus.subscription_expires_at
+                                                      ).toLocaleDateString("en-IN", {
+                                                          day: "numeric",
+                                                          month: "long",
+                                                          year: "numeric",
+                                                      })
                                                     : "—"}
                                             </strong>
                                         </Typography>
                                     </Box>
 
-                                    {/* Right: days remaining badge */}
+                                    {/* Right: days remaining */}
                                     <Box sx={{ textAlign: "center", minWidth: 120 }}>
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, justifyContent: "center", mb: 0.5 }}>
-                                            <AccessTime sx={{
-                                                fontSize: 16,
-                                                color: subscriptionStatus.days_left <= 5
-                                                    ? (subscriptionStatus.days_left <= 1 ? "#ef4444" : "#f97316")
-                                                    : "#06b6d4"
-                                            }} />
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 0.5,
+                                                justifyContent: "center",
+                                                mb: 0.5,
+                                            }}
+                                        >
+                                            <AccessTime
+                                                sx={{
+                                                    fontSize: 16,
+                                                    color:
+                                                        subscriptionStatus.days_left <= 5
+                                                            ? subscriptionStatus.days_left <= 1
+                                                                ? "#ef4444"
+                                                                : "#F97316"
+                                                            : T.primary,
+                                                }}
+                                            />
                                             <Typography
                                                 variant="h5"
                                                 sx={{
                                                     fontWeight: 900,
-                                                    color: subscriptionStatus.days_left <= 5
-                                                        ? (subscriptionStatus.days_left <= 1 ? "#ef4444" : "#f97316")
-                                                        : "#06b6d4",
+                                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
+                                                    color:
+                                                        subscriptionStatus.days_left <= 5
+                                                            ? subscriptionStatus.days_left <= 1
+                                                                ? "#ef4444"
+                                                                : "#F97316"
+                                                            : T.primary,
                                                 }}
                                             >
                                                 {subscriptionStatus.days_left ?? 0}
                                             </Typography>
                                         </Box>
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography variant="caption" sx={{ color: T.muted }}>
                                             day{subscriptionStatus.days_left !== 1 ? "s" : ""} left
                                         </Typography>
-
-                                        {/* Progress bar showing remaining time out of 30 days */}
-                                        <Tooltip title={`${subscriptionStatus.days_left} of 30 days remaining`}>
+                                        <Tooltip
+                                            title={`${subscriptionStatus.days_left} of 30 days remaining`}
+                                        >
                                             <LinearProgress
                                                 variant="determinate"
-                                                value={Math.min(100, ((subscriptionStatus.days_left ?? 0) / 30) * 100)}
+                                                value={Math.min(
+                                                    100,
+                                                    ((subscriptionStatus.days_left ?? 0) / 30) * 100
+                                                )}
                                                 sx={{
                                                     mt: 1,
                                                     height: 6,
                                                     borderRadius: 3,
-                                                    backgroundColor: "rgba(255,255,255,0.08)",
+                                                    backgroundColor: "rgba(13,148,136,0.10)",
                                                     "& .MuiLinearProgress-bar": {
                                                         borderRadius: 3,
-                                                        backgroundColor: subscriptionStatus.days_left <= 5
-                                                            ? (subscriptionStatus.days_left <= 1 ? "#ef4444" : "#f97316")
-                                                            : "#06b6d4",
+                                                        backgroundColor:
+                                                            subscriptionStatus.days_left <= 5
+                                                                ? subscriptionStatus.days_left <= 1
+                                                                    ? "#ef4444"
+                                                                    : "#F97316"
+                                                                : T.primary,
                                                     },
                                                 }}
                                             />
@@ -849,19 +966,22 @@ export default function Profile() {
                                 </Box>
 
                                 {/* Expiry warning */}
-                                {subscriptionStatus.days_left !== null && subscriptionStatus.days_left <= 5 && (
-                                    <Alert
-                                        severity={subscriptionStatus.days_left <= 1 ? "error" : "warning"}
-                                        icon={<AccessTime />}
-                                        sx={{ mt: 2, borderRadius: 2 }}
-                                    >
-                                        {subscriptionStatus.days_left <= 1
-                                            ? "Your subscription expires today! Renew now to avoid losing access."
-                                            : `Your subscription expires in ${subscriptionStatus.days_left} days. Renew before it lapses.`}
-                                    </Alert>
-                                )}
+                                {subscriptionStatus.days_left !== null &&
+                                    subscriptionStatus.days_left <= 5 && (
+                                        <Alert
+                                            severity={
+                                                subscriptionStatus.days_left <= 1 ? "error" : "warning"
+                                            }
+                                            icon={<AccessTime />}
+                                            sx={{ mt: 2, borderRadius: 2 }}
+                                        >
+                                            {subscriptionStatus.days_left <= 1
+                                                ? "Your subscription expires today! Renew now to avoid losing access."
+                                                : `Your subscription expires in ${subscriptionStatus.days_left} days. Renew before it lapses.`}
+                                        </Alert>
+                                    )}
 
-                                {/* Cancel subscription button */}
+                                {/* Cancel button */}
                                 <Box sx={{ mt: 2.5, display: "flex", justifyContent: "flex-end" }}>
                                     <Button
                                         variant="outlined"
@@ -870,11 +990,13 @@ export default function Profile() {
                                         onClick={() => setCancelConfirmOpen(true)}
                                         sx={{
                                             color: "#ef4444",
-                                            borderColor: "rgba(239, 68, 68, 0.4)",
+                                            borderColor: "rgba(239,68,68,0.35)",
                                             fontWeight: 700,
+                                            textTransform: "none",
+                                            borderRadius: 2,
                                             "&:hover": {
                                                 borderColor: "#ef4444",
-                                                background: "rgba(239, 68, 68, 0.06)",
+                                                background: "rgba(239,68,68,0.06)",
                                             },
                                         }}
                                     >
@@ -885,10 +1007,9 @@ export default function Profile() {
                         )}
 
                         {/* ── Plan Cards ── */}
-                        <Grid container spacing={4}>
+                        <Grid container spacing={3}>
                             {subscriptionPlans.map((plan) => {
                                 const isCurrent = user?.subscription_plan === plan.id;
-                                // Disable subscribe button when user has ANY active subscription
                                 const isSubscribed = !!user?.subscribed;
 
                                 return (
@@ -899,53 +1020,108 @@ export default function Profile() {
                                                 p: 4,
                                                 textAlign: "center",
                                                 borderRadius: 4,
+                                                height: "100%",
                                                 background: isCurrent
-                                                    ? "rgba(6, 182, 212, 0.05)"
-                                                    : "rgba(255, 255, 255, 0.02)",
+                                                    ? "rgba(13,148,136,0.06)"
+                                                    : T.surface,
                                                 border: isCurrent
-                                                    ? "2.5px solid #06b6d4"
-                                                    : "1px solid rgba(255, 255, 255, 0.08)",
+                                                    ? `2px solid ${T.primary}`
+                                                    : `1px solid ${T.borderWhite}`,
+                                                outline: isCurrent
+                                                    ? `1px solid ${T.borderStrong}`
+                                                    : `1px solid ${T.border}`,
                                                 boxShadow: isCurrent
-                                                    ? "0 0 24px rgba(6, 182, 212, 0.15)"
-                                                    : "none",
-                                                opacity: isSubscribed && !isCurrent ? 0.6 : 1,
+                                                    ? `0 0 28px rgba(13,148,136,0.16), ${T.shadow}`
+                                                    : T.shadow,
+                                                opacity: isSubscribed && !isCurrent ? 0.65 : 1,
                                                 position: "relative",
-                                                transition: "opacity 0.2s ease",
+                                                transition: "all 0.25s ease",
+                                                "&:hover": !isSubscribed
+                                                    ? {
+                                                          transform: "translateY(-4px)",
+                                                          boxShadow: T.shadowLg,
+                                                          border: `1.5px solid ${T.primary}`,
+                                                      }
+                                                    : {},
                                             }}
                                         >
-                                            <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, color: "#f1f5f9" }}>
+                                            {isCurrent && (
+                                                <Chip
+                                                    label="Current"
+                                                    size="small"
+                                                    sx={{
+                                                        position: "absolute",
+                                                        top: 16,
+                                                        right: 16,
+                                                        fontWeight: 700,
+                                                        background: T.primary,
+                                                        color: "#fff",
+                                                        fontSize: "0.7rem",
+                                                    }}
+                                                />
+                                            )}
+                                            <Typography
+                                                variant="h5"
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    mb: 1,
+                                                    color: T.text,
+                                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
+                                                }}
+                                            >
                                                 {plan.name}
                                             </Typography>
-                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, minHeight: 40 }}>
+                                            <Typography
+                                                variant="body2"
+                                                sx={{ color: T.textLight, mb: 3, minHeight: 40 }}
+                                            >
                                                 {plan.description}
                                             </Typography>
-                                            <Typography variant="h3" sx={{ fontWeight: 900, color: "#06b6d4", mb: 0.5 }}>
+                                            <Typography
+                                                variant="h3"
+                                                sx={{
+                                                    fontWeight: 900,
+                                                    color: T.primary,
+                                                    mb: 0.5,
+                                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
+                                                }}
+                                            >
                                                 ₹ {plan.amount_inr}
                                             </Typography>
-                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5 }}>
+                                            <Typography
+                                                variant="body2"
+                                                sx={{ color: T.muted, mb: 3.5 }}
+                                            >
                                                 per month
                                             </Typography>
 
-                                            <Divider sx={{ my: 2.5, borderColor: "rgba(255,255,255,0.06)" }} />
+                                            <Divider sx={{ my: 2.5, borderColor: T.border }} />
 
-                                            <Typography variant="body2" sx={{ mb: 3.5, color: "#cbd5e1", fontWeight: 600 }}>
-                                                Daily Limit: {plan.daily_chat_limit} chat sessions
+                                            <Typography
+                                                variant="body2"
+                                                sx={{ mb: 3.5, color: T.textLight, fontWeight: 600 }}
+                                            >
+                                                Daily Limit:{" "}
+                                                <strong style={{ color: T.text }}>
+                                                    {plan.daily_chat_limit}
+                                                </strong>{" "}
+                                                chat sessions
                                             </Typography>
 
                                             {isCurrent ? (
-                                                /* Active plan badge */
                                                 <Chip
                                                     label="Active Plan"
-                                                    icon={<CheckCircle style={{ color: "#ffffff" }} />}
+                                                    icon={
+                                                        <CheckCircle style={{ color: "#ffffff", fontSize: 16 }} />
+                                                    }
                                                     sx={{
                                                         fontWeight: 700,
-                                                        backgroundColor: "#06b6d4",
-                                                        color: "#ffffff",
+                                                        backgroundColor: T.primary,
+                                                        color: "#fff",
                                                         px: 1.5,
                                                     }}
                                                 />
                                             ) : (
-                                                /* Subscribe button — disabled if user has any active plan */
                                                 <Tooltip
                                                     title={
                                                         isSubscribed
@@ -960,18 +1136,12 @@ export default function Profile() {
                                                             disabled={isSubscribed}
                                                             onClick={() => handlePurchaseSubscription(plan)}
                                                             sx={{
-                                                                mt: 2,
+                                                                ...tealGradientBtn,
+                                                                mt: 1,
                                                                 py: 1.25,
-                                                                fontWeight: 700,
-                                                                borderRadius: 2.5,
-                                                                background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
-                                                                color: "#ffffff",
-                                                                "&:hover": {
-                                                                    background: "linear-gradient(90deg, #6d28d9, #0891b2)",
-                                                                },
                                                                 "&.Mui-disabled": {
-                                                                    background: "rgba(255,255,255,0.06)",
-                                                                    color: "rgba(255,255,255,0.3)",
+                                                                    background: "rgba(13,148,136,0.12)",
+                                                                    color: "rgba(13,148,136,0.4)",
                                                                 },
                                                             }}
                                                         >
@@ -989,38 +1159,39 @@ export default function Profile() {
                 )}
             </TabPanel>
 
-            {/* ─── Cancel Subscription Confirmation Dialog ───────────────── */}
+            {/* ════════ DIALOG: Cancel Subscription ════════ */}
             <Dialog
                 open={cancelConfirmOpen}
                 onClose={() => !cancelLoading && setCancelConfirmOpen(false)}
                 maxWidth="xs"
                 fullWidth
-                PaperProps={{
-                    sx: {
-                        bgcolor: "#161b27",
-                        backgroundImage: "none",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        borderRadius: 3,
-                    },
-                }}
+                PaperProps={{ sx: { ...glassCard, borderRadius: 3 } }}
             >
-                <DialogTitle sx={{ fontWeight: 800, color: "#f1f5f9" }}>
+                <DialogTitle
+                    sx={{
+                        fontWeight: 800,
+                        color: T.text,
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                    }}
+                >
                     Cancel Subscription?
                 </DialogTitle>
                 <DialogContent>
                     <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
-                        Cancelling will immediately remove your premium access and revert you to the free tier (5 chats/day).
-                        This action cannot be undone.
+                        Cancelling will immediately remove your premium access and revert you to the
+                        free tier (5 chats/day). This action cannot be undone.
                     </Alert>
                     {cancelError && (
-                        <Alert severity="error" sx={{ borderRadius: 2 }}>{cancelError}</Alert>
+                        <Alert severity="error" sx={{ borderRadius: 2 }}>
+                            {cancelError}
+                        </Alert>
                     )}
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 0, gap: 1 }}>
                     <Button
                         onClick={() => setCancelConfirmOpen(false)}
                         disabled={cancelLoading}
-                        sx={{ color: "#94a3b8", fontWeight: 600 }}
+                        sx={{ color: T.muted, fontWeight: 600, textTransform: "none" }}
                     >
                         Keep Plan
                     </Button>
@@ -1028,53 +1199,72 @@ export default function Profile() {
                         variant="contained"
                         onClick={handleCancelSubscription}
                         disabled={cancelLoading}
-                        startIcon={cancelLoading ? <CircularProgress size={16} /> : <Cancel />}
+                        startIcon={
+                            cancelLoading ? <CircularProgress size={16} color="inherit" /> : <Cancel />
+                        }
                         sx={{
                             fontWeight: 700,
+                            textTransform: "none",
+                            borderRadius: 2,
                             backgroundColor: "#ef4444",
                             "&:hover": { backgroundColor: "#dc2626" },
-                            "&.Mui-disabled": { backgroundColor: "rgba(239,68,68,0.4)" },
+                            "&.Mui-disabled": { backgroundColor: "rgba(239,68,68,0.35)" },
                         }}
                     >
-                        {cancelLoading ? "Cancelling..." : "Yes, Cancel"}
+                        {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Quiz detail Dialog */}
+            {/* ════════ DIALOG: Quiz Detail ════════ */}
             <Dialog
                 open={detailOpen}
-                onClose={() => {
-                    setDetailOpen(false);
-                    setSelectedQuizDetail(null);
-                }}
+                onClose={() => { setDetailOpen(false); setSelectedQuizDetail(null); }}
                 maxWidth="md"
                 fullWidth
-                PaperProps={{
-                    sx: {
-                        bgcolor: "#161b27",
-                        backgroundImage: "none",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        borderRadius: 3,
-                    }
-                }}
+                PaperProps={{ sx: { ...glassCard, borderRadius: 3 } }}
             >
-                <DialogTitle sx={{ fontWeight: 800, color: "#f1f5f9" }}>Quiz Attempt Details</DialogTitle>
+                <DialogTitle
+                    sx={{
+                        fontWeight: 800,
+                        color: T.text,
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                    }}
+                >
+                    Quiz Attempt Details
+                    <Close
+                        sx={{ cursor: "pointer", color: T.muted, "&:hover": { color: T.text } }}
+                        onClick={() => { setDetailOpen(false); setSelectedQuizDetail(null); }}
+                    />
+                </DialogTitle>
                 <DialogContent>
                     {detailLoading ? (
                         <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-                            <CircularProgress color="secondary" />
+                            <CircularProgress sx={{ color: T.primary }} />
                         </Box>
                     ) : selectedQuizDetail ? (
                         <Box sx={{ pt: 1 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 800, color: "#f1f5f9" }}>
+                            <Typography
+                                variant="h6"
+                                sx={{
+                                    fontWeight: 800,
+                                    color: T.text,
+                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
+                                }}
+                            >
                                 {selectedQuizDetail.quiz_topic}
                             </Typography>
-                            <Typography variant="body2" sx={{ mb: 3, color: "#cbd5e1", fontWeight: 500 }}>
-                                Score: {selectedQuizDetail.score_percentage}% ({selectedQuizDetail.correct_answers}/
-                                {selectedQuizDetail.total_questions}) | Time Taken: {formatDuration(selectedQuizDetail.time_taken)} / {formatDuration(selectedQuizDetail.time_limit_seconds)}
+                            <Typography variant="body2" sx={{ mb: 3, color: T.textLight, fontWeight: 500 }}>
+                                Score: {selectedQuizDetail.score_percentage}% (
+                                {selectedQuizDetail.correct_answers}/
+                                {selectedQuizDetail.total_questions}) | Time Taken:{" "}
+                                {formatDuration(selectedQuizDetail.time_taken)} /{" "}
+                                {formatDuration(selectedQuizDetail.time_limit_seconds)}
                             </Typography>
-                            <Divider sx={{ mb: 3, borderColor: "rgba(255,255,255,0.08)" }} />
+                            <Divider sx={{ mb: 3, borderColor: T.border }} />
                             {selectedQuizDetail.feedback?.map((item, index) => (
                                 <Paper
                                     key={`${item.question_id}-${index}`}
@@ -1084,51 +1274,57 @@ export default function Profile() {
                                         mb: 2,
                                         borderRadius: 2.5,
                                         border: "1px solid",
-                                        borderColor: item.is_correct ? "rgba(16, 185, 129, 0.25)" : "rgba(245, 158, 11, 0.25)",
-                                        background: item.is_correct ? "rgba(16, 185, 129, 0.04)" : "rgba(245, 158, 11, 0.04)",
+                                        borderColor: item.is_correct
+                                            ? "rgba(13,148,136,0.25)"
+                                            : "rgba(249,115,22,0.25)",
+                                        background: item.is_correct
+                                            ? "rgba(13,148,136,0.05)"
+                                            : "rgba(249,115,22,0.05)",
                                     }}
                                 >
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: "#f1f5f9" }}>
+                                    <Typography
+                                        variant="subtitle2"
+                                        sx={{ fontWeight: 700, mb: 1.5, color: T.text }}
+                                    >
                                         Q{index + 1}. {item.question}
                                     </Typography>
-                                    <Typography variant="body2" sx={{ color: item.is_correct ? "#6ee7b7" : "#fca5a5", mb: 0.5 }}>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: item.is_correct ? T.primary : "#EA6C0A",
+                                            mb: 0.5,
+                                            fontWeight: 600,
+                                        }}
+                                    >
                                         Your answer: {item.selected_option || "Not answered"}
                                     </Typography>
-                                    <Typography variant="body2" sx={{ color: "#6ee7b7" }}>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{ color: T.primary, fontWeight: 600 }}
+                                    >
                                         Correct answer: {item.correct_answer}
                                     </Typography>
                                 </Paper>
                             ))}
                         </Box>
                     ) : (
-                        <Alert severity="info" sx={{ mt: 1 }}>No details found for this quiz.</Alert>
+                        <Alert severity="info" sx={{ mt: 1, borderRadius: 2 }}>
+                            No details found for this quiz.
+                        </Alert>
                     )}
                 </DialogContent>
                 <DialogActions sx={{ p: 2.5 }}>
                     <Button
-                        onClick={() => {
-                            setDetailOpen(false);
-                            setSelectedQuizDetail(null);
-                        }}
+                        onClick={() => { setDetailOpen(false); setSelectedQuizDetail(null); }}
                         variant="outlined"
-                        sx={{
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 700,
-                            color: "#cbd5e1",
-                            borderColor: "rgba(255,255,255,0.12)",
-                            "&:hover": {
-                                borderColor: "rgba(255,255,255,0.25)",
-                                backgroundColor: "rgba(255,255,255,0.04)"
-                            }
-                        }}
+                        sx={{ ...outlinedBtn, borderRadius: 2 }}
                     >
                         Close
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Delete Profile Confirmation Dialog */}
+            {/* ════════ DIALOG: Delete Profile ════════ */}
             <Dialog
                 open={deleteModalOpen}
                 onClose={() => {
@@ -1138,16 +1334,16 @@ export default function Profile() {
                 }}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{
-                    sx: {
-                        bgcolor: "#161b27",
-                        backgroundImage: "none",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        borderRadius: 3,
-                    }
-                }}
+                PaperProps={{ sx: { ...glassCard, borderRadius: 3 } }}
             >
-                <DialogTitle sx={{ fontWeight: 800, pb: 1, color: "#fca5a5" }}>
+                <DialogTitle
+                    sx={{
+                        fontWeight: 800,
+                        pb: 1,
+                        color: "#b91c1c",
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                    }}
+                >
                     Confirm Delete Profile
                 </DialogTitle>
                 <DialogContent sx={{ pt: 2 }}>
@@ -1155,14 +1351,16 @@ export default function Profile() {
                         severity="error"
                         sx={{
                             mb: 3,
-                            bgcolor: "rgba(239, 68, 68, 0.08)",
-                            border: "1px solid rgba(239, 68, 68, 0.2)",
-                            color: "#fca5a5",
-                            "& .MuiAlert-icon": { color: "#f87171" }
+                            bgcolor: "rgba(239,68,68,0.07)",
+                            border: "1px solid rgba(239,68,68,0.22)",
+                            borderRadius: 2,
                         }}
                     >
                         <Typography variant="body2" fontWeight={700}>
-                            <WarningAmber fontSize="small" sx={{ verticalAlign: "middle", mr: 0.5 }} />
+                            <WarningAmber
+                                fontSize="small"
+                                sx={{ verticalAlign: "middle", mr: 0.5 }}
+                            />
                             This action is permanent and irreversible!
                         </Typography>
                         <Typography variant="body2" sx={{ mt: 1.5, fontWeight: 500 }}>
@@ -1176,7 +1374,7 @@ export default function Profile() {
                         </Typography>
                     </Alert>
 
-                    <Typography variant="body2" sx={{ mb: 2, color: "#cbd5e1", fontWeight: 600 }}>
+                    <Typography variant="body2" sx={{ mb: 2, color: T.textLight, fontWeight: 600 }}>
                         Enter your password to verify your identity:
                     </Typography>
 
@@ -1193,13 +1391,7 @@ export default function Profile() {
                         error={!!deleteError}
                         helperText={deleteError}
                         disabled={deleteLoading}
-                        sx={{
-                            mb: 1,
-                            "& .MuiOutlinedInput-root": {
-                                backgroundColor: "rgba(255,255,255,0.02)",
-                                "& fieldset": { borderColor: "rgba(255,255,255,0.08)" }
-                            }
-                        }}
+                        sx={{ mb: 1 }}
                     />
                 </DialogContent>
                 <DialogActions sx={{ p: 2.5, pt: 0 }}>
@@ -1211,17 +1403,7 @@ export default function Profile() {
                         }}
                         disabled={deleteLoading}
                         variant="outlined"
-                        sx={{
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 700,
-                            color: "#cbd5e1",
-                            borderColor: "rgba(255,255,255,0.12)",
-                            "&:hover": {
-                                borderColor: "rgba(255,255,255,0.25)",
-                                backgroundColor: "rgba(255,255,255,0.04)"
-                            }
-                        }}
+                        sx={{ ...outlinedBtn, borderRadius: 2 }}
                     >
                         Cancel
                     </Button>
@@ -1236,21 +1418,18 @@ export default function Profile() {
                             fontWeight: 700,
                             px: 3,
                             backgroundColor: "#ef4444",
-                            color: "#ffffff",
-                            "&:hover": {
-                                backgroundColor: "#dc2626",
-                            }
+                            "&:hover": { backgroundColor: "#dc2626" },
                         }}
                     >
-                        {deleteLoading ? (
-                            <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
-                        ) : null}
-                        {deleteLoading ? "Deleting..." : "Permanently Delete"}
+                        {deleteLoading && (
+                            <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
+                        )}
+                        {deleteLoading ? "Deleting…" : "Permanently Delete"}
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Subscription Confirm Dialog */}
+            {/* ════════ DIALOG: Subscription Payment ════════ */}
             <Dialog
                 open={paymentModalOpen}
                 onClose={() => {
@@ -1260,36 +1439,43 @@ export default function Profile() {
                 }}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{
-                    sx: {
-                        bgcolor: "#161b27",
-                        backgroundImage: "none",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        borderRadius: 3,
-                    }
-                }}
+                PaperProps={{ sx: { ...glassCard, borderRadius: 3 } }}
             >
-                <DialogTitle sx={{ fontWeight: 800, color: "#f1f5f9" }}>
+                <DialogTitle
+                    sx={{
+                        fontWeight: 800,
+                        color: T.text,
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                    }}
+                >
                     Confirm Subscription Order
                 </DialogTitle>
                 <DialogContent>
                     {selectedPlan && (
                         <Box sx={{ pt: 1 }}>
-                            <Typography variant="h6" sx={{ color: "#f1f5f9", fontWeight: 800 }} gutterBottom>
+                            <Typography
+                                variant="h6"
+                                sx={{
+                                    color: T.text,
+                                    fontWeight: 800,
+                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
+                                }}
+                                gutterBottom
+                            >
                                 {selectedPlan.name} Plan
                             </Typography>
-                            <Typography variant="body1" sx={{ mb: 1, color: "#cbd5e1", fontWeight: 600 }}>
+                            <Typography variant="body1" sx={{ mb: 1, color: T.textLight, fontWeight: 600 }}>
                                 Amount: ₹ {selectedPlan.amount_inr}
                             </Typography>
-                            <Typography variant="body1" sx={{ mb: 2, color: "#cbd5e1", fontWeight: 600 }}>
+                            <Typography variant="body1" sx={{ mb: 2, color: T.textLight, fontWeight: 600 }}>
                                 Daily Limit: {selectedPlan.daily_chat_limit} chat sessions
                             </Typography>
                             {paymentError && (
-                                <Alert severity="error" sx={{ mb: 2.5 }}>
+                                <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
                                     {paymentError}
                                 </Alert>
                             )}
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" sx={{ color: T.muted }}>
                                 You will be redirected to Razorpay checkout to finish payment processing.
                             </Typography>
                         </Box>
@@ -1304,17 +1490,7 @@ export default function Profile() {
                         }}
                         disabled={paymentLoading}
                         variant="outlined"
-                        sx={{
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 700,
-                            color: "#cbd5e1",
-                            borderColor: "rgba(255,255,255,0.12)",
-                            "&:hover": {
-                                borderColor: "rgba(255,255,255,0.25)",
-                                backgroundColor: "rgba(255,255,255,0.04)"
-                            }
-                        }}
+                        sx={{ ...outlinedBtn, borderRadius: 2 }}
                     >
                         Cancel
                     </Button>
@@ -1322,22 +1498,12 @@ export default function Profile() {
                         onClick={handleConfirmPayment}
                         variant="contained"
                         disabled={paymentLoading}
-                        sx={{
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 700,
-                            px: 3.5,
-                            background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
-                            color: "#ffffff",
-                            "&:hover": {
-                                background: "linear-gradient(90deg, #6d28d9, #0891b2)"
-                            }
-                        }}
+                        sx={{ ...tealGradientBtn, px: 3.5, py: 1.25 }}
                     >
-                        {paymentLoading ? (
-                            <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
-                        ) : null}
-                        {paymentLoading ? "Processing..." : "Pay Now"}
+                        {paymentLoading && (
+                            <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
+                        )}
+                        {paymentLoading ? "Processing…" : "Pay Now"}
                     </Button>
                 </DialogActions>
             </Dialog>

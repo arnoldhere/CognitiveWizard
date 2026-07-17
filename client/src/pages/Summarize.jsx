@@ -14,7 +14,6 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    Grid,
     Stack,
     Divider,
 } from "@mui/material";
@@ -43,7 +42,6 @@ const parseSummaryContent = (text) => {
 
     paragraphs.forEach((para) => {
         const trimmed = para.trim();
-
         if (!trimmed) return;
 
         if (
@@ -58,10 +56,7 @@ const parseSummaryContent = (text) => {
                 ),
             });
         } else {
-            sections.push({
-                type: "paragraph",
-                content: trimmed,
-            });
+            sections.push({ type: "paragraph", content: trimmed });
         }
     });
 
@@ -69,7 +64,7 @@ const parseSummaryContent = (text) => {
 };
 
 /**
- * Enhanced summary display component with better readability
+ * Enhanced summary display – Light Teal theme
  */
 const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
     const sections = useMemo(() => parseSummaryContent(summary), [summary]);
@@ -77,36 +72,40 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
 
     const modeConfig = {
         concise: {
-            icon: <Lightbulb sx={{ fontSize: 24, color: "#fbbf24" }} />,
+            icon: <Lightbulb sx={{ fontSize: 24, color: "#F59E0B" }} />,
             title: "Quick Insight",
             subtitle: "Ultra-concise summary",
-            bgColor: "rgba(251, 191, 36, 0.08)",
-            borderColor: "rgba(251, 191, 36, 0.3)",
-            textColor: "#fde68a",
+            bgColor: "rgba(245, 158, 11, 0.08)",
+            borderColor: "rgba(245, 158, 11, 0.28)",
+            accentColor: "#D97706",
+            markerColor: "#F59E0B",
         },
         brief: {
-            icon: <CheckCircle sx={{ fontSize: 24, color: "#60a5fa" }} />,
+            icon: <CheckCircle sx={{ fontSize: 24, color: "#0D9488" }} />,
             title: "Brief Overview",
             subtitle: "Key points summary",
-            bgColor: "rgba(96, 165, 250, 0.08)",
-            borderColor: "rgba(96, 165, 250, 0.3)",
-            textColor: "#bfdbfe",
+            bgColor: "rgba(13, 148, 136, 0.08)",
+            borderColor: "rgba(13, 148, 136, 0.28)",
+            accentColor: "#0D9488",
+            markerColor: "#2DD4BF",
         },
         summary: {
-            icon: <TrendingUp sx={{ fontSize: 24, color: "#34d399" }} />,
+            icon: <TrendingUp sx={{ fontSize: 24, color: "#06B6D4" }} />,
             title: "Main Summary",
             subtitle: "Balanced overview",
-            bgColor: "rgba(52, 211, 153, 0.08)",
-            borderColor: "rgba(52, 211, 153, 0.3)",
-            textColor: "#a7f3d0",
+            bgColor: "rgba(6, 182, 212, 0.08)",
+            borderColor: "rgba(6, 182, 212, 0.28)",
+            accentColor: "#0891B2",
+            markerColor: "#06B6D4",
         },
         detailed: {
-            icon: <AutoAwesome sx={{ fontSize: 24, color: "#a78bfa" }} />,
+            icon: <AutoAwesome sx={{ fontSize: 24, color: "#F97316" }} />,
             title: "Detailed Analysis",
             subtitle: "Comprehensive summary",
-            bgColor: "rgba(167, 139, 250, 0.08)",
-            borderColor: "rgba(167, 139, 250, 0.3)",
-            textColor: "#ddd6fe",
+            bgColor: "rgba(249, 115, 22, 0.08)",
+            borderColor: "rgba(249, 115, 22, 0.28)",
+            accentColor: "#EA6C0A",
+            markerColor: "#F97316",
         },
     };
 
@@ -130,11 +129,11 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                     mt: 5,
                     p: { xs: 3, md: 5 },
                     borderRadius: 4,
-                    background: "rgba(22, 27, 39, 0.95)",
+                    background: "rgba(255, 255, 255, 0.90)",
                     border: `1.5px solid ${config.borderColor}`,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-                    backdropFilter: "blur(16px)",
-                    color: "#e2e8f0",
+                    boxShadow: `0 12px 40px rgba(13,148,136,0.10), 0 2px 8px rgba(0,0,0,0.03)`,
+                    backdropFilter: "blur(20px)",
+                    outline: "1px solid rgba(255,255,255,0.85)",
                 }}
             >
                 {/* HEADER */}
@@ -145,7 +144,7 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                         gap: 2,
                         mb: 3,
                         pb: 3,
-                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                        borderBottom: "1px solid rgba(13,148,136,0.12)",
                     }}
                 >
                     <Box
@@ -166,16 +165,13 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                             variant="h6"
                             fontWeight={800}
                             sx={{
-                                color: "#f1f5f9",
+                                color: "#0F2027",
+                                fontFamily: '"Plus Jakarta Sans", sans-serif',
                             }}
                         >
                             {config.title}
                         </Typography>
-                        <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            fontWeight={500}
-                        >
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
                             {config.subtitle}
                         </Typography>
                     </Box>
@@ -189,9 +185,9 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                                 <Typography
                                     variant="body1"
                                     sx={{
-                                        color: "#cbd5e1",
+                                        color: "#334155",
                                         fontSize: "0.95rem",
-                                        letterSpacing: "0.3px",
+                                        letterSpacing: "0.2px",
                                         lineHeight: 1.85,
                                     }}
                                 >
@@ -201,8 +197,8 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                                                 <strong
                                                     key={i}
                                                     style={{
-                                                        fontWeight: 700,
-                                                        color: "#f1f5f9",
+                                                        fontWeight: 800,
+                                                        color: "#0F2027",
                                                     }}
                                                 >
                                                     {part.replace(/\*\*/g, "")}
@@ -213,36 +209,32 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                                     )}
                                 </Typography>
                             ) : (
-                                <Box>
-                                    <Box
-                                        component="ul"
-                                        sx={{
-                                            pl: 3,
-                                            m: 0,
-                                            "& li": {
-                                                mb: 1.5,
-                                                color: "#cbd5e1",
-                                                lineHeight: 1.8,
-                                            },
-                                            "& li::marker": {
-                                                color: config.textColor,
-                                                fontWeight: 700,
-                                                fontSize: "1.1em",
-                                            },
-                                        }}
-                                    >
-                                        {section.items.map((item, i) => (
-                                            <Typography
-                                                component="li"
-                                                key={i}
-                                                sx={{
-                                                    fontSize: "0.95rem",
-                                                }}
-                                            >
-                                                {item}
-                                            </Typography>
-                                        ))}
-                                    </Box>
+                                <Box
+                                    component="ul"
+                                    sx={{
+                                        pl: 3,
+                                        m: 0,
+                                        "& li": {
+                                            mb: 1.5,
+                                            color: "#334155",
+                                            lineHeight: 1.8,
+                                        },
+                                        "& li::marker": {
+                                            color: config.markerColor,
+                                            fontWeight: 700,
+                                            fontSize: "1.1em",
+                                        },
+                                    }}
+                                >
+                                    {section.items.map((item, i) => (
+                                        <Typography
+                                            component="li"
+                                            key={i}
+                                            sx={{ fontSize: "0.95rem" }}
+                                        >
+                                            {item}
+                                        </Typography>
+                                    ))}
                                 </Box>
                             )}
                         </Box>
@@ -250,7 +242,7 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                 </Box>
 
                 {/* FOOTER STATS */}
-                <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.08)" }} />
+                <Divider sx={{ my: 3, borderColor: "rgba(13,148,136,0.12)" }} />
                 <Box
                     sx={{
                         display: "flex",
@@ -260,29 +252,33 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                         gap: 2,
                     }}
                 >
-                    <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        fontWeight={600}
-                    >
-                        {summary.split(/\s+/).length} words | {sections.length} sections
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        {summary.split(/\s+/).length} words · {sections.length} sections
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                         {tokenUsage && (
                             <Typography
                                 variant="caption"
                                 sx={{
-                                    color: "rgba(255,255,255,0.45)",
+                                    color: "#7A9BA8",
                                     fontSize: "0.72rem",
                                     fontWeight: 600,
-                                    background: "rgba(255, 255, 255, 0.04)",
+                                    background: "rgba(13,148,136,0.06)",
                                     px: 1.5,
                                     py: 0.8,
                                     borderRadius: 2,
-                                    border: "1px solid rgba(255, 255, 255, 0.06)",
+                                    border: "1px solid rgba(13,148,136,0.14)",
                                 }}
                             >
-                                Tokens: <span style={{ color: "#a5b4fc" }}>{tokenUsage.input_tokens || tokenUsage.prompt_tokens || 0}</span> in / <span style={{ color: "#6ee7b7" }}>{tokenUsage.output_tokens || tokenUsage.completion_tokens || 0}</span> out
+                                Tokens:{" "}
+                                <span style={{ color: "#0D9488", fontWeight: 700 }}>
+                                    {tokenUsage.input_tokens || tokenUsage.prompt_tokens || 0}
+                                </span>{" "}
+                                in /{" "}
+                                <span style={{ color: "#F97316", fontWeight: 700 }}>
+                                    {tokenUsage.output_tokens || tokenUsage.completion_tokens || 0}
+                                </span>{" "}
+                                out
                             </Typography>
                         )}
                         <Button
@@ -293,13 +289,19 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                             sx={{
                                 textTransform: "none",
                                 fontWeight: 700,
-                                color: "#cbd5e1",
-                                borderColor: "rgba(255,255,255,0.12)",
-                                bgcolor: "rgba(255,255,255,0.03)",
+                                color: copied ? "#0D9488" : "#4A6572",
+                                borderColor: copied
+                                    ? "rgba(13,148,136,0.4)"
+                                    : "rgba(13,148,136,0.22)",
+                                bgcolor: copied
+                                    ? "rgba(13,148,136,0.06)"
+                                    : "rgba(255,255,255,0.7)",
                                 "&:hover": {
-                                    background: "rgba(255,255,255,0.08)",
-                                    borderColor: "rgba(255,255,255,0.2)",
+                                    background: "rgba(13,148,136,0.08)",
+                                    borderColor: "rgba(13,148,136,0.4)",
+                                    color: "#0D9488",
                                 },
+                                transition: "all 0.2s ease",
                             }}
                         >
                             {copied ? "Copied!" : "Copy Summary"}
@@ -393,35 +395,77 @@ export default function SummarizerPage() {
     };
 
     return (
-        <Container maxWidth="md" sx={{ py: 10 }}>
-            {/* HEADER */}
-            <Box textAlign="center" mb={6}>
+        <Container maxWidth="md" sx={{ py: 10, position: "relative", zIndex: 1 }}>
+            {/* PAGE HEADER */}
+            <Box
+                component={motion.div}
+                initial={{ opacity: 0, y: -16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55 }}
+                textAlign="center"
+                mb={6}
+            >
+                {/* Kicker */}
+                <Typography
+                    variant="overline"
+                    sx={{
+                        display: "block",
+                        mb: 1.5,
+                        fontWeight: 800,
+                        letterSpacing: "0.14em",
+                        fontSize: "0.75rem",
+                        background: "linear-gradient(90deg, #0D9488, #06B6D4)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                    }}
+                >
+                    AI-Powered · Quick Study
+                </Typography>
+
                 <Typography
                     variant="h3"
                     fontWeight={900}
                     sx={{
-                        background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                        letterSpacing: "-0.025em",
+                        background: "linear-gradient(135deg, #0F2027 0%, #0D9488 55%, #06B6D4 100%)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
                     }}
                 >
                     AI Summarizer
                 </Typography>
 
-                <Typography mt={1.5} color="text.secondary" sx={{ fontSize: "1.1rem" }}>
-                    Turn long content into powerful insights instantly
+                <Typography
+                    mt={1.5}
+                    sx={{
+                        color: "#4A6572",
+                        fontSize: "1.05rem",
+                        lineHeight: 1.7,
+                        fontWeight: 500,
+                    }}
+                >
+                    Turn long content into powerful insights — instantly
                 </Typography>
             </Box>
 
             {/* MAIN CARD */}
             <Paper
+                component={motion.div}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.1 }}
                 elevation={0}
                 sx={{
-                    p: 4,
+                    p: { xs: 3, md: 4 },
                     borderRadius: 4,
-                    background: "rgba(22, 27, 39, 0.95)",
-                    backdropFilter: "blur(20px)",
-                    border: "1px solid rgba(255,255,255,0.07)",
+                    background: "rgba(255, 255, 255, 0.88)",
+                    backdropFilter: "blur(24px)",
+                    border: "1px solid rgba(255, 255, 255, 0.92)",
+                    outline: "1px solid rgba(13,148,136,0.10)",
+                    boxShadow: "0 16px 50px rgba(13,148,136,0.10), 0 4px 16px rgba(0,0,0,0.03)",
                 }}
             >
                 {/* TABS */}
@@ -431,18 +475,21 @@ export default function SummarizerPage() {
                     centered
                     sx={{
                         mb: 4,
-                        borderBottom: "1px solid rgba(255,255,255,0.06)",
+                        borderBottom: "1px solid rgba(13,148,136,0.12)",
                         "& .MuiTab-root": {
                             textTransform: "none",
                             fontWeight: 700,
-                            color: "#94a3b8",
+                            color: "#7A9BA8",
+                            fontFamily: '"Plus Jakarta Sans", sans-serif',
                             "&.Mui-selected": {
-                                color: "#06b6d4",
-                            }
+                                color: "#0D9488",
+                            },
                         },
                         "& .MuiTabs-indicator": {
-                            backgroundColor: "#06b6d4",
-                        }
+                            backgroundColor: "#0D9488",
+                            height: 3,
+                            borderRadius: "3px 3px 0 0",
+                        },
                     }}
                 >
                     <Tab icon={<UploadFile />} label="Document" value="file" />
@@ -452,27 +499,42 @@ export default function SummarizerPage() {
 
                 {/* INPUT AREA */}
                 <Stack spacing={3}>
+                    {/* FILE DROP ZONE */}
                     {source === "file" && (
                         <Box
+                            component={motion.div}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
                             sx={{
-                                border: "2px dashed rgba(124, 58, 237, 0.3)",
+                                border: "2px dashed rgba(13,148,136,0.30)",
                                 borderRadius: 3,
-                                p: 4,
+                                p: { xs: 3, md: 5 },
                                 textAlign: "center",
                                 cursor: "pointer",
-                                transition: "0.2s ease-in-out",
-                                background: "rgba(255, 255, 255, 0.01)",
+                                transition: "all 0.22s ease",
+                                background: "rgba(255,255,255,0.65)",
                                 "&:hover": {
-                                    background: "rgba(124, 58, 237, 0.05)",
-                                    borderColor: "#7c3aed",
+                                    background: "rgba(13,148,136,0.04)",
+                                    borderColor: "#0D9488",
+                                    boxShadow: "0 4px 16px rgba(13,148,136,0.10)",
                                 },
                             }}
                         >
-                            <UploadFile sx={{ fontSize: 48, color: "#a78bfa", mb: 1 }} />
-                            <Typography sx={{ color: "#cbd5e1", fontWeight: 600 }}>
+                            <UploadFile
+                                sx={{
+                                    fontSize: 52,
+                                    color: "#2DD4BF",
+                                    mb: 1.5,
+                                    filter: "drop-shadow(0 4px 8px rgba(13,148,136,0.2))",
+                                }}
+                            />
+                            <Typography sx={{ color: "#0F2027", fontWeight: 700, fontSize: "1rem" }}>
                                 Click or drag file to upload
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                            <Typography
+                                variant="caption"
+                                sx={{ display: "block", mt: 0.5, color: "#7A9BA8" }}
+                            >
                                 PDF & DOCX up to 50MB
                             </Typography>
                             <input
@@ -482,19 +544,56 @@ export default function SummarizerPage() {
                                 id="fileInput"
                             />
                             <label htmlFor="fileInput">
-                                <Button component="span" variant="outlined" sx={{ mt: 2, textTransform: "none", fontWeight: 600, color: "#a78bfa", borderColor: "rgba(167, 139, 250, 0.4)" }}>
+                                <Button
+                                    component="span"
+                                    variant="outlined"
+                                    sx={{
+                                        mt: 2.5,
+                                        textTransform: "none",
+                                        fontWeight: 700,
+                                        color: "#0D9488",
+                                        borderColor: "rgba(13,148,136,0.35)",
+                                        borderRadius: 2,
+                                        "&:hover": {
+                                            borderColor: "#0D9488",
+                                            background: "rgba(13,148,136,0.06)",
+                                        },
+                                    }}
+                                >
                                     Browse File
                                 </Button>
                             </label>
 
                             {file && (
-                                <Typography mt={2} color="success.main" sx={{ fontWeight: 600 }}>
-                                    {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
-                                </Typography>
+                                <Box
+                                    sx={{
+                                        mt: 2.5,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 1,
+                                        px: 2,
+                                        py: 0.8,
+                                        borderRadius: 2,
+                                        background: "rgba(13,148,136,0.08)",
+                                        border: "1px solid rgba(13,148,136,0.22)",
+                                    }}
+                                >
+                                    <CheckCircle sx={{ fontSize: 16, color: "#0D9488" }} />
+                                    <Typography
+                                        sx={{
+                                            color: "#0D9488",
+                                            fontWeight: 700,
+                                            fontSize: "0.88rem",
+                                        }}
+                                    >
+                                        {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                                    </Typography>
+                                </Box>
                             )}
                         </Box>
                     )}
 
+                    {/* URL / YOUTUBE INPUT */}
                     {(source === "url" || source === "youtube") && (
                         <TextField
                             fullWidth
@@ -510,33 +609,16 @@ export default function SummarizerPage() {
                                     ? setUrl(e.target.value)
                                     : setYoutube(e.target.value)
                             }
-                            sx={{
-                                "& .MuiOutlinedInput-root": {
-                                    backgroundColor: "rgba(255, 255, 255, 0.02)",
-                                    "& fieldset": {
-                                        borderColor: "rgba(255, 255, 255, 0.08)",
-                                    },
-                                    "&:hover fieldset": {
-                                        borderColor: "rgba(255, 255, 255, 0.15)",
-                                    },
-                                }
-                            }}
                         />
                     )}
 
-                    {/* MODE */}
+                    {/* SUMMARY MODE */}
                     <FormControl fullWidth>
-                        <InputLabel sx={{ color: "#94a3b8" }}>Summary Mode</InputLabel>
+                        <InputLabel>Summary Mode</InputLabel>
                         <Select
                             value={mode}
                             onChange={(e) => setMode(e.target.value)}
                             label="Summary Mode"
-                            sx={{
-                                backgroundColor: "rgba(255, 255, 255, 0.02)",
-                                "& .MuiOutlinedInput-notchedOutline": {
-                                    borderColor: "rgba(255, 255, 255, 0.08)",
-                                },
-                            }}
                         >
                             <MenuItem value="concise">Concise</MenuItem>
                             <MenuItem value="brief">Brief</MenuItem>
@@ -545,21 +627,23 @@ export default function SummarizerPage() {
                         </Select>
                     </FormControl>
 
+                    {/* ERROR */}
                     {error && (
-                        <Alert 
+                        <Alert
                             severity="error"
                             sx={{
-                                bgcolor: "rgba(239, 68, 68, 0.08)",
-                                border: "1px solid rgba(239, 68, 68, 0.25)",
-                                color: "#fca5a5",
-                                "& .MuiAlert-icon": { color: "#f87171" }
+                                bgcolor: "rgba(239, 68, 68, 0.07)",
+                                border: "1px solid rgba(239, 68, 68, 0.22)",
+                                color: "#b91c1c",
+                                "& .MuiAlert-icon": { color: "#ef4444" },
+                                borderRadius: 2,
                             }}
                         >
                             {error}
                         </Alert>
                     )}
 
-                    {/* BUTTON */}
+                    {/* SUBMIT BUTTON */}
                     <Button
                         variant="contained"
                         size="large"
@@ -569,13 +653,36 @@ export default function SummarizerPage() {
                         sx={{
                             py: 1.8,
                             borderRadius: 3,
-                            fontWeight: 700,
+                            fontWeight: 800,
+                            fontFamily: '"Plus Jakarta Sans", sans-serif',
+                            fontSize: "1rem",
                             color: "#ffffff",
-                            background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
-                            boxShadow: "0 6px 20px rgba(124, 58, 237, 0.35)",
+                            background: "linear-gradient(135deg, #0D9488, #06B6D4)",
+                            boxShadow: "0 6px 22px rgba(13,148,136,0.32)",
+                            position: "relative",
+                            overflow: "hidden",
+                            "&::after": {
+                                content: '""',
+                                position: "absolute",
+                                inset: 0,
+                                background:
+                                    "linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.2) 50%, transparent 65%)",
+                                transform: "translateX(-100%)",
+                                transition: "transform .5s ease",
+                            },
+                            "&:hover::after": {
+                                transform: "translateX(100%)",
+                            },
                             "&:hover": {
-                                background: "linear-gradient(90deg, #6d28d9, #0891b2)",
-                            }
+                                background: "linear-gradient(135deg, #0F9D91, #0891B2)",
+                                boxShadow: "0 10px 30px rgba(13,148,136,0.42)",
+                                transform: "translateY(-1px)",
+                            },
+                            "&:disabled": {
+                                background: "rgba(13,148,136,0.25)",
+                                color: "rgba(255,255,255,0.7)",
+                                boxShadow: "none",
+                            },
                         }}
                     >
                         {loading ? (
@@ -588,7 +695,9 @@ export default function SummarizerPage() {
             </Paper>
 
             {/* RESULT */}
-            {summary && <SummaryDisplay summary={summary} mode={mode} tokenUsage={tokenUsage} />}
+            {summary && (
+                <SummaryDisplay summary={summary} mode={mode} tokenUsage={tokenUsage} />
+            )}
         </Container>
     );
 }
