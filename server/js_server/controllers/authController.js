@@ -54,7 +54,7 @@ async function login(req, res, next) {
     if (!user.is_active) {
       return res.status(403).json({ error: "access blocked contact admin team" });
     }
-    const valid = await bcrypt.compare(password, user.hashed_password);
+    const valid = await bcrypt.compare(password, JSON.stringify(user.hashed_password));
     if (!valid) {
       return res.status(401).json({ error: "Incorrect password" });
     }
