@@ -100,7 +100,7 @@ def build_v1_rag_chain(
 
     chain = (
         {
-            # FIXED: retriever.invoke() — not deprecated get_relevant_documents()
+            # retriever.invoke() — not deprecated get_relevant_documents()
             "context": RunnableLambda(_extract_query)
             | retriever
             | RunnableLambda(_format_docs),

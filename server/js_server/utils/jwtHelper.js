@@ -11,7 +11,9 @@ function generateToken(user) {
     role: user.role
   };
   
-  return jwt.sign(payload, JWT_SECRET, {
+  const secret = user.role === 'admin' ? (process.env.ADMIN_JWT_SECRET_KEY || JWT_SECRET + "_admin") : JWT_SECRET;
+  
+  return jwt.sign(payload, secret, {
     algorithm: JWT_ALGORITHM,
     expiresIn: `${ACCESS_TOKEN_EXPIRE_MINUTES}m`
   });

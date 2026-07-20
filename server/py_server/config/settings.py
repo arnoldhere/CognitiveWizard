@@ -126,6 +126,8 @@ class Settings:
     @property
     def SQLALCHEMY_DATABASE_URL(self):
         return self.DATABASE_URL
+    
+    JS_SERVER_URL: str = os.getenv("JS_SERVER_URL", "http://localhost:3000")
 
 
 settings = Settings()

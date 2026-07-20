@@ -3,7 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { Box, CircularProgress } from "@mui/material";
 
 export default function PublicRoute({ children }) {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, user } = useAuth();
     const location = useLocation();
 
     // Show loading spinner while checking authentication
@@ -24,7 +24,9 @@ export default function PublicRoute({ children }) {
 
     // Redirect authenticated users to their intended destination or home
     if (isAuthenticated) {
-        // Check if there's a saved location from a protected route redirect
+        if (user?.role === 'admin') {
+            return <Navigate to="/admin/dashboard" replace />;
+        }
         const from = location.state?.from?.pathname || "/quiz";
         return <Navigate to={from} replace />;
     }

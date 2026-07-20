@@ -44,7 +44,12 @@ async function authenticate(req, res, next) {
   const token = authHeader.slice(7); // Strip "Bearer " prefix
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, {
+    const unverifiedDecoded = jwt.decode(token);
+    const secret = unverifiedDecoded?.role === 'admin' 
+        ? (process.env.ADMIN_JWT_SECRET_KEY || JWT_SECRET + "_admin") 
+        : JWT_SECRET;
+
+    const decoded = jwt.verify(token, secret, {
       algorithms: [JWT_ALGORITHM],
     });
 

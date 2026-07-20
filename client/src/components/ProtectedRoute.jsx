@@ -33,6 +33,10 @@ export default function ProtectedRoute({ children, requiredRole }) {
         return <Navigate to="/" replace />;
     }
 
+    if (user?.role === 'admin') {
+        return <Navigate to="/admin/dashboard" replace />;
+    }
+
     // Render protected content
     return children;
 }

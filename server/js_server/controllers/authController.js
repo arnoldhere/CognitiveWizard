@@ -52,6 +52,10 @@ async function login(req, res, next) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
+    if (!user.is_active) {
+      return res.status(403).json({ error: "access blocked contact admin team" });
+    }
+
     const valid = await bcrypt.compare(password, user.hashed_password);
     if (!valid) {
       return res.status(401).json({ error: "Invalid email or password" });
@@ -61,7 +65,7 @@ async function login(req, res, next) {
     const userObj = user.toJSON();
     delete userObj.hashed_password;
 
-    res.json({ access_token, token_type: "bearer", user: userObj });
+    res.json({ access_token, token_type: "bearer", user: userObj, "role": user.role });
   } catch (err) {
     next(err);
   }

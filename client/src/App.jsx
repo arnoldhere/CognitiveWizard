@@ -19,6 +19,14 @@ import SummarizerPage from "./pages/Summarize";
 import WizardModule from "./pages/WizardModule";
 import ForgotPassword from "./pages/ForgotPassword";
 
+// Admin Imports
+import AdminRoute from "./components/AdminRoute";
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminLLMConfigs from "./pages/admin/AdminLLMConfigs";
+import BlockedPage from "./pages/BlockedPage";
+
 function AppRoutes() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
@@ -72,7 +80,14 @@ function AppRoutes() {
             }
           />
 
-          {/* Admin route removed */}
+          <Route path="/blocked" element={<BlockedPage />} />
+
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="llm-configs" element={<AdminLLMConfigs />} />
+          </Route>
 
           {/* Public Routes - Redirect if Authenticated */}
           <Route

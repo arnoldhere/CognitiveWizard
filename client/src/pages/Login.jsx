@@ -32,11 +32,22 @@ export default function Login() {
         setLoading(true);
         try {
             setError(null);
-            await login(form);
-            navigate(from, { replace: true });
+            const payload = await login(form);
+            const role = payload.role || payload.user?.role;
+            if (role === 'admin') {
+                navigate('/admin/dashboard', { replace: true });
+            } else if (role === 'user') {
+                navigate(from, { replace: true });
+            }
+            else {
+                setError("Unknown user role. Please contact support.");
+            }
         } catch (err) {
-            // setError(err.response?.data?.detail || "Login failed. Please verify your credentials.");
-            setError(err.response?.detail?.message || "Login failed. Try again later...");
+            if (err.response?.status === 403) {
+                navigate('/blocked', { replace: true });
+            } else {
+                setError(err.response?.data?.error || err.response?.detail?.message || "Login failed. Try again later...");
+            }
         } finally {
             setLoading(false);
         }

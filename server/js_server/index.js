@@ -7,17 +7,15 @@
 
 // ─── Load environment variables first ─────────────────────────────────────
 require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
-
+const bcrypt = require("bcrypt");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-
 // ─── Internal utilities & middleware ──────────────────────────────────────
 const logger = require("./utils/logger");
 const morganMiddleware = require("./middlewares/requestLogger");
 const { globalLimiter } = require("./middlewares/rateLimiter");
 const { notFoundHandler, globalErrorHandler } = require("./middlewares/errorHandler");
-
 // ─── Database & Cache Services ──────────────────────────────────────────────
 const { connectMySQL } = require("./config/db");
 const { connectMongo } = require("./config/mongo");
@@ -42,6 +40,7 @@ const quizRoutes = require("./routes/user/quizRoutes");
 const wizardRoutes = require("./routes/user/wizardRoutes");
 const summaryRoutes = require("./routes/user/summaryRoutes");
 const subscriptionRoutes = require("./routes/user/subscriptionRoutes");
+const adminRoutes = require("./routes/admin/adminRoutes");
 
 // ─── Constants ────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.JS_SERVER_PORT || "3000", 10);
@@ -162,6 +161,32 @@ app.use("/quiz", quizRoutes);
 app.use("/wizard", wizardRoutes);
 app.use("/summarize", summaryRoutes);
 app.use("/subscriptions", subscriptionRoutes);
+
+// Internal routes (e.g. for py_server)
+app.get("/internal/llm-configs/:task_name", async (req, res) => {
+  try {
+    const { LLMConfig } = require('./models');
+    const config = await LLMConfig.findByPk(req.params.task_name);
+    if (!config) return res.status(404).json({ error: "Config not found" });
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+app.post("/internal/ensure-admin", async (req, res) => {
+  try {
+    logger.info("checking Admin user...")
+    const initializeAdmin = require("./utils/checkAdmin")
+    await initializeAdmin()
+    logger.info("Admin user verified...")
+  }
+  catch (e) {
+    console.error(e);
+  }
+})
+
+app.use("/admin", adminRoutes);
 
 // ─── Error Handling ───────────────────────────────────────────────────────
 // 404 — must come after all routes
