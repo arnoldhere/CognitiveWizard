@@ -16,13 +16,12 @@ async function initializeAdmin() {
         }
 
         logger.info("Creating default admin user...");
-
         const password = await bcrypt.hash(process.env.ADMIN_PASS, 10);
 
         await User.create({
             full_name: "Admin",
             email: process.env.ADMIN_EMAIL,
-            password,
+            hashed_password: password,
             role: "admin",
         });
 

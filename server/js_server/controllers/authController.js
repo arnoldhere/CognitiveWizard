@@ -46,7 +46,6 @@ async function login(req, res, next) {
   try {
     const { email, password } = req.body;
     logger.info(`[AUTH] Login attempt: ${email}`);
-
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
@@ -55,16 +54,14 @@ async function login(req, res, next) {
     if (!user.is_active) {
       return res.status(403).json({ error: "access blocked contact admin team" });
     }
-
     const valid = await bcrypt.compare(password, user.hashed_password);
     if (!valid) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Incorrect password" });
     }
 
     const access_token = generateToken(user);
     const userObj = user.toJSON();
     delete userObj.hashed_password;
-
     res.json({ access_token, token_type: "bearer", user: userObj, "role": user.role });
   } catch (err) {
     next(err);

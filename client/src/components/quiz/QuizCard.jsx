@@ -301,7 +301,7 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                   Question {currentIndex + 1} of {totalQuestions}
                 </Typography>
                 <hr />
-                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.82)" }}>
+                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.82)", marginX: 5 }}>
                   Progress {Math.round(progress)}%
                 </Typography>
               </Stack>

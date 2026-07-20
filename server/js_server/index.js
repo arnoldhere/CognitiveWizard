@@ -179,7 +179,7 @@ app.post("/internal/ensure-admin", async (req, res) => {
     logger.info("checking Admin user...")
     const initializeAdmin = require("./utils/checkAdmin")
     await initializeAdmin()
-    logger.info("Admin user verified...")
+    return res.status(200).json({ message: "Admin user verified" });
   }
   catch (e) {
     console.error(e);
