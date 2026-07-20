@@ -55,6 +55,7 @@ class HFClientManager:
                 "text-generation",
                 model=model,
                 tokenizer=tokenizer,
+                device=0 if use_cuda else -1,
                 token=settings.HF_API_KEY or None,
             )
 
