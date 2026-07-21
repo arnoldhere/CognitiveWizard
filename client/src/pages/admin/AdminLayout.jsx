@@ -31,6 +31,7 @@ import {
     DarkModeRounded,
     AdminPanelSettingsRounded,
     NotificationsNoneRounded,
+    AutoAwesomeRounded,
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
@@ -59,6 +60,7 @@ export default function AdminLayout() {
     const menuItems = [
         { text: "Dashboard", icon: <DashboardRounded />, path: "/admin/dashboard", badge: null },
         { text: "User Management", icon: <PeopleRounded />, path: "/admin/users", badge: null },
+        { text: "Wizard Questions", icon: <AutoAwesomeRounded />, path: "/admin/wizard-questions", badge: null },
         { text: "LLM Config", icon: <TuneRounded />, path: "/admin/llm-configs", badge: null },
     ];
 

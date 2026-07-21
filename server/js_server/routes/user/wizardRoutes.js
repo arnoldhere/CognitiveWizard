@@ -30,6 +30,8 @@ const {
   deleteContent,
 } = require("../../controllers/wizardController");
 
+const { getActiveQuestionSets } = require("../../controllers/wizardQuestionSetController");
+
 const router = Router();
 
 // All wizard routes require authentication
@@ -40,6 +42,9 @@ router.post("/generate", aiLimiter, generateContent);
 
 /** Get current user's wizard content history */
 router.get("/history", getHistory);
+
+/** Get active wizard question sets (dynamic, admin-managed) */
+router.get("/question-sets", getActiveQuestionSets);
 
 /** Retrieve a specific content item by ID */
 router.get("/:content_id", getContent);

@@ -39,3 +39,30 @@ export const updateLLMConfig = async (taskName, config) => {
     const res = await API.put(`/admin/llm-configs/${taskName}`, config);
     return res.data;
 };
+
+// ─── Wizard Question Sets ──────────────────────────────────────────────────────
+
+export const getWizardQuestionSets = async () => {
+    const res = await API.get("/admin/wizard-questions");
+    return res.data;
+};
+
+export const createWizardQuestionSet = async (payload) => {
+    const res = await API.post("/admin/wizard-questions", payload);
+    return res.data;
+};
+
+export const updateWizardQuestionSet = async (id, payload) => {
+    const res = await API.put(`/admin/wizard-questions/${id}`, payload);
+    return res.data;
+};
+
+export const deleteWizardQuestionSet = async (id) => {
+    const res = await API.delete(`/admin/wizard-questions/${id}`);
+    return res.data;
+};
+
+export const toggleWizardQuestionSet = async (id) => {
+    const res = await API.patch(`/admin/wizard-questions/${id}/toggle`);
+    return res.data;
+};

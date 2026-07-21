@@ -1,0 +1,722 @@
+import { useState, useEffect } from "react";
+import {
+    Box, Typography, Card, CardContent, Grid, Button, Chip,
+    IconButton, Switch, Tooltip, Dialog, DialogTitle, DialogContent,
+    DialogActions, TextField, MenuItem, Select, FormControl, InputLabel,
+    FormControlLabel, Snackbar, Alert, Divider, Paper, CircularProgress,
+    Collapse, InputAdornment,
+} from "@mui/material";
+import {
+    AddRounded, EditRounded, DeleteRounded, DragIndicatorRounded,
+    QuizRounded, CheckBoxRounded, ShortTextRounded, SubjectRounded,
+    CalendarTodayRounded, NumbersRounded, ListRounded, ExpandMoreRounded,
+    ExpandLessRounded, CloseRounded, SaveRounded, AddCircleRounded,
+    VisibilityRounded, VisibilityOffRounded, WarningAmberRounded,
+    AutoAwesomeRounded,
+} from "@mui/icons-material";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    getWizardQuestionSets, createWizardQuestionSet,
+    updateWizardQuestionSet, deleteWizardQuestionSet,
+    toggleWizardQuestionSet,
+} from "../../services/admin";
+
+// ─── Constants ─────────────────────────────────────────────────────────────────
+
+const QUESTION_TYPES = [
+    { value: "text", label: "Free Text", icon: SubjectRounded, hint: "Open-ended text answer" },
+    { value: "short_text", label: "Short Text", icon: ShortTextRounded, hint: "Single-line short answer" },
+    { value: "select", label: "Single Choice", icon: CheckBoxRounded, hint: "Pick one from a list" },
+    { value: "multiselect", label: "Multi Choice", icon: ListRounded, hint: "Pick multiple from a list" },
+    { value: "number", label: "Number", icon: NumbersRounded, hint: "Numeric input" },
+    { value: "date", label: "Date", icon: CalendarTodayRounded, hint: "Date picker" },
+];
+
+const BLANK_QUESTION = () => ({
+    key: "",
+    label: "",
+    type: "text",
+    placeholder: "",
+    options: [],
+    required: true,
+    _tempId: Date.now() + Math.random(),
+});
+
+const BLANK_SET = () => ({
+    content_type: "",
+    label: "",
+    description: "",
+    icon: "ExploreRounded",
+    is_active: true,
+    sort_order: 0,
+    questions: [],
+});
+
+// ─── Small helpers ─────────────────────────────────────────────────────────────
+
+function typeIcon(type) {
+    const found = QUESTION_TYPES.find(t => t.value === type);
+    const Icon = found?.icon || SubjectRounded;
+    return <Icon sx={{ fontSize: 16 }} />;
+}
+
+function genKey(label) {
+    return label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
+}
+
+// ─── Question Editor Row ───────────────────────────────────────────────────────
+
+function QuestionRow({ q, index, onChange, onRemove }) {
+    const [optionInput, setOptionInput] = useState("");
+    const needsOptions = q.type === "select" || q.type === "multiselect";
+
+    const handleLabelChange = (e) => {
+        const newLabel = e.target.value;
+        onChange(index, { ...q, label: newLabel, key: genKey(newLabel) });
+    };
+
+    const addOption = () => {
+        const trimmed = optionInput.trim();
+        if (!trimmed) return;
+        onChange(index, { ...q, options: [...(q.options || []), trimmed] });
+        setOptionInput("");
+    };
+
+    const removeOption = (oi) => {
+        onChange(index, { ...q, options: q.options.filter((_, i) => i !== oi) });
+    };
+
+    return (
+        <Paper
+            elevation={0}
+            sx={{
+                p: 2.5, borderRadius: 2.5,
+                border: "1px solid", borderColor: "divider",
+                bgcolor: "background.default",
+            }}
+        >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                <Tooltip title="Drag to reorder (coming soon)">
+                    <DragIndicatorRounded sx={{ color: "text.secondary", cursor: "grab", fontSize: 20 }} />
+                </Tooltip>
+                <Chip label={`Q${index + 1}`} size="small" sx={{ fontWeight: 800, bgcolor: "rgba(99,102,241,0.12)", color: "primary.light", fontSize: "0.7rem" }} />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    {typeIcon(q.type)}
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        {QUESTION_TYPES.find(t => t.value === q.type)?.label}
+                    </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }} />
+                <FormControlLabel
+                    control={<Switch size="small" checked={q.required} onChange={e => onChange(index, { ...q, required: e.target.checked })} />}
+                    label={<Typography variant="caption" color="text.secondary">Required</Typography>}
+                    sx={{ mr: 0 }}
+                />
+                <Tooltip title="Remove question">
+                    <IconButton size="small" color="error" onClick={() => onRemove(index)}>
+                        <CloseRounded fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            </Box>
+
+            <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                    <TextField
+                        label="Question Label *"
+                        value={q.label}
+                        onChange={handleLabelChange}
+                        size="small"
+                        fullWidth
+                        placeholder="e.g. What is your skill level?"
+                    />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                    <FormControl size="small" fullWidth>
+                        <InputLabel>Answer Type</InputLabel>
+                        <Select
+                            label="Answer Type"
+                            value={q.type}
+                            onChange={e => onChange(index, { ...q, type: e.target.value, options: [] })}
+                        >
+                            {QUESTION_TYPES.map(t => (
+                                <MenuItem key={t.value} value={t.value}>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                        <t.icon sx={{ fontSize: 16 }} />
+                                        {t.label}
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                    <TextField
+                        label="Field Key"
+                        value={q.key}
+                        onChange={e => onChange(index, { ...q, key: e.target.value })}
+                        size="small"
+                        fullWidth
+                        placeholder="auto_generated"
+                        helperText="Unique identifier"
+                    />
+                </Grid>
+
+                {/* Placeholder — only for non-select types */}
+                {!needsOptions && (
+                    <Grid item xs={12}>
+                        <TextField
+                            label="Placeholder Text"
+                            value={q.placeholder || ""}
+                            onChange={e => onChange(index, { ...q, placeholder: e.target.value })}
+                            size="small"
+                            fullWidth
+                            placeholder="e.g. Enter your answer here..."
+                        />
+                    </Grid>
+                )}
+
+                {/* Options — for select / multiselect */}
+                {needsOptions && (
+                    <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 1, display: "block" }}>
+                            Answer Options
+                        </Typography>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 1.5, minHeight: 36 }}>
+                            {(q.options || []).map((opt, oi) => (
+                                <Chip
+                                    key={oi}
+                                    label={opt}
+                                    size="small"
+                                    onDelete={() => removeOption(oi)}
+                                    sx={{ fontWeight: 600 }}
+                                />
+                            ))}
+                            {(q.options || []).length === 0 && (
+                                <Typography variant="caption" color="text.secondary">No options yet — add below</Typography>
+                            )}
+                        </Box>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                            <TextField
+                                size="small"
+                                value={optionInput}
+                                onChange={e => setOptionInput(e.target.value)}
+                                onKeyDown={e => e.key === "Enter" && addOption()}
+                                placeholder="Type an option and press Enter or +"
+                                fullWidth
+                            />
+                            <Button variant="outlined" size="small" onClick={addOption} sx={{ minWidth: 40, px: 1 }}>
+                                <AddRounded fontSize="small" />
+                            </Button>
+                        </Box>
+                    </Grid>
+                )}
+            </Grid>
+        </Paper>
+    );
+}
+
+// ─── Question Set Dialog (Create / Edit) ───────────────────────────────────────
+
+function QuestionSetDialog({ open, onClose, onSave, initial }) {
+    const isEdit = Boolean(initial?.id);
+    const [form, setForm] = useState(BLANK_SET());
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (open) {
+            setForm(initial ? { ...initial, questions: [...(initial.questions || [])] } : BLANK_SET());
+            setError(null);
+        }
+    }, [open, initial]);
+
+    const setField = (field, value) => setForm(f => ({ ...f, [field]: value }));
+
+    const addQuestion = () => setField("questions", [...form.questions, BLANK_QUESTION()]);
+
+    const updateQuestion = (i, updated) => {
+        const qs = [...form.questions];
+        qs[i] = updated;
+        setField("questions", qs);
+    };
+
+    const removeQuestion = (i) => {
+        setField("questions", form.questions.filter((_, idx) => idx !== i));
+    };
+
+    const handleSave = async () => {
+        setError(null);
+        if (!form.content_type.trim()) { setError("Content type identifier is required."); return; }
+        if (!form.label.trim()) { setError("Display label is required."); return; }
+
+        for (const q of form.questions) {
+            if (!q.label.trim()) { setError("All questions must have a label."); return; }
+            if (!q.key.trim()) { setError(`Question "${q.label}" is missing a field key.`); return; }
+            if ((q.type === "select" || q.type === "multiselect") && (!q.options || q.options.length < 2)) {
+                setError(`Question "${q.label}" needs at least 2 options.`); return;
+            }
+        }
+
+        // Strip _tempId before sending
+        const payload = {
+            ...form,
+            questions: form.questions.map(({ _tempId, ...q }) => q),
+        };
+
+        setSaving(true);
+        try {
+            await onSave(payload);
+            onClose();
+        } catch (e) {
+            setError(e.response?.data?.error || "Save failed. Please try again.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+            <DialogTitle sx={{ pb: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <QuizRounded sx={{ color: "primary.light", fontSize: 20 }} />
+                    </Box>
+                    <Typography variant="h6" fontWeight={700}>
+                        {isEdit ? "Edit Question Set" : "Create Question Set"}
+                    </Typography>
+                </Box>
+            </DialogTitle>
+
+            <DialogContent dividers sx={{ p: 3 }}>
+                {/* Meta fields */}
+                <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 2, display: "block" }}>
+                    Content Type Info
+                </Typography>
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            label="Content Type ID *"
+                            value={form.content_type}
+                            onChange={e => setField("content_type", e.target.value)}
+                            size="small"
+                            fullWidth
+                            placeholder="e.g. Roadmap"
+                            helperText="Unique identifier sent to AI. Avoid changing after creation."
+                            disabled={isEdit}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            label="Display Label *"
+                            value={form.label}
+                            onChange={e => setField("label", e.target.value)}
+                            size="small"
+                            fullWidth
+                            placeholder="e.g. Learning Roadmap"
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            label="Description"
+                            value={form.description || ""}
+                            onChange={e => setField("description", e.target.value)}
+                            size="small"
+                            fullWidth
+                            placeholder="Short description shown under the card title in wizard"
+                        />
+                    </Grid>
+                    <Grid item xs={6} sm={4}>
+                        <TextField
+                            label="Sort Order"
+                            type="number"
+                            value={form.sort_order}
+                            onChange={e => setField("sort_order", parseInt(e.target.value) || 0)}
+                            size="small"
+                            fullWidth
+                        />
+                    </Grid>
+                    <Grid item xs={6} sm={4} sx={{ display: "flex", alignItems: "center" }}>
+                        <FormControlLabel
+                            control={<Switch checked={form.is_active} onChange={e => setField("is_active", e.target.checked)} />}
+                            label="Active (visible in Wizard)"
+                        />
+                    </Grid>
+                </Grid>
+
+                <Divider sx={{ mb: 3 }} />
+
+                {/* Questions */}
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                    <Typography variant="overline" color="text.secondary" fontWeight={700}>
+                        Questions ({form.questions.length})
+                    </Typography>
+                    <Button
+                        startIcon={<AddCircleRounded />}
+                        size="small"
+                        variant="contained"
+                        onClick={addQuestion}
+                    >
+                        Add Question
+                    </Button>
+                </Box>
+
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <AnimatePresence>
+                        {form.questions.map((q, i) => (
+                            <motion.div
+                                key={q._tempId || q.key || i}
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, height: 0, overflow: "hidden" }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <QuestionRow
+                                    q={q}
+                                    index={i}
+                                    onChange={updateQuestion}
+                                    onRemove={removeQuestion}
+                                />
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+
+                    {form.questions.length === 0 && (
+                        <Box sx={{
+                            textAlign: "center", py: 5, borderRadius: 2.5,
+                            border: "2px dashed", borderColor: "divider"
+                        }}>
+                            <AutoAwesomeRounded sx={{ fontSize: 40, color: "text.secondary", opacity: 0.3, mb: 1 }} />
+                            <Typography color="text.secondary">No questions yet. Click "Add Question" to begin.</Typography>
+                        </Box>
+                    )}
+                </Box>
+
+                {error && (
+                    <Alert severity="error" sx={{ mt: 2.5, borderRadius: 2 }}>{error}</Alert>
+                )}
+            </DialogContent>
+
+            <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+                <Button onClick={onClose} disabled={saving} variant="outlined" sx={{ borderRadius: 2 }}>
+                    Cancel
+                </Button>
+                <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    variant="contained"
+                    startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveRounded />}
+                >
+                    {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Question Set"}
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+}
+
+// ─── Delete Confirm Dialog ─────────────────────────────────────────────────────
+
+function DeleteDialog({ open, onClose, onConfirm, name }) {
+    const [loading, setLoading] = useState(false);
+    const confirm = async () => {
+        setLoading(true);
+        await onConfirm();
+        setLoading(false);
+    };
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+            <DialogTitle>
+                <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                    <WarningAmberRounded sx={{ color: "error.main" }} />
+                    Delete Question Set
+                </Box>
+            </DialogTitle>
+            <DialogContent>
+                <Typography>
+                    Are you sure you want to delete <strong>"{name}"</strong>?
+                    This cannot be undone and will remove all its questions.
+                </Typography>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+                <Button onClick={onClose} variant="outlined" sx={{ borderRadius: 2 }}>Cancel</Button>
+                <Button onClick={confirm} color="error" variant="contained" disabled={loading} sx={{ borderRadius: 2 }}>
+                    {loading ? <CircularProgress size={16} color="inherit" /> : "Delete"}
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function AdminWizardQuestions() {
+    const [sets, setSets] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editTarget, setEditTarget] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [expandedId, setExpandedId] = useState(null);
+    const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
+
+    const showToast = (msg, severity = "success") => setToast({ open: true, msg, severity });
+
+    const load = async () => {
+        setLoading(true);
+        try {
+            const data = await getWizardQuestionSets();
+            setSets(data);
+        } catch {
+            showToast("Failed to load question sets", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { load(); }, []);
+
+    const handleSave = async (payload) => {
+        if (editTarget?.id) {
+            await updateWizardQuestionSet(editTarget.id, payload);
+            showToast(`"${payload.label}" updated successfully`);
+        } else {
+            await createWizardQuestionSet(payload);
+            showToast(`"${payload.label}" created successfully`);
+        }
+        await load();
+    };
+
+    const handleDelete = async () => {
+        await deleteWizardQuestionSet(deleteTarget.id);
+        showToast(`"${deleteTarget.label}" deleted`);
+        setDeleteTarget(null);
+        await load();
+    };
+
+    const handleToggle = async (id) => {
+        try {
+            const res = await toggleWizardQuestionSet(id);
+            setSets(prev => prev.map(s => s.id === id ? { ...s, is_active: res.is_active } : s));
+        } catch {
+            showToast("Failed to toggle visibility", "error");
+        }
+    };
+
+    return (
+        <Box sx={{ pb: 6 }}>
+            {/* Header */}
+            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 4, flexWrap: "wrap", gap: 2 }}>
+                <Box>
+                    <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Wizard Question Sets</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Manage the questions shown to users in the AI Content Wizard — per content type.
+                    </Typography>
+                </Box>
+                <Button
+                    variant="contained"
+                    startIcon={<AddRounded />}
+                    onClick={() => { setEditTarget(null); setDialogOpen(true); }}
+                    sx={{ borderRadius: 2.5 }}
+                >
+                    New Question Set
+                </Button>
+            </Box>
+
+            {/* Summary chips */}
+            <Box sx={{ display: "flex", gap: 2, mb: 4, flexWrap: "wrap" }}>
+                <Chip icon={<QuizRounded sx={{ fontSize: "0.9rem !important" }} />} label={`${sets.length} total sets`} sx={{ fontWeight: 700, bgcolor: "rgba(99,102,241,0.1)", color: "primary.light", border: "none" }} />
+                <Chip icon={<VisibilityRounded sx={{ fontSize: "0.9rem !important" }} />} label={`${sets.filter(s => s.is_active).length} active`} sx={{ fontWeight: 700, bgcolor: "rgba(16,185,129,0.1)", color: "#10B981", border: "none" }} />
+                <Chip icon={<VisibilityOffRounded sx={{ fontSize: "0.9rem !important" }} />} label={`${sets.filter(s => !s.is_active).length} hidden`} sx={{ fontWeight: 700, bgcolor: "rgba(148,163,184,0.1)", color: "text.secondary", border: "none" }} />
+            </Box>
+
+            {loading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}><CircularProgress /></Box>
+            ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <AnimatePresence>
+                        {sets.map((set, i) => (
+                            <motion.div
+                                key={set.id}
+                                initial={{ opacity: 0, y: 16 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ delay: i * 0.05, duration: 0.3 }}
+                            >
+                                <Card elevation={0} sx={{
+                                    borderRadius: 3,
+                                    border: "1px solid", borderColor: "divider",
+                                    opacity: set.is_active ? 1 : 0.6,
+                                    transition: "all 0.2s ease",
+                                }}>
+                                    <CardContent sx={{ p: 3, "&:last-child": { pb: 3 } }}>
+                                        {/* Card header row */}
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                                            {/* Sort order badge */}
+                                            <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                <Typography variant="caption" fontWeight={800} sx={{ color: "primary.light" }}>{set.sort_order}</Typography>
+                                            </Box>
+
+                                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                                                    <Typography variant="h6" fontWeight={700} noWrap>{set.label}</Typography>
+                                                    <Chip
+                                                        label={set.content_type}
+                                                        size="small"
+                                                        sx={{ fontWeight: 700, bgcolor: "rgba(99,102,241,0.08)", color: "primary.light", fontSize: "0.68rem" }}
+                                                    />
+                                                    <Chip
+                                                        label={set.is_active ? "Visible" : "Hidden"}
+                                                        size="small"
+                                                        icon={set.is_active
+                                                            ? <VisibilityRounded sx={{ fontSize: "0.75rem !important" }} />
+                                                            : <VisibilityOffRounded sx={{ fontSize: "0.75rem !important" }} />}
+                                                        sx={{
+                                                            fontWeight: 700, fontSize: "0.68rem",
+                                                            bgcolor: set.is_active ? "rgba(16,185,129,0.1)" : "rgba(148,163,184,0.1)",
+                                                            color: set.is_active ? "#10B981" : "text.secondary",
+                                                            border: "none",
+                                                        }}
+                                                    />
+                                                </Box>
+                                                {set.description && (
+                                                    <Typography variant="body2" color="text.secondary" noWrap>{set.description}</Typography>
+                                                )}
+                                            </Box>
+
+                                            {/* Actions */}
+                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                <Chip
+                                                    label={`${set.questions?.length || 0} questions`}
+                                                    size="small"
+                                                    icon={<QuizRounded sx={{ fontSize: "0.8rem !important" }} />}
+                                                    sx={{ fontWeight: 600, bgcolor: "rgba(99,102,241,0.06)", color: "text.secondary" }}
+                                                />
+
+                                                <Tooltip title={set.is_active ? "Hide from wizard" : "Show in wizard"}>
+                                                    <Switch
+                                                        size="small"
+                                                        checked={set.is_active}
+                                                        onChange={() => handleToggle(set.id)}
+                                                        sx={{
+                                                            "& .MuiSwitch-switchBase.Mui-checked": { color: "#10B981" },
+                                                            "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#10B981" },
+                                                        }}
+                                                    />
+                                                </Tooltip>
+
+                                                <Tooltip title="Edit">
+                                                    <IconButton size="small" onClick={() => { setEditTarget(set); setDialogOpen(true); }}
+                                                        sx={{ bgcolor: "rgba(99,102,241,0.08)", "&:hover": { bgcolor: "rgba(99,102,241,0.16)" } }}>
+                                                        <EditRounded sx={{ fontSize: 16, color: "primary.light" }} />
+                                                    </IconButton>
+                                                </Tooltip>
+
+                                                <Tooltip title="Delete">
+                                                    <IconButton size="small" onClick={() => setDeleteTarget(set)}
+                                                        sx={{ bgcolor: "rgba(244,63,94,0.08)", "&:hover": { bgcolor: "rgba(244,63,94,0.16)" } }}>
+                                                        <DeleteRounded sx={{ fontSize: 16, color: "error.main" }} />
+                                                    </IconButton>
+                                                </Tooltip>
+
+                                                <Tooltip title={expandedId === set.id ? "Collapse" : "Preview questions"}>
+                                                    <IconButton size="small" onClick={() => setExpandedId(expandedId === set.id ? null : set.id)}>
+                                                        {expandedId === set.id ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
+                                        </Box>
+
+                                        {/* Expanded questions preview */}
+                                        <Collapse in={expandedId === set.id}>
+                                            <Box sx={{ mt: 2.5 }}>
+                                                <Divider sx={{ mb: 2 }} />
+                                                {!set.questions || set.questions.length === 0 ? (
+                                                    <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                                                        No questions configured. Click Edit to add questions.
+                                                    </Typography>
+                                                ) : (
+                                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                                                        {set.questions.map((q, qi) => (
+                                                            <Box key={qi} sx={{
+                                                                display: "flex", alignItems: "flex-start", gap: 2,
+                                                                p: 1.5, borderRadius: 2,
+                                                                bgcolor: "rgba(99,102,241,0.04)",
+                                                                border: "1px solid", borderColor: "rgba(99,102,241,0.1)"
+                                                            }}>
+                                                                <Chip label={`Q${qi + 1}`} size="small"
+                                                                    sx={{ fontWeight: 800, bgcolor: "rgba(99,102,241,0.12)", color: "primary.light", minWidth: 36, fontSize: "0.65rem" }} />
+                                                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
+                                                                        <Typography variant="body2" fontWeight={600}>{q.label}</Typography>
+                                                                        <Chip
+                                                                            icon={typeIcon(q.type)}
+                                                                            label={QUESTION_TYPES.find(t => t.value === q.type)?.label || q.type}
+                                                                            size="small"
+                                                                            sx={{ height: 18, fontSize: "0.62rem", fontWeight: 700, bgcolor: "rgba(148,163,184,0.1)", color: "text.secondary" }}
+                                                                        />
+                                                                        {q.required && (
+                                                                            <Chip label="Required" size="small" sx={{ height: 18, fontSize: "0.62rem", fontWeight: 700, bgcolor: "rgba(244,63,94,0.1)", color: "error.main" }} />
+                                                                        )}
+                                                                    </Box>
+                                                                    {q.options && q.options.length > 0 && (
+                                                                        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                                                                            {q.options.map((opt, oi) => (
+                                                                                <Chip key={oi} label={opt} size="small" variant="outlined" sx={{ height: 18, fontSize: "0.62rem" }} />
+                                                                            ))}
+                                                                        </Box>
+                                                                    )}
+                                                                    {q.placeholder && (
+                                                                        <Typography variant="caption" color="text.secondary">Placeholder: {q.placeholder}</Typography>
+                                                                    )}
+                                                                </Box>
+                                                            </Box>
+                                                        ))}
+                                                    </Box>
+                                                )}
+                                            </Box>
+                                        </Collapse>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+
+                    {sets.length === 0 && !loading && (
+                        <Box sx={{ textAlign: "center", py: 10, borderRadius: 3, border: "2px dashed", borderColor: "divider" }}>
+                            <QuizRounded sx={{ fontSize: 48, color: "text.secondary", opacity: 0.3, mb: 2 }} />
+                            <Typography variant="h6" fontWeight={600} color="text.secondary" gutterBottom>No question sets yet</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                Create your first question set to power the AI Wizard module.
+                            </Typography>
+                            <Button variant="contained" startIcon={<AddRounded />} onClick={() => { setEditTarget(null); setDialogOpen(true); }}>
+                                Create First Set
+                            </Button>
+                        </Box>
+                    )}
+                </Box>
+            )}
+
+            {/* Dialogs */}
+            <QuestionSetDialog
+                open={dialogOpen}
+                onClose={() => setDialogOpen(false)}
+                onSave={handleSave}
+                initial={editTarget}
+            />
+            <DeleteDialog
+                open={Boolean(deleteTarget)}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={handleDelete}
+                name={deleteTarget?.label}
+            />
+
+            {/* Toast */}
+            <Snackbar
+                open={toast.open}
+                autoHideDuration={4000}
+                onClose={() => setToast(t => ({ ...t, open: false }))}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            >
+                <Alert severity={toast.severity} sx={{ width: "100%", borderRadius: 2.5 }}>{toast.msg}</Alert>
+            </Snackbar>
+        </Box>
+    );
+}

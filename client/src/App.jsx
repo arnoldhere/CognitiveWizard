@@ -25,6 +25,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminLLMConfigs from "./pages/admin/AdminLLMConfigs";
+import AdminWizardQuestions from "./pages/admin/AdminWizardQuestions";
 import BlockedPage from "./pages/BlockedPage";
 
 function AppRoutes() {
@@ -86,6 +87,7 @@ function AppRoutes() {
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="wizard-questions" element={<AdminWizardQuestions />} />
             <Route path="llm-configs" element={<AdminLLMConfigs />} />
           </Route>
 

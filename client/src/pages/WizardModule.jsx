@@ -16,38 +16,24 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import DeleteIcon from "@mui/icons-material/Delete";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import { useGsapReveal } from "../hooks/useGsapReveal";
-import { generateWizardContent, getWizardHistory, deleteWizardContent } from "../services/api";
+import { generateWizardContent, getWizardHistory, deleteWizardContent, API } from "../services/api";
 import { CircularProgress } from "@mui/material";
 
-const CONTENT_TYPES = [
-  { id: "Roadmap", icon: <ExploreIcon sx={{ fontSize: 28 }} />, desc: "Visual path of milestones" },
-  { id: "Course/Syllabus", icon: <LocalLibraryIcon sx={{ fontSize: 28 }} />, desc: "Structured educational modules" },
-  { id: "Guide", icon: <MenuBookIcon sx={{ fontSize: 28 }} />, desc: "Step-by-step instructions" },
-  { id: "Schedule", icon: <ScheduleIcon sx={{ fontSize: 28 }} />, desc: "Time-managed study plan" }
-];
-
-const QUESTION_SETS = {
-  "Roadmap": [
-    { key: "skillLevel", label: "What is your current skill level?", type: "select", options: ["Beginner", "Intermediate", "Advanced"] },
-    { key: "timeDedication", label: "Time dedication per week?", type: "text", placeholder: "e.g., 10 hours" },
-    { key: "learningStyle", label: "What is your main learning style?", type: "select", options: ["Visual & Project-based", "Theoretical & Reading", "Interactive & Coding"] },
-    { key: "tools", label: "Any specific tools/frameworks?", type: "text", placeholder: "e.g., React, TensorFlow, Python" }
-  ],
-  "Course/Syllabus": [
-    { key: "targetAudience", label: "Who is the target audience?", type: "text", placeholder: "e.g., High school students, Beginners" },
-    { key: "moduleCount", label: "How many modules or weeks?", type: "number", placeholder: "e.g., 8" },
-    { key: "courseFocus", label: "Primary focus of the course?", type: "select", options: ["Academic/Theoretical", "Bootcamp/Practical", "Corporate Training"] },
-    { key: "prerequisites", label: "Any prerequisites needed?", type: "text", placeholder: "e.g., Basic JavaScript, High School Math" }
-  ],
-  "Guide": [
-    { key: "guideStyle", label: "What style of guide?", type: "select", options: ["Step-by-step tutorial", "Conceptual overview", "Quick reference"] },
-    { key: "constraints", label: "Any specific tools or constraints?", type: "text", placeholder: "e.g., Open-source tools only" }
-  ],
-  "Schedule": [
-    { key: "deadline", label: "When is your deadline?", type: "date" },
-    { key: "dailyHours", label: "Hours per day?", type: "number", placeholder: "e.g., 2" }
-  ]
+// Icon mapping for dynamic icon names from admin config
+const ICON_MAP = {
+  ExploreRounded: <ExploreIcon sx={{ fontSize: 28 }} />,
+  LocalLibraryRounded: <LocalLibraryIcon sx={{ fontSize: 28 }} />,
+  MenuBookRounded: <MenuBookIcon sx={{ fontSize: 28 }} />,
+  ScheduleRounded: <ScheduleIcon sx={{ fontSize: 28 }} />,
+  PsychologyRounded: <PsychologyIcon sx={{ fontSize: 28 }} />,
+  // Fallback
+  default: <ExploreIcon sx={{ fontSize: 28 }} />,
 };
+
+function getIcon(iconName) {
+  return ICON_MAP[iconName] || ICON_MAP.default;
+}
+
 
 // Expandable module component
 const ModuleItem = ({ mod, type }) => {
@@ -114,6 +100,10 @@ const ModuleItem = ({ mod, type }) => {
 export default function WizardModule() {
   const [activeTab, setActiveTab] = useState("generate"); // 'generate' or 'history'
 
+  // Dynamic question sets loaded from admin API
+  const [questionSets, setQuestionSets] = useState([]); // array of { content_type, label, description, icon, questions }
+  const [setsLoading, setSetsLoading] = useState(true);
+
   // Generator State
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({ contentType: "", topic: "" });
@@ -130,7 +120,17 @@ export default function WizardModule() {
   const rootRef = useRef(null);
   useGsapReveal(rootRef);
 
-  const activeQuestions = answers.contentType ? QUESTION_SETS[answers.contentType] : [];
+  // Load admin-managed question sets on mount
+  useEffect(() => {
+    API.get("/wizard/question-sets")
+      .then(res => setQuestionSets(res.data))
+      .catch(err => console.error("Failed to load wizard question sets", err))
+      .finally(() => setSetsLoading(false));
+  }, []);
+
+  // Active questions for selected content type
+  const activeQuestionSet = questionSets.find(qs => qs.content_type === answers.contentType);
+  const activeQuestions = activeQuestionSet?.questions || [];
 
   // Fetch History
   useEffect(() => {
@@ -253,33 +253,39 @@ export default function WizardModule() {
           <p style={{ textAlign: "center", color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
             Select an AI curriculum template to begin.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {CONTENT_TYPES.map(type => (
-              <div
-                key={type.id}
-                onClick={() => {
-                  setAnswers({ contentType: type.id, topic: "" });
-                  setTimeout(() => setStep(1), 150);
-                }}
-                style={{
-                  display: "flex", alignItems: "center", padding: "20px 24px",
-                  borderRadius: "12px", cursor: "pointer", transition: "all 0.2s ease",
-                  background: answers.contentType === type.id ? "rgba(6, 182, 212, 0.1)" : "var(--surface-soft)",
-                  border: answers.contentType === type.id ? "1px solid #06b6d4" : "1px solid var(--border)"
-                }}
-                className="wiz-hover-card"
-              >
-                <div style={{ color: answers.contentType === type.id ? "#06b6d4" : "var(--primary-light)", marginRight: "20px" }}>
-                  {type.icon}
+          {setsLoading ? (
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <CircularProgress size={36} sx={{ color: "#06b6d4" }} />
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {questionSets.map(type => (
+                <div
+                  key={type.content_type}
+                  onClick={() => {
+                    setAnswers({ contentType: type.content_type, topic: "" });
+                    setTimeout(() => setStep(1), 150);
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", padding: "20px 24px",
+                    borderRadius: "12px", cursor: "pointer", transition: "all 0.2s ease",
+                    background: answers.contentType === type.content_type ? "rgba(6, 182, 212, 0.1)" : "var(--surface-soft)",
+                    border: answers.contentType === type.content_type ? "1px solid #06b6d4" : "1px solid var(--border)"
+                  }}
+                  className="wiz-hover-card"
+                >
+                  <div style={{ color: answers.contentType === type.content_type ? "#06b6d4" : "var(--primary-light)", marginRight: "20px" }}>
+                    {getIcon(type.icon)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ margin: "0 0 4px", fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>{type.label}</h3>
+                    <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.9rem" }}>{type.description}</p>
+                  </div>
+                  <ChevronRightIcon style={{ color: "var(--text-light)" }} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: "0 0 4px", fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>{type.id}</h3>
-                  <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.9rem" }}>{type.desc}</p>
-                </div>
-                <ChevronRightIcon style={{ color: "var(--text-light)" }} />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
@@ -323,6 +329,7 @@ export default function WizardModule() {
             Help the AI understand your specific needs.
           </p>
 
+          {/* Single-choice select */}
           {currentQ.type === "select" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
               {currentQ.options.map(opt => (
@@ -344,10 +351,46 @@ export default function WizardModule() {
                 </button>
               ))}
             </div>
+          ) : currentQ.type === "multiselect" ? (
+            /* Multi-choice select */
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
+              {currentQ.options.map(opt => {
+                const selected = (answers[ansKey] || []).includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => {
+                      const current = answers[ansKey] || [];
+                      const updated = selected ? current.filter(v => v !== opt) : [...current, opt];
+                      setAnswers({ ...answers, [ansKey]: updated });
+                    }}
+                    style={{
+                      padding: "16px 24px", borderRadius: "12px", fontSize: "1.05rem",
+                      background: selected ? "rgba(6, 182, 212, 0.15)" : "var(--surface-soft)",
+                      border: selected ? "1px solid #06b6d4" : "1px solid var(--border)",
+                      color: selected ? "#06b6d4" : "var(--text)",
+                      fontWeight: 600, cursor: "pointer", transition: "all 0.2s", textAlign: "left",
+                      display: "flex", alignItems: "center", gap: "12px"
+                    }}
+                  >
+                    <span style={{
+                      width: 18, height: 18, borderRadius: 4, border: `2px solid ${selected ? "#06b6d4" : "var(--border)"}`,
+                      background: selected ? "#06b6d4" : "transparent", display: "inline-flex",
+                      alignItems: "center", justifyContent: "center", flexShrink: 0
+                    }}>
+                      {selected && <span style={{ color: "#fff", fontSize: 12, fontWeight: 900 }}>✓</span>}
+                    </span>
+                    {opt}
+                  </button>
+                );
+              })}
+              <p style={{ color: "var(--text-light)", fontSize: "0.85rem", textAlign: "center", marginTop: 8 }}>Select all that apply, then click Continue</p>
+            </div>
           ) : (
+            /* Text / number / date / short_text inputs */
             <input
               autoFocus
-              type={currentQ.type}
+              type={currentQ.type === "short_text" ? "text" : currentQ.type}
               className="wiz-input-clean"
               placeholder={currentQ.placeholder}
               value={answers[ansKey] || ""}
