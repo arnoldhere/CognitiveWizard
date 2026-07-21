@@ -22,9 +22,9 @@ import {
 // Palette
 const palette = {
     coral: "#F26F67",
-    teal:  "#34B1AA",
-    blue:  "#3B8FF3",
-    gold:  "#E0B50F",
+    teal: "#34B1AA",
+    blue: "#3B8FF3",
+    gold: "#E0B50F",
 };
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -36,6 +36,13 @@ const QUESTION_TYPES = [
     { value: "multiselect", label: "Multi Choice", icon: ListFilter, hint: "Pick multiple from a list" },
     { value: "number", label: "Number", icon: Hash, hint: "Numeric input" },
     { value: "date", label: "Date", icon: Calendar, hint: "Date picker" },
+];
+
+const CONTENT_TYPE_OPTIONS = [
+    { value: "Roadmap", label: "Roadmap" },
+    { value: "Course/Syllabus", label: "Course / Syllabus" },
+    { value: "Guide", label: "Guide" },
+    { value: "Schedule", label: "Schedule" },
 ];
 
 const BLANK_QUESTION = () => ({
@@ -57,6 +64,13 @@ const BLANK_SET = () => ({
     sort_order: 0,
     questions: [],
 });
+
+function normalizeQuestions(questions = []) {
+    return questions.map((question, index) => ({
+        ...question,
+        _tempId: question._tempId || `question-${index + 1}-${question.key || "item"}`,
+    }));
+}
 
 // ─── Small helpers ─────────────────────────────────────────────────────────────
 
@@ -233,7 +247,7 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
 
     useEffect(() => {
         if (open) {
-            setForm(initial ? { ...initial, questions: [...(initial.questions || [])] } : BLANK_SET());
+            setForm(initial ? { ...initial, questions: normalizeQuestions(initial.questions || []) } : BLANK_SET());
             setError(null);
         }
     }, [open, initial]);
@@ -300,16 +314,20 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
                 </Typography>
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid item xs={12} sm={6}>
-                        <TextField
-                            label="Content Type ID *"
-                            value={form.content_type}
-                            onChange={e => setField("content_type", e.target.value)}
-                            size="small"
-                            fullWidth
-                            placeholder="e.g. Roadmap"
-                            helperText="Unique identifier sent to AI. Avoid changing after creation."
-                            disabled={isEdit}
-                        />
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Content Type *</InputLabel>
+                            <Select
+                                label="Content Type *"
+                                value={form.content_type || ""}
+                                onChange={e => setField("content_type", e.target.value)}
+                            >
+                                {CONTENT_TYPE_OPTIONS.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                         <TextField
@@ -369,7 +387,7 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
                     <AnimatePresence>
                         {form.questions.map((q, i) => (
                             <motion.div
-                                key={q._tempId || q.key || i}
+                                key={q._tempId || `question-${i}`}
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, height: 0, overflow: "hidden" }}

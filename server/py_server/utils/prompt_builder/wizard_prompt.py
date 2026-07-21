@@ -25,8 +25,6 @@ def build_wizard_prompt(
       Topic:
       {topic}
 
-      Target Audience:
-      {target_audience}
       """
 
     if details:
@@ -50,18 +48,18 @@ def build_wizard_prompt(
     VALIDATION RULES
     ========================================================
     Before returning your response verify that:
-    ✓ Output is valid JSON.
-    ✓ No Markdown is used.
-    ✓ No explanations are included.
-    ✓ No comments are included.
-    ✓ Every required field exists.
-    ✓ No additional fields are added.
-    ✓ Module order is logical.
-    ✓ Learning progresses from beginner to advanced.
-    ✓ No duplicated topics exist.
-    ✓ Estimated durations are realistic.
-    ✓ Descriptions are meaningful.
-    ✓ The JSON can be parsed directly.
+    - Output is valid JSON.
+    - No Markdown is used.
+    - No explanations are included.
+    - No comments are included.
+    - Every required field exists.
+    - No additional fields are added.
+    - Module order is logical.
+    - Learning progresses from beginner to advanced.
+    - No duplicated topics exist.
+    - Estimated durations are realistic.
+    - Descriptions are meaningful.
+    - The JSON can be parsed directly.
 
     Return ONLY the JSON.
     """

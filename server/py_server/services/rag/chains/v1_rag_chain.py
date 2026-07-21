@@ -54,22 +54,6 @@ def _format_docs(docs: List[Any]) -> str:
 format_docs = _format_docs
 
 
-def _format_history(chat_history: list) -> str:
-    """Normalize chat_history to a readable string for the prompt."""
-    if not chat_history:
-        return ""
-    if isinstance(chat_history[0], dict):
-        # [{"role": "user", "content": "..."}, ...]
-        return "\n".join(
-            f"{m['role'].capitalize()}: {m['content']}" for m in chat_history
-        )
-    # LangChain HumanMessage/AIMessage objects
-    return "\n".join(
-        f"{'User' if m.type == 'human' else 'Assistant'}: {m.content}"
-        for m in chat_history
-    )
-
-
 def _extract_query(x: Any) -> str:
     return x.get("input", x) if isinstance(x, dict) else str(x)
 

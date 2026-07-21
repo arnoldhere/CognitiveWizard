@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 
 from utils.json_extractor import extract_json, extract_model_response
 
-def generate_wizard_content(topic: str, content_type: str, details: str = None) -> Tuple[bool, Dict]:
+
+def generate_wizard_content(
+    topic: str, content_type: str, details: str = None
+) -> Tuple[bool, Dict]:
     try:
         logger.info(f"Generating wizard content: topic={topic}, type={content_type}")
         prompt_text = build_wizard_prompt(topic, content_type, details)
@@ -30,8 +33,9 @@ def generate_wizard_content(topic: str, content_type: str, details: str = None) 
         else:
             response = llm.generate([messages])
 
+        logger.info(f"Wizard generation response: {response}")
         response_text = extract_model_response(response).strip()
-        
+
         success, json_str = extract_json(response_text)
         if not success:
             logger.error("Failed to extract JSON from wizard response")
