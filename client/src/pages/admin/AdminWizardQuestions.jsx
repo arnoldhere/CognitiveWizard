@@ -4,16 +4,14 @@ import {
     IconButton, Switch, Tooltip, Dialog, DialogTitle, DialogContent,
     DialogActions, TextField, MenuItem, Select, FormControl, InputLabel,
     FormControlLabel, Snackbar, Alert, Divider, Paper, CircularProgress,
-    Collapse, InputAdornment,
+    Collapse,
 } from "@mui/material";
 import {
-    AddRounded, EditRounded, DeleteRounded, DragIndicatorRounded,
-    QuizRounded, CheckBoxRounded, ShortTextRounded, SubjectRounded,
-    CalendarTodayRounded, NumbersRounded, ListRounded, ExpandMoreRounded,
-    ExpandLessRounded, CloseRounded, SaveRounded, AddCircleRounded,
-    VisibilityRounded, VisibilityOffRounded, WarningAmberRounded,
-    AutoAwesomeRounded,
-} from "@mui/icons-material";
+    Plus, Pencil, Trash2, GripVertical, HelpCircle, CheckSquare,
+    FileText, AlignLeft, Calendar, Hash, ListFilter, ChevronDown,
+    ChevronUp, X, Save, PlusCircle, Eye, EyeOff, AlertTriangle,
+    Sparkles,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     getWizardQuestionSets, createWizardQuestionSet,
@@ -21,15 +19,23 @@ import {
     toggleWizardQuestionSet,
 } from "../../services/admin";
 
+// Palette
+const palette = {
+    coral: "#F26F67",
+    teal:  "#34B1AA",
+    blue:  "#3B8FF3",
+    gold:  "#E0B50F",
+};
+
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const QUESTION_TYPES = [
-    { value: "text", label: "Free Text", icon: SubjectRounded, hint: "Open-ended text answer" },
-    { value: "short_text", label: "Short Text", icon: ShortTextRounded, hint: "Single-line short answer" },
-    { value: "select", label: "Single Choice", icon: CheckBoxRounded, hint: "Pick one from a list" },
-    { value: "multiselect", label: "Multi Choice", icon: ListRounded, hint: "Pick multiple from a list" },
-    { value: "number", label: "Number", icon: NumbersRounded, hint: "Numeric input" },
-    { value: "date", label: "Date", icon: CalendarTodayRounded, hint: "Date picker" },
+    { value: "text", label: "Free Text", icon: AlignLeft, hint: "Open-ended text answer" },
+    { value: "short_text", label: "Short Text", icon: FileText, hint: "Single-line short answer" },
+    { value: "select", label: "Single Choice", icon: CheckSquare, hint: "Pick one from a list" },
+    { value: "multiselect", label: "Multi Choice", icon: ListFilter, hint: "Pick multiple from a list" },
+    { value: "number", label: "Number", icon: Hash, hint: "Numeric input" },
+    { value: "date", label: "Date", icon: Calendar, hint: "Date picker" },
 ];
 
 const BLANK_QUESTION = () => ({
@@ -54,10 +60,10 @@ const BLANK_SET = () => ({
 
 // ─── Small helpers ─────────────────────────────────────────────────────────────
 
-function typeIcon(type) {
+function TypeIcon({ type, size = 16 }) {
     const found = QUESTION_TYPES.find(t => t.value === type);
-    const Icon = found?.icon || SubjectRounded;
-    return <Icon sx={{ fontSize: 16 }} />;
+    const IconComponent = found?.icon || AlignLeft;
+    return <IconComponent size={size} />;
 }
 
 function genKey(label) {
@@ -96,12 +102,14 @@ function QuestionRow({ q, index, onChange, onRemove }) {
             }}
         >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                <Tooltip title="Drag to reorder (coming soon)">
-                    <DragIndicatorRounded sx={{ color: "text.secondary", cursor: "grab", fontSize: 20 }} />
+                <Tooltip title="Drag to reorder">
+                    <Box sx={{ cursor: "grab", display: "flex", alignItems: "center", opacity: 0.5 }}>
+                        <GripVertical size={18} />
+                    </Box>
                 </Tooltip>
-                <Chip label={`Q${index + 1}`} size="small" sx={{ fontWeight: 800, bgcolor: "rgba(99,102,241,0.12)", color: "primary.light", fontSize: "0.7rem" }} />
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    {typeIcon(q.type)}
+                <Chip label={`Q${index + 1}`} size="small" sx={{ fontWeight: 800, bgcolor: `${palette.coral}18`, color: palette.coral, fontSize: "0.7rem" }} />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <TypeIcon type={q.type} size={15} />
                     <Typography variant="caption" color="text.secondary" fontWeight={600}>
                         {QUESTION_TYPES.find(t => t.value === q.type)?.label}
                     </Typography>
@@ -114,7 +122,7 @@ function QuestionRow({ q, index, onChange, onRemove }) {
                 />
                 <Tooltip title="Remove question">
                     <IconButton size="small" color="error" onClick={() => onRemove(index)}>
-                        <CloseRounded fontSize="small" />
+                        <X size={16} />
                     </IconButton>
                 </Tooltip>
             </Box>
@@ -141,7 +149,7 @@ function QuestionRow({ q, index, onChange, onRemove }) {
                             {QUESTION_TYPES.map(t => (
                                 <MenuItem key={t.value} value={t.value}>
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                        <t.icon sx={{ fontSize: 16 }} />
+                                        <t.icon size={16} />
                                         {t.label}
                                     </Box>
                                 </MenuItem>
@@ -205,7 +213,7 @@ function QuestionRow({ q, index, onChange, onRemove }) {
                                 fullWidth
                             />
                             <Button variant="outlined" size="small" onClick={addOption} sx={{ minWidth: 40, px: 1 }}>
-                                <AddRounded fontSize="small" />
+                                <Plus size={16} />
                             </Button>
                         </Box>
                     </Grid>
@@ -257,7 +265,6 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
             }
         }
 
-        // Strip _tempId before sending
         const payload = {
             ...form,
             questions: form.questions.map(({ _tempId, ...q }) => q),
@@ -278,8 +285,8 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
             <DialogTitle sx={{ pb: 1 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                    <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <QuizRounded sx={{ color: "primary.light", fontSize: 20 }} />
+                    <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: `${palette.coral}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <HelpCircle size={20} color={palette.coral} />
                     </Box>
                     <Typography variant="h6" fontWeight={700}>
                         {isEdit ? "Edit Question Set" : "Create Question Set"}
@@ -288,7 +295,6 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
             </DialogTitle>
 
             <DialogContent dividers sx={{ p: 3 }}>
-                {/* Meta fields */}
                 <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 2, display: "block" }}>
                     Content Type Info
                 </Typography>
@@ -345,13 +351,12 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
 
                 <Divider sx={{ mb: 3 }} />
 
-                {/* Questions */}
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                     <Typography variant="overline" color="text.secondary" fontWeight={700}>
                         Questions ({form.questions.length})
                     </Typography>
                     <Button
-                        startIcon={<AddCircleRounded />}
+                        startIcon={<PlusCircle size={16} />}
                         size="small"
                         variant="contained"
                         onClick={addQuestion}
@@ -385,7 +390,7 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
                             textAlign: "center", py: 5, borderRadius: 2.5,
                             border: "2px dashed", borderColor: "divider"
                         }}>
-                            <AutoAwesomeRounded sx={{ fontSize: 40, color: "text.secondary", opacity: 0.3, mb: 1 }} />
+                            <Sparkles size={40} style={{ opacity: 0.3, marginBottom: 8 }} />
                             <Typography color="text.secondary">No questions yet. Click "Add Question" to begin.</Typography>
                         </Box>
                     )}
@@ -404,7 +409,7 @@ function QuestionSetDialog({ open, onClose, onSave, initial }) {
                     onClick={handleSave}
                     disabled={saving}
                     variant="contained"
-                    startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <SaveRounded />}
+                    startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Save size={16} />}
                 >
                     {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Question Set"}
                 </Button>
@@ -426,7 +431,7 @@ function DeleteDialog({ open, onClose, onConfirm, name }) {
         <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
             <DialogTitle>
                 <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-                    <WarningAmberRounded sx={{ color: "error.main" }} />
+                    <AlertTriangle color={palette.coral} size={20} />
                     Delete Question Set
                 </Box>
             </DialogTitle>
@@ -512,7 +517,7 @@ export default function AdminWizardQuestions() {
                 </Box>
                 <Button
                     variant="contained"
-                    startIcon={<AddRounded />}
+                    startIcon={<Plus size={18} />}
                     onClick={() => { setEditTarget(null); setDialogOpen(true); }}
                     sx={{ borderRadius: 2.5 }}
                 >
@@ -522,13 +527,13 @@ export default function AdminWizardQuestions() {
 
             {/* Summary chips */}
             <Box sx={{ display: "flex", gap: 2, mb: 4, flexWrap: "wrap" }}>
-                <Chip icon={<QuizRounded sx={{ fontSize: "0.9rem !important" }} />} label={`${sets.length} total sets`} sx={{ fontWeight: 700, bgcolor: "rgba(99,102,241,0.1)", color: "primary.light", border: "none" }} />
-                <Chip icon={<VisibilityRounded sx={{ fontSize: "0.9rem !important" }} />} label={`${sets.filter(s => s.is_active).length} active`} sx={{ fontWeight: 700, bgcolor: "rgba(16,185,129,0.1)", color: "#10B981", border: "none" }} />
-                <Chip icon={<VisibilityOffRounded sx={{ fontSize: "0.9rem !important" }} />} label={`${sets.filter(s => !s.is_active).length} hidden`} sx={{ fontWeight: 700, bgcolor: "rgba(148,163,184,0.1)", color: "text.secondary", border: "none" }} />
+                <Chip icon={<HelpCircle size={14} />} label={`${sets.length} total sets`} sx={{ fontWeight: 700, bgcolor: `${palette.coral}18`, color: palette.coral, border: "none" }} />
+                <Chip icon={<Eye size={14} />} label={`${sets.filter(s => s.is_active).length} active`} sx={{ fontWeight: 700, bgcolor: `${palette.teal}18`, color: palette.teal, border: "none" }} />
+                <Chip icon={<EyeOff size={14} />} label={`${sets.filter(s => !s.is_active).length} hidden`} sx={{ fontWeight: 700, bgcolor: "rgba(176,176,200,0.1)", color: "text.secondary", border: "none" }} />
             </Box>
 
             {loading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}><CircularProgress /></Box>
+                <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}><CircularProgress sx={{ color: palette.coral }} /></Box>
             ) : (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <AnimatePresence>
@@ -549,9 +554,8 @@ export default function AdminWizardQuestions() {
                                     <CardContent sx={{ p: 3, "&:last-child": { pb: 3 } }}>
                                         {/* Card header row */}
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-                                            {/* Sort order badge */}
-                                            <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                                <Typography variant="caption" fontWeight={800} sx={{ color: "primary.light" }}>{set.sort_order}</Typography>
+                                            <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: `${palette.coral}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                <Typography variant="caption" fontWeight={800} sx={{ color: palette.coral }}>{set.sort_order}</Typography>
                                             </Box>
 
                                             <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -560,19 +564,19 @@ export default function AdminWizardQuestions() {
                                                     <Chip
                                                         label={set.content_type}
                                                         size="small"
-                                                        sx={{ fontWeight: 700, bgcolor: "rgba(99,102,241,0.08)", color: "primary.light", fontSize: "0.68rem" }}
+                                                        sx={{ fontWeight: 700, bgcolor: `${palette.coral}12`, color: palette.coral, fontSize: "0.68rem" }}
                                                     />
                                                     <Chip
                                                         label={set.is_active ? "Visible" : "Hidden"}
                                                         size="small"
-                                                        icon={set.is_active
-                                                            ? <VisibilityRounded sx={{ fontSize: "0.75rem !important" }} />
-                                                            : <VisibilityOffRounded sx={{ fontSize: "0.75rem !important" }} />}
+                                                        icon={set.is_active ? <Eye size={12} /> : <EyeOff size={12} />}
                                                         sx={{
                                                             fontWeight: 700, fontSize: "0.68rem",
-                                                            bgcolor: set.is_active ? "rgba(16,185,129,0.1)" : "rgba(148,163,184,0.1)",
-                                                            color: set.is_active ? "#10B981" : "text.secondary",
+                                                            bgcolor: set.is_active ? `${palette.teal}18` : "rgba(176,176,200,0.1)",
+                                                            color: set.is_active ? palette.teal : "text.secondary",
                                                             border: "none",
+                                                            gap: 0.5,
+                                                            "& .MuiChip-icon": { marginLeft: "4px" }
                                                         }}
                                                     />
                                                 </Box>
@@ -586,8 +590,8 @@ export default function AdminWizardQuestions() {
                                                 <Chip
                                                     label={`${set.questions?.length || 0} questions`}
                                                     size="small"
-                                                    icon={<QuizRounded sx={{ fontSize: "0.8rem !important" }} />}
-                                                    sx={{ fontWeight: 600, bgcolor: "rgba(99,102,241,0.06)", color: "text.secondary" }}
+                                                    icon={<HelpCircle size={13} />}
+                                                    sx={{ fontWeight: 600, bgcolor: `${palette.coral}0d`, color: "text.secondary", gap: 0.5, "& .MuiChip-icon": { marginLeft: "4px" } }}
                                                 />
 
                                                 <Tooltip title={set.is_active ? "Hide from wizard" : "Show in wizard"}>
@@ -596,29 +600,29 @@ export default function AdminWizardQuestions() {
                                                         checked={set.is_active}
                                                         onChange={() => handleToggle(set.id)}
                                                         sx={{
-                                                            "& .MuiSwitch-switchBase.Mui-checked": { color: "#10B981" },
-                                                            "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#10B981" },
+                                                            "& .MuiSwitch-switchBase.Mui-checked": { color: palette.teal },
+                                                            "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: palette.teal },
                                                         }}
                                                     />
                                                 </Tooltip>
 
                                                 <Tooltip title="Edit">
                                                     <IconButton size="small" onClick={() => { setEditTarget(set); setDialogOpen(true); }}
-                                                        sx={{ bgcolor: "rgba(99,102,241,0.08)", "&:hover": { bgcolor: "rgba(99,102,241,0.16)" } }}>
-                                                        <EditRounded sx={{ fontSize: 16, color: "primary.light" }} />
+                                                        sx={{ bgcolor: `${palette.coral}12`, "&:hover": { bgcolor: `${palette.coral}24` } }}>
+                                                        <Pencil size={16} color={palette.coral} />
                                                     </IconButton>
                                                 </Tooltip>
 
                                                 <Tooltip title="Delete">
                                                     <IconButton size="small" onClick={() => setDeleteTarget(set)}
-                                                        sx={{ bgcolor: "rgba(244,63,94,0.08)", "&:hover": { bgcolor: "rgba(244,63,94,0.16)" } }}>
-                                                        <DeleteRounded sx={{ fontSize: 16, color: "error.main" }} />
+                                                        sx={{ bgcolor: "rgba(242,111,103,0.12)", "&:hover": { bgcolor: "rgba(242,111,103,0.24)" } }}>
+                                                        <Trash2 size={16} color={palette.coral} />
                                                     </IconButton>
                                                 </Tooltip>
 
                                                 <Tooltip title={expandedId === set.id ? "Collapse" : "Preview questions"}>
                                                     <IconButton size="small" onClick={() => setExpandedId(expandedId === set.id ? null : set.id)}>
-                                                        {expandedId === set.id ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
+                                                        {expandedId === set.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                                     </IconButton>
                                                 </Tooltip>
                                             </Box>
@@ -638,22 +642,22 @@ export default function AdminWizardQuestions() {
                                                             <Box key={qi} sx={{
                                                                 display: "flex", alignItems: "flex-start", gap: 2,
                                                                 p: 1.5, borderRadius: 2,
-                                                                bgcolor: "rgba(99,102,241,0.04)",
-                                                                border: "1px solid", borderColor: "rgba(99,102,241,0.1)"
+                                                                bgcolor: `${palette.coral}06`,
+                                                                border: "1px solid", borderColor: `${palette.coral}15`
                                                             }}>
                                                                 <Chip label={`Q${qi + 1}`} size="small"
-                                                                    sx={{ fontWeight: 800, bgcolor: "rgba(99,102,241,0.12)", color: "primary.light", minWidth: 36, fontSize: "0.65rem" }} />
+                                                                    sx={{ fontWeight: 800, bgcolor: `${palette.coral}18`, color: palette.coral, minWidth: 36, fontSize: "0.65rem" }} />
                                                                 <Box sx={{ flex: 1, minWidth: 0 }}>
                                                                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
                                                                         <Typography variant="body2" fontWeight={600}>{q.label}</Typography>
                                                                         <Chip
-                                                                            icon={typeIcon(q.type)}
+                                                                            icon={<TypeIcon type={q.type} size={12} />}
                                                                             label={QUESTION_TYPES.find(t => t.value === q.type)?.label || q.type}
                                                                             size="small"
-                                                                            sx={{ height: 18, fontSize: "0.62rem", fontWeight: 700, bgcolor: "rgba(148,163,184,0.1)", color: "text.secondary" }}
+                                                                            sx={{ height: 18, fontSize: "0.62rem", fontWeight: 700, bgcolor: "rgba(176,176,200,0.1)", color: "text.secondary", gap: 0.5, "& .MuiChip-icon": { marginLeft: "4px" } }}
                                                                         />
                                                                         {q.required && (
-                                                                            <Chip label="Required" size="small" sx={{ height: 18, fontSize: "0.62rem", fontWeight: 700, bgcolor: "rgba(244,63,94,0.1)", color: "error.main" }} />
+                                                                            <Chip label="Required" size="small" sx={{ height: 18, fontSize: "0.62rem", fontWeight: 700, bgcolor: `${palette.coral}18`, color: palette.coral }} />
                                                                         )}
                                                                     </Box>
                                                                     {q.options && q.options.length > 0 && (
@@ -681,12 +685,12 @@ export default function AdminWizardQuestions() {
 
                     {sets.length === 0 && !loading && (
                         <Box sx={{ textAlign: "center", py: 10, borderRadius: 3, border: "2px dashed", borderColor: "divider" }}>
-                            <QuizRounded sx={{ fontSize: 48, color: "text.secondary", opacity: 0.3, mb: 2 }} />
+                            <HelpCircle size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
                             <Typography variant="h6" fontWeight={600} color="text.secondary" gutterBottom>No question sets yet</Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                                 Create your first question set to power the AI Wizard module.
                             </Typography>
-                            <Button variant="contained" startIcon={<AddRounded />} onClick={() => { setEditTarget(null); setDialogOpen(true); }}>
+                            <Button variant="contained" startIcon={<Plus size={18} />} onClick={() => { setEditTarget(null); setDialogOpen(true); }}>
                                 Create First Set
                             </Button>
                         </Box>

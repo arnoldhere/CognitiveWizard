@@ -1,48 +1,55 @@
 import { useState, useEffect } from "react";
 import {
     Box, Typography, Paper, CircularProgress, TextField,
-    Button, Grid, Switch, FormControlLabel, Snackbar, Alert,
+    Button, Grid, Switch, Snackbar, Alert,
     Divider, Chip, Tooltip, Slider
 } from "@mui/material";
 import {
-    TuneRounded,
-    SaveRounded,
-    InfoOutlined,
-    SmartToyRounded,
-    AutoFixHighRounded,
-} from "@mui/icons-material";
+    SlidersHorizontal,
+    Save,
+    Info,
+    Bot,
+    Wand2,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { getLLMConfigs, updateLLMConfig } from "../../services/admin";
+
+const palette = {
+    coral: "#F26F67",
+    teal:  "#34B1AA",
+    blue:  "#3B8FF3",
+    gold:  "#E0B50F",
+};
 
 const PARAM_META = {
     temperature: {
         label: "Temperature",
         hint: "Controls randomness. Lower = more focused, Higher = more creative.",
-        icon: AutoFixHighRounded,
+        icon: Wand2,
         min: 0, max: 2, step: 0.01, type: "slider",
     },
     max_new_tokens: {
         label: "Max New Tokens",
         hint: "Maximum number of tokens the model can generate in a single response.",
-        icon: TuneRounded,
+        icon: SlidersHorizontal,
         min: 64, max: 4096, step: 1, type: "number",
     },
     top_p: {
         label: "Top P",
         hint: "Nucleus sampling threshold. Controls diversity of word selection.",
-        icon: TuneRounded,
+        icon: SlidersHorizontal,
         min: 0, max: 1, step: 0.01, type: "slider",
     },
     top_k: {
         label: "Top K",
         hint: "Limits next-token selection to the top K candidates.",
-        icon: TuneRounded,
+        icon: SlidersHorizontal,
         min: 0, max: 200, step: 1, type: "number",
     },
     model_override: {
         label: "Model Override",
         hint: "Override the default model ID for this task. Leave blank for provider default.",
-        icon: SmartToyRounded,
+        icon: Bot,
         type: "text",
     },
 };
@@ -60,23 +67,23 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                 p: 3.5, borderRadius: 3,
                 border: "1px solid", borderColor: "divider",
                 bgcolor: "background.paper",
-                "&:hover": { borderColor: "primary.main", boxShadow: "0 0 0 1px rgba(99,102,241,0.3)" },
+                "&:hover": { borderColor: palette.coral, boxShadow: `0 0 0 1px ${palette.coral}48` },
                 transition: "all 0.2s ease",
             }}>
                 {/* Card Header */}
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
                     <Box sx={{
                         width: 38, height: 38, borderRadius: 2,
-                        bgcolor: "rgba(99,102,241,0.12)",
+                        bgcolor: `${palette.coral}18`,
                         display: "flex", alignItems: "center", justifyContent: "center"
                     }}>
-                        <TuneRounded sx={{ color: "primary.light", fontSize: 20 }} />
+                        <SlidersHorizontal size={20} color={palette.coral} />
                     </Box>
                     <Box sx={{ flex: 1 }}>
                         <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: "capitalize" }}>
                             {taskLabel}
                         </Typography>
-                        <Chip label="LLM Task" size="small" sx={{ height: 18, fontSize: "0.65rem", mt: 0.25, bgcolor: "rgba(99,102,241,0.1)", color: "primary.light", fontWeight: 700 }} />
+                        <Chip label="LLM Task" size="small" sx={{ height: 18, fontSize: "0.65rem", mt: 0.25, bgcolor: `${palette.coral}14`, color: palette.coral, fontWeight: 700 }} />
                     </Box>
                 </Box>
 
@@ -89,11 +96,11 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                                 <Typography variant="body2" fontWeight={600}>Temperature</Typography>
                                 <Tooltip title={PARAM_META.temperature.hint} placement="top">
-                                    <InfoOutlined sx={{ fontSize: 14, color: "text.secondary", cursor: "help" }} />
+                                    <Info size={14} style={{ opacity: 0.6, cursor: "help" }} />
                                 </Tooltip>
                             </Box>
                             <Chip label={config.temperature?.toFixed(2)} size="small"
-                                sx={{ height: 20, fontSize: "0.72rem", fontWeight: 700, bgcolor: "rgba(99,102,241,0.12)", color: "primary.light" }} />
+                                sx={{ height: 20, fontSize: "0.72rem", fontWeight: 700, bgcolor: `${palette.coral}18`, color: palette.coral }} />
                         </Box>
                         <Slider
                             value={config.temperature ?? 0.7}
@@ -101,9 +108,9 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                             min={0} max={2} step={0.01}
                             size="small"
                             sx={{
-                                color: "primary.main",
+                                color: palette.coral,
                                 "& .MuiSlider-thumb": { width: 14, height: 14 },
-                                "& .MuiSlider-track": { background: "linear-gradient(90deg, #6366F1, #818CF8)" }
+                                "& .MuiSlider-track": { background: `linear-gradient(90deg, ${palette.coral}, #F59A94)` }
                             }}
                         />
                     </Box>
@@ -114,18 +121,18 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                                 <Typography variant="body2" fontWeight={600}>Top P</Typography>
                                 <Tooltip title={PARAM_META.top_p.hint} placement="top">
-                                    <InfoOutlined sx={{ fontSize: 14, color: "text.secondary", cursor: "help" }} />
+                                    <Info size={14} style={{ opacity: 0.6, cursor: "help" }} />
                                 </Tooltip>
                             </Box>
                             <Chip label={config.top_p?.toFixed(2) ?? "—"} size="small"
-                                sx={{ height: 20, fontSize: "0.72rem", fontWeight: 700, bgcolor: "rgba(16,185,129,0.1)", color: "#10B981" }} />
+                                sx={{ height: 20, fontSize: "0.72rem", fontWeight: 700, bgcolor: `${palette.teal}18`, color: palette.teal }} />
                         </Box>
                         <Slider
                             value={config.top_p ?? 0.9}
                             onChange={(_, v) => onChange(index, "top_p", v)}
                             min={0} max={1} step={0.01}
                             size="small"
-                            sx={{ color: "#10B981" }}
+                            sx={{ color: palette.teal }}
                         />
                     </Box>
 
@@ -135,7 +142,7 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
                                 <Typography variant="body2" fontWeight={600}>Max Tokens</Typography>
                                 <Tooltip title={PARAM_META.max_new_tokens.hint} placement="top">
-                                    <InfoOutlined sx={{ fontSize: 13, color: "text.secondary", cursor: "help" }} />
+                                    <Info size={13} style={{ opacity: 0.6, cursor: "help" }} />
                                 </Tooltip>
                             </Box>
                             <TextField
@@ -151,7 +158,7 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
                                 <Typography variant="body2" fontWeight={600}>Top K</Typography>
                                 <Tooltip title={PARAM_META.top_k.hint} placement="top">
-                                    <InfoOutlined sx={{ fontSize: 13, color: "text.secondary", cursor: "help" }} />
+                                    <Info size={13} style={{ opacity: 0.6, cursor: "help" }} />
                                 </Tooltip>
                             </Box>
                             <TextField
@@ -169,10 +176,10 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                     {/* Model Override */}
                     <Box>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
-                            <SmartToyRounded sx={{ fontSize: 14, color: "text.secondary" }} />
+                            <Bot size={14} style={{ opacity: 0.6 }} />
                             <Typography variant="body2" fontWeight={600}>Model Override</Typography>
                             <Tooltip title={PARAM_META.model_override.hint} placement="top">
-                                <InfoOutlined sx={{ fontSize: 13, color: "text.secondary", cursor: "help" }} />
+                                <Info size={13} style={{ opacity: 0.6, cursor: "help" }} />
                             </Tooltip>
                         </Box>
                         <TextField
@@ -188,8 +195,8 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                     {/* Use Chat Pipeline */}
                     <Box sx={{
                         display: "flex", alignItems: "center", justifyContent: "space-between",
-                        bgcolor: "rgba(99,102,241,0.06)", p: 1.5, borderRadius: 2,
-                        border: "1px solid", borderColor: "rgba(99,102,241,0.15)"
+                        bgcolor: `${palette.coral}0d`, p: 1.5, borderRadius: 2,
+                        border: "1px solid", borderColor: `${palette.coral}22`
                     }}>
                         <Box>
                             <Typography variant="body2" fontWeight={600}>Chat Pipeline</Typography>
@@ -200,15 +207,15 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                             onChange={e => onChange(index, "use_chat", e.target.checked)}
                             size="small"
                             sx={{
-                                "& .MuiSwitch-switchBase.Mui-checked": { color: "#6366F1" },
-                                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#6366F1" },
+                                "& .MuiSwitch-switchBase.Mui-checked": { color: palette.coral },
+                                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: palette.coral },
                             }}
                         />
                     </Box>
 
                     <Button
                         variant="contained"
-                        startIcon={<SaveRounded />}
+                        startIcon={<Save size={16} />}
                         onClick={() => onSave(config)}
                         disabled={saving}
                         fullWidth
@@ -261,7 +268,7 @@ export default function AdminLLMConfigs() {
 
     if (loading) return (
         <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
-            <CircularProgress />
+            <CircularProgress sx={{ color: palette.coral }} />
         </Box>
     );
 
