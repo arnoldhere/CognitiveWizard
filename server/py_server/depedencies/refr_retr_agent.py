@@ -13,7 +13,7 @@ from config.agent_settings import settings
 
 def build_reference_service() -> ReferenceRetriever:
     """Factory for reference service."""
-    api_key = settings.TAVILY_API_KEY0
+    api_key = settings.TAVILY_API_KEY
     if not api_key:
         raise RuntimeError("TAVILY_API_KEY is not configured.")
 

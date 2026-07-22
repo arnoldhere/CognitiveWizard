@@ -55,7 +55,7 @@ langgraph==1.0.*
 langgraph-checkpoint==3.*
 langgraph-prebuilt==1.0.*
 tiktoken==0.9.*
-
+langsmith==0.4.*
 # Vector DB
 chromadb>=1.0.20
 # RAG
