@@ -18,6 +18,7 @@ import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import { useGsapReveal } from "../hooks/useGsapReveal";
 import { generateWizardContent, getWizardHistory, deleteWizardContent, API } from "../services/api";
 import { CircularProgress } from "@mui/material";
+import RoadmapDisplay from "../components/wizard/RoadmapDisplay";
 
 // Icon mapping for dynamic icon names from admin config
 const ICON_MAP = {
@@ -219,29 +220,42 @@ export default function WizardModule() {
     setActiveTab("generate");
   };
 
-  const renderContentData = (data) => (
-    <div style={{ animation: "fadeIn 0.5s ease", width: "100%", maxWidth: "800px", margin: "0 auto" }}>
-      <div style={{ textAlign: "center", marginBottom: "48px" }}>
-        <span style={{ display: "inline-block", background: "rgba(6, 182, 212, 0.1)", color: "#06b6d4", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          {data.content_type}
-        </span>
-        <h1 style={{ fontSize: "2.8rem", fontWeight: 900, color: "var(--text)", marginBottom: "16px", lineHeight: 1.2 }}>
-          {data.content?.title || data.topic}
-        </h1>
-        {data.content?.description && (
-          <p style={{ color: "var(--text-light)", fontSize: "1.15rem", maxWidth: "600px", margin: "0 auto", lineHeight: 1.6 }}>
-            {data.content.description}
-          </p>
-        )}
-      </div>
+  const renderContentData = (data) => {
+    const isRoadmap = (data?.content_type || "").toLowerCase() === "roadmap";
+    const learningStyle = answers?.learningStyle || data?.content?.learning_style || "Visual & Project-based";
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-        {data.content?.modules?.map((mod, i) => (
-          <ModuleItem key={i} mod={mod} type={data.content_type} />
-        ))}
+    if (isRoadmap) {
+      return (
+        <div style={{ animation: "fadeIn 0.5s ease", width: "100%", maxWidth: "1100px", margin: "0 auto" }}>
+          <RoadmapDisplay data={data} learningStyle={learningStyle} topic={answers.topic || data?.topic} />
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ animation: "fadeIn 0.5s ease", width: "100%", maxWidth: "800px", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: "48px" }}>
+          <span style={{ display: "inline-block", background: "rgba(6, 182, 212, 0.1)", color: "#06b6d4", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {data.content_type}
+          </span>
+          <h1 style={{ fontSize: "2.8rem", fontWeight: 900, color: "var(--text)", marginBottom: "16px", lineHeight: 1.2 }}>
+            {data.content?.title || data.topic}
+          </h1>
+          {data.content?.description && (
+            <p style={{ color: "var(--text-light)", fontSize: "1.15rem", maxWidth: "600px", margin: "0 auto", lineHeight: 1.6 }}>
+              {data.content.description}
+            </p>
+          )}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          {data.content?.modules?.map((mod, i) => (
+            <ModuleItem key={i} mod={mod} type={data.content_type} />
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderGeneratorSteps = () => {
     const totalSteps = activeQuestions.length > 0 ? 2 + activeQuestions.length + 1 : 4;

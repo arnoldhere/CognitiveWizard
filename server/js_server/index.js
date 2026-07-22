@@ -93,6 +93,9 @@ app.use(morganMiddleware);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Must be configured before rate limiters/routes.
+// Render forwards client IP through proxy headers.
+app.set("trust proxy", 1);
 // Global rate limiter — applied to all routes
 app.use(globalLimiter);
 
