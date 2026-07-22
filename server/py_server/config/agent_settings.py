@@ -14,12 +14,13 @@ class AgenticSettings:
     """
 
     SEARCH_PROVIDER: str = None
-    SEARCH_TIMEOUT: int = None
+    SEARCH_TIMEOUT: float = 20
     MAX_RESULTS: int = None
     CACHE_ENABLED: bool = None
     CACHE_TTL: int = None
     ALLOWED_DOMAINS: list = None
     BLOCKED_DOMAINS: list = None
+    TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", None)
 
 
-AgenticSettings = AgenticSettings()
+settings = AgenticSettings()

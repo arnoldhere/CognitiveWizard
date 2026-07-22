@@ -5,7 +5,7 @@ from typing import Any, List, Dict, Tuple
 from langchain_core.messages import HumanMessage, SystemMessage
 from providers.llm.factory import get_llm_for_task
 from providers.llm.tasks import TaskType
-from utils.prompt_builder.quiz_prompt import build_quiz_prompt
+from utils.builders.quiz_prompt import build_quiz_prompt
 from . import quiz_validator
 
 logger = logging.getLogger(__name__)
@@ -59,9 +59,6 @@ def _parse_response(response_text: str) -> Tuple[bool, List[Dict]]:
     except Exception as e:
         logger.error(f"Error parsing response: {str(e)}")
         return False, []
-
-
-
 
 
 def generate_quiz(
