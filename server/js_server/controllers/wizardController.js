@@ -35,7 +35,7 @@ async function generateContent(req, res, next) {
     res.json(wizardContent);
   } catch (err) {
     if (err.response) {
-       return res.status(err.response.status).json(err.response.data);
+      return res.status(err.response.status).json(err.response.data);
     }
     next(err);
   }
