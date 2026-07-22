@@ -1,4 +1,4 @@
-from utils.prompt_builder.System_Prompt import sys_prompt
+from utils.builders.System_Prompt import sys_prompt
 
 
 def build_wizard_prompt(
