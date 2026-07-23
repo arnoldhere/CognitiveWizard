@@ -6,7 +6,6 @@ Combine provider score, domain trust, and query relevance.
 """
 
 from __future__ import annotations
-from dataclasses import dataclass
 from agents.tools.resource_filter import domain_preference_score
 
 

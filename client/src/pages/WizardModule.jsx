@@ -199,7 +199,10 @@ export default function WizardModule() {
       const response = await generateWizardContent({
         topic: answers.topic,
         content_type: answers.contentType,
-        details: details.trim()
+        details: details.trim(),
+        skill_level: answers.skillLevel || answers.skill_level || answers["Skill Level"],
+        goal: answers.goal || answers.learningGoal || answers["Learning Goal"],
+        learning_style: answers.learningStyle || answers.learning_style || answers["Learning Style"],
       });
 
       setGeneratedData(response);
@@ -226,8 +229,14 @@ export default function WizardModule() {
 
     if (isRoadmap) {
       return (
-        <div style={{ animation: "fadeIn 0.5s ease", width: "100%", maxWidth: "1100px", margin: "0 auto" }}>
-          <RoadmapDisplay data={data} learningStyle={learningStyle} topic={answers.topic || data?.topic} />
+        <div style={{ animation: "fadeIn 0.5s ease", width: "100%", margin: "0 auto" }}>
+          <RoadmapDisplay
+            data={data}
+            learningStyle={learningStyle}
+            topic={answers.topic || data?.topic}
+            onBack={startOver}
+            onRegenerate={startOver}
+          />
         </div>
       );
     }
@@ -478,7 +487,7 @@ export default function WizardModule() {
         </div>
       )}
 
-      <div style={{ width: "100%", maxWidth: "800px", padding: "0 20px" }}>
+      <div style={{ width: "100%", maxWidth: (generatedData || selectedHistoryItem || step >= (2 + activeQuestions.length + 1)) ? "1400px" : "800px", padding: "0 20px", transition: "max-width 0.3s ease" }}>
 
         {/* --- GENERATOR FLOW --- */}
         {activeTab === "generate" && !selectedHistoryItem && (

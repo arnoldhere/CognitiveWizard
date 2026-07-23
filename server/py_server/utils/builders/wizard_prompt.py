@@ -6,9 +6,21 @@ def build_wizard_prompt(
     content_type: str,
     details: str | None = None,
     target_audience: str = "General Learners",
+    skill_level: str | None = None,
+    goal: str | None = None,
+    learning_style: str | None = None,
 ) -> str:
     """
     Builds the complete prompt for the Study-Learning AI Assistant.
+
+    Args:
+        topic: The subject matter to generate content for.
+        content_type: One of roadmap / course / syllabus / guide / schedule.
+        details: Optional free-form extra instructions from the user.
+        target_audience: Intended learner group (default: General Learners).
+        skill_level: Beginner / intermediate / advanced — narrows the content depth.
+        goal: The user's stated learning goal (e.g. 'get a job as ML engineer').
+        learning_style: visual / theoretical / interactive — shapes content emphasis.
     """
 
     content_type = content_type.lower().strip()
@@ -26,6 +38,18 @@ def build_wizard_prompt(
       {topic}
 
       """
+
+    # Inject optional learner context to sharpen LLM output
+    learner_ctx_parts = []
+    if skill_level:
+        learner_ctx_parts.append(f"Skill Level: {skill_level}")
+    if goal:
+        learner_ctx_parts.append(f"Learning Goal: {goal}")
+    if learning_style:
+        learner_ctx_parts.append(f"Preferred Learning Style: {learning_style}")
+
+    if learner_ctx_parts:
+        prompt += "\n    Learner Context:\n    " + "\n    ".join(learner_ctx_parts) + "\n"
 
     if details:
         prompt += f"""
@@ -78,11 +102,13 @@ def _get_content_type_instruction(content_type: str) -> str:
         "roadmap": """
           Create a milestone-based learning roadmap.
           Requirements:
-          - 4-10 learning phases
+          - 4-10 clearly named learning phases (e.g. "Phase 1: Foundations")
           - Progress from fundamentals to mastery
           - Explain WHY every phase matters
-          - Include practical skills
-          - End with projects and next learning steps
+          - Include practical skills per phase
+          - Start with prerequisites the learner should already know
+          - List the key outcomes/skills the learner will gain by completing the roadmap
+          - End the final phase with projects and next learning steps
         """,
         "course": """
           Design a complete professional course.
@@ -147,21 +173,25 @@ def _get_json_schema(content_type: str) -> str:
         "roadmap": """
 {
   "title": "",
-  "description": "",
-  "target_audience": "",
-  "learning_goals": [],
   "prerequisites": [],
-  "modules": [
+  "outcomes": [],
+  "learning_phases": [],
+  "phasewise_modules": [
     {
-      "title": "",
-      "description": "",
-      "estimated_time": "",
-      "difficulty": "",
-      "topics": [
+      "phase": "",
+      "modules": [
         {
-          "name": "",
-          "details": "",
-          "importance": ""
+          "title": "",
+          "description": "",
+          "estimated_time": "",
+          "difficulty": "",
+          "topics": [
+            {
+              "name": "",
+              "details": "",
+              "importance": ""
+            }
+          ]
         }
       ]
     }

@@ -6,7 +6,7 @@ validated, and easy to evolve later.
 """
 
 from __future__ import annotations
-from typing import Literal, Optional
+from typing import Literal, Optional, Any
 from pydantic import BaseModel, Field, HttpUrl
 
 
@@ -18,7 +18,7 @@ class ReferenceQueryInput(BaseModel):
         default=None, description="Beginner/intermediate/advanced"
     )
     goal: Optional[str] = Field(default=None, description="Learning goal or outcome")
-    learning_style: Optional[Literal["visual", "theoretical", "interactive"]] = Field(
+    learning_style: Optional[Any] = Field(
         default=None,
         description="Preferred learning style",
     )
@@ -46,9 +46,18 @@ class ResourceItem(BaseModel):
 
 
 class ReferenceSearchResult(BaseModel):
-    """Normalized output from the agent."""
+    """
+    Normalized output from the reference retriever agent.
+
+    Generic schema — reusable by wizard, course builder, or any future
+    module that needs curated web references injected into its output.
+    """
 
     topic: str
     learning_style: Optional[str] = None
     resources: list[ResourceItem] = Field(default_factory=list)
+    images: list[str] = Field(
+        default_factory=list,
+        description="Image URLs fetched for visual/project-based learning style",
+    )
     warnings: list[str] = Field(default_factory=list)

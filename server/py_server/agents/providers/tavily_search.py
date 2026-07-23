@@ -51,7 +51,7 @@ class TavilySearchProvider(BaseSearchProvider):
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 res = await client.post(self.base_url, json=payload, headers=header)
-                res.raise_for_status
+                res.raise_for_status()
                 data = res.json()
         except httpx.ReadTimeout as e:
             logger.exception("Tavily search request timed out.\n", e)

@@ -1,64 +1,220 @@
+"""
+Wizard API router.
+
+Orchestrates:
+1. LLM-based content generation (roadmap / course / syllabus / guide / schedule).
+2. Reference retriever agent (refr_retr) for roadmap requests — runs concurrently
+    with LLM generation and injects curated web references into the response.
+
+Reusability note:
+The reference agent (`compiled_reference_graph`) is a standalone singleton
+that any future API module can import and invoke independently.
+"""
+
+import asyncio
+import logging
+from collections import defaultdict
+from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from agents.graphs.refr_retr_graph import compiled_reference_graph
+from schemas.wizard import WizardRawRequest, WizardRawResponse
 from services.wizard_service import generate_wizard_content
-from agents.graphs.roadmap_graph import build_roadmap_graph
-from agents.services.refr_retr_agent import reference_retriever
-from schemas.wizard import WizardRawResponse, WizardRawRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/wizard", tags=["wizard"])
 
-# Initialize the compiled LangGraph for roadmap generation
-roadmap_graph_app = build_roadmap_graph(reference_retriever)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_agent_state(request: WizardRawRequest) -> dict:
+    """
+    Build the initial AgentState dict from an incoming wizard request.
+    Centralised here so future endpoints can reuse the same mapping.
+    """
+    return {
+        "topic": request.topic,
+        "content_type": request.content_type,
+        "details": request.details or "",
+        "skill_level": request.skill_level or "",
+        "goal": request.goal or "",
+        "learning_style": request.learning_style or "",
+        "warnings": [],
+    }
+
+
+def _group_references_by_category(
+    resources: List[Dict[str, Any]],
+) -> Dict[str, List[Dict]]:
+    """
+    Group a flat list of ResourceItem dicts by their `category` field.
+    Returns a dict like:
+        {
+            "youtube":        [{"title": ..., "url": ..., "description": ...}, ...],
+            "article":        [...],
+            "official_docs":  [...],
+            "course":         [...],
+            "research_paper": [...],
+        }
+
+    Reusable utility — import from this module to enrich any future feature
+    that receives a list of ResourceItem dicts from the reference agent.
+    """
+    grouped: Dict[str, List[Dict]] = defaultdict(list)
+    for r in resources:
+        category = r.get("category", "other")
+        grouped[category].append(
+            {
+                "title": r.get("title", ""),
+                "url": str(r.get("url", "")),
+                "description": r.get("description"),
+                "source": r.get("source", ""),
+                "relevance_score": r.get("relevance_score", 0.0),
+            }
+        )
+    return dict(grouped)
+
+
+# ---------------------------------------------------------------------------
+# Endpoint
+# ---------------------------------------------------------------------------
 
 
 @router.post("/generate-raw", response_model=WizardRawResponse)
 async def generate_raw_content(request: WizardRawRequest):
-    if request.content_type.lower() == "roadmap":
-        try:
-            initial_state = {
-                "topic": request.topic,
-                "content_type": request.content_type,
-                "details": request.details or "",
-                "skill_level": request.skill_level or "",
-                "goal": request.goal or "",
-                "learning_style": request.learning_style or "",
-                "warnings": [],
-            }
-            final_state = await roadmap_graph_app.ainvoke(initial_state)
+    """
+    Generate structured educational content.
 
-            if "adjusted_roadmap" in final_state and final_state["adjusted_roadmap"]:
-                return {
-                    "content": final_state["adjusted_roadmap"],
-                    "warnings": final_state.get("warnings", []),
-                }
-            elif "base_roadmap" in final_state and final_state["base_roadmap"]:
-                return {
-                    "content": final_state["base_roadmap"],
-                    "warnings": final_state.get("warnings", []),
-                }
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Agentic roadmap generation failed",
-                )
+    For `content_type=roadmap`:
+    - Fires the reference retriever agent AND the LLM concurrently.
+    - Merges agent references into the LLM output before returning.
+
+    For all other content types:
+    - Only the LLM is invoked (agent integration will be added per type later).
+    """
+
+    is_roadmap = request.content_type.lower().strip() == "roadmap"
+    agent_warnings: List[str] = []
+    references: Dict[str, Any] = {}
+    images: List[str] = []
+
+    # ------------------------------------------------------------------
+    # Roadmap path: run agent + LLM concurrently for best latency
+    # ------------------------------------------------------------------
+    if is_roadmap:
+        agent_state = _build_agent_state(request)
+
+        logger.info(
+            "Roadmap request: launching reference agent + LLM concurrently for topic=%s",
+            request.topic,
+        )
+
+        try:
+            final_state, wizard_result = await asyncio.gather(
+                compiled_reference_graph.ainvoke(agent_state),
+                generate_wizard_content(
+                    topic=request.topic,
+                    content_type=request.content_type,
+                    details=request.details,
+                    skill_level=request.skill_level,
+                    goal=request.goal,
+                    learning_style=request.learning_style,
+                ),
+                return_exceptions=False,  # surface real errors; each has own try/except
+            )
         except Exception as e:
+            logger.exception(
+                "Concurrent gather failed for topic=%s: %s", request.topic, e
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Agentic workflow error: {str(e)}",
+                detail="Internal error during roadmap generation. Please try again.",
             )
+
+        # ------------------------------------------------------------------
+        # Unpack LLM result
+        # ------------------------------------------------------------------
+        success, data = wizard_result
+
+        if not success:
+            logger.error("LLM wizard generation failed for topic=%s", request.topic)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to generate structured roadmap content.",
+            )
+
+        # ------------------------------------------------------------------
+        # Unpack agent result and inject references into the LLM output
+        # ------------------------------------------------------------------
+        logger.info("Agent final state received for topic=%s", request.topic)
+
+        reference_result = final_state.get("reference_result") or {}
+        raw_resources: List[Dict] = reference_result.get("resources", [])
+        agent_warnings = reference_result.get("warnings", [])
+        images = reference_result.get("images", [])
+
+        if raw_resources:
+            references = _group_references_by_category(raw_resources)
+            logger.info(
+                "Injecting %d references (%d categories) into roadmap for topic=%s",
+                len(raw_resources),
+                len(references),
+                request.topic,
+            )
+        else:
+            logger.warning(
+                "No references returned by agent for topic=%s — warnings: %s",
+                request.topic,
+                agent_warnings,
+            )
+
+        # Inject agent-enriched fields into the LLM-generated content dict
+        data["references"] = references  # categorised reference links
+        data["images"] = images  # image URLs for visual learning style
+
+    # TODO:When extending to other content types, just add:
+    # elif request.content_type == "course":
+    # Fire compiled_reference_graph with the same pattern
+
+    # ------------------------------------------------------------------
+    # Non-roadmap path: LLM only (agent integration added per type later)
+    # ------------------------------------------------------------------
     else:
-        # Step 1: Generate via LLM (No DB operations)
-        success, data = generate_wizard_content(
-            topic=request.topic,
-            content_type=request.content_type,
-            details=request.details,
+        logger.info(
+            "Non-roadmap request (type=%s): using LLM only for topic=%s",
+            request.content_type,
+            request.topic,
         )
+        try:
+            success, data = await generate_wizard_content(
+                topic=request.topic,
+                content_type=request.content_type,
+                details=request.details,
+                skill_level=request.skill_level,
+                goal=request.goal,
+                learning_style=request.learning_style,
+            )
+        except Exception as e:
+            logger.exception(
+                "LLM generation failed for topic=%s type=%s: %s",
+                request.topic,
+                request.content_type,
+                e,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal error during content generation. Please try again.",
+            )
 
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to generate structured wizard content",
+                detail="Failed to generate structured wizard content.",
             )
 
-        return {"content": data}
+    return WizardRawResponse(
+        content=data, warnings=agent_warnings if agent_warnings else None
+    )

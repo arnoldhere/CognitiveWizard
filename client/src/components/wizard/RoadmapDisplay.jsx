@@ -1,254 +1,261 @@
-import React from "react";
+import React, { useState, useRef } from "react";
+import "../../styles/RoadmapDisplay.css";
+import RoadmapHeader from "./RoadmapHeader";
+import RoadmapHero from "./RoadmapHero";
+import TimelineNavigator from "./TimelineNavigator";
+import PhaseCard from "./PhaseCard";
+import ResourceGallery from "./ResourceGallery";
+import FloatingAIAssistant from "./FloatingAIAssistant";
+import CapstoneSection from "./CapstoneSection";
 
-const STYLE_TEMPLATES = {
-  "Visual & Project-based": {
-    accent: "#06b6d4",
-    accentSoft: "rgba(6, 182, 212, 0.12)",
-    title: "Visual-first learning",
-    description: "This roadmap is tuned for hands-on building, visual thinking, and portfolio-ready outcomes.",
-  },
-  "Theoretical & Reading": {
-    accent: "#8b5cf6",
-    accentSoft: "rgba(139, 92, 246, 0.12)",
-    title: "Reading-first learning",
-    description: "This roadmap emphasizes strong foundations, trusted references, and curated reading paths.",
-  },
-  "Interactive & Coding": {
-    accent: "#10b981",
-    accentSoft: "rgba(16, 185, 129, 0.12)",
-    title: "Practice-first learning",
-    description: "This roadmap mixes guided lessons with coding drills and challenge-based practice.",
-  },
-};
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import TimelineIcon from "@mui/icons-material/Timeline";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
+import StyleIcon from "@mui/icons-material/Style";
 
-function normalizeRoadmapData(data, learningStyle) {
+function normalizeRoadmapData(data, propLearningStyle, propTopic) {
   const rawContent = data?.content || data || {};
-  const modules = Array.isArray(rawContent.modules) ? rawContent.modules : [];
-  const normalizedModules = modules.map((module, index) => ({
-    title: module?.title || `Phase ${index + 1}`,
-    description: module?.description || module?.details || "A structured learning milestone.",
-    estimatedTime: module?.estimated_time || module?.duration || "Flexible",
-    difficulty: module?.difficulty || "Intermediate",
-    topics: Array.isArray(module?.topics)
-      ? module.topics.map((topic) => ({
-          name: topic?.name || topic?.title || "Topic",
-          details: topic?.details || topic?.content || "Core concept to master.",
-          importance: topic?.importance || "Key milestone",
-        }))
-      : [],
-  }));
 
-  const learningGoals = Array.isArray(rawContent.learning_goals) ? rawContent.learning_goals : [];
+  const title = rawContent.title || data?.topic || propTopic || "Personalized AI Roadmap";
+  const description =
+    rawContent.description ||
+    "A milestone-driven learning roadmap generated with AI and reference retriever intelligence.";
+  const goal = rawContent.goal || data?.goal || "Master core subject concepts & practical skills";
+  const difficulty = rawContent.skill_level || data?.skill_level || "Intermediate";
+  const learningStyle =
+    propLearningStyle || rawContent.learning_style || data?.learning_style || "Visual & Project-based";
+
   const prerequisites = Array.isArray(rawContent.prerequisites) ? rawContent.prerequisites : [];
-  const style = learningStyle || rawContent.learning_style || "Visual & Project-based";
+  const outcomes = Array.isArray(rawContent.outcomes) ? rawContent.outcomes : [];
+
+  // Parse modules/phases from LLM response schema
+  let phases = [];
+
+  if (Array.isArray(rawContent.phasewise_modules) && rawContent.phasewise_modules.length > 0) {
+    phases = rawContent.phasewise_modules.map((pm, index) => {
+      const subModules = Array.isArray(pm.modules) ? pm.modules : [];
+      const firstMod = subModules[0] || {};
+
+      const topics = subModules.flatMap((mod) =>
+        Array.isArray(mod.topics) ? mod.topics : []
+      );
+
+      return {
+        title: pm.phase || firstMod.title || `Phase ${index + 1}`,
+        description: firstMod.description || "Structured learning phase milestone.",
+        estimatedTime: firstMod.estimated_time || "1-2 Weeks",
+        difficulty: firstMod.difficulty || difficulty,
+        topics: topics.length > 0 ? topics : firstMod.topics || [],
+        deliverables: firstMod.deliverables || firstMod.practical_tasks || [],
+      };
+    });
+  } else if (Array.isArray(rawContent.modules) && rawContent.modules.length > 0) {
+    phases = rawContent.modules.map((mod, index) => ({
+      title: mod.title || `Phase ${index + 1}`,
+      description: mod.description || mod.details || "Structured milestone module.",
+      estimatedTime: mod.estimated_time || mod.duration || "Flexible",
+      difficulty: mod.difficulty || difficulty,
+      topics: Array.isArray(mod.topics) ? mod.topics : [],
+      deliverables: mod.deliverables || mod.key_takeaways || [],
+    }));
+  } else if (Array.isArray(rawContent.learning_phases) && rawContent.learning_phases.length > 0) {
+    phases = rawContent.learning_phases.map((pName, index) => ({
+      title: typeof pName === "string" ? pName : pName.title || `Phase ${index + 1}`,
+      description: pName.description || "Phase milestone details.",
+      estimatedTime: "1 Week",
+      difficulty: difficulty,
+      topics: [],
+      deliverables: [],
+    }));
+  } else {
+    // Default fallback phase if empty
+    phases = [
+      {
+        title: "Phase 1: Core Foundations",
+        description: "Master essential principles, terminology, and key mechanics.",
+        estimatedTime: "1 Week",
+        difficulty: "Beginner",
+        topics: [{ name: "Foundational Concepts", details: "Core building blocks", importance: "High" }],
+      },
+    ];
+  }
+
+  // Parse references and images injected by Reference Retriever Agent
+  const references = rawContent.references || data?.references || {};
+  const images = rawContent.images || data?.images || [];
 
   return {
-    title: rawContent.title || data?.topic || "Personalized Roadmap",
-    description: rawContent.description || "A modern, milestone-based plan designed for focused learning and practical progress.",
-    targetAudience: rawContent.target_audience || "Learners",
-    learningGoals,
+    title,
+    description,
+    goal,
+    difficulty,
+    learningStyle,
     prerequisites,
-    modules: normalizedModules,
-    style,
+    outcomes,
+    phases,
+    references,
+    images,
   };
 }
 
-function getVisualCards(topic, modules) {
-  return [
-    {
-      title: "Visual reference board",
-      text: `Create a visual map of ${topic} concepts and connect each milestone to a concrete deliverable.`,
-      image: "https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=900&q=80",
-    },
-    {
-      title: "Milestone sketch",
-      text: `Sketch each phase of the roadmap so the learner can see the path from basics to mastery.`,
-      image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80",
-    },
-    {
-      title: "Project storyboard",
-      text: `Turn the final phase into a portfolio-worthy capstone linked to the roadmap modules.`,
-      image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80",
-    },
-  ];
-}
+export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onRegenerate }) {
+  const roadmap = normalizeRoadmapData(data, learningStyle, topic);
 
-function getReadingCards(topic, modules) {
-  const topicQuery = encodeURIComponent(topic);
-  return [
-    {
-      title: "Foundational reading",
-      text: `Start with a trusted overview on ${topic} and build vocabulary before deeper practice.`,
-      link: `https://www.google.com/search?q=${topicQuery}+study+guide`,
-    },
-    {
-      title: "Research-backed references",
-      text: `Use reputable articles, tutorials, and official docs to reinforce each milestone.`,
-      link: `https://scholar.google.com/scholar?q=${topicQuery}`,
-    },
-    {
-      title: "Deep dive resources",
-      text: `Pair each phase with curated books, blogs, and documentation tailored to the module.`,
-      link: `https://www.google.com/search?q=${topicQuery}+advanced+resources`,
-    },
-  ];
-}
+  const [isSaved, setIsSaved] = useState(false);
+  const [activeNavTab, setActiveNavTab] = useState("overview");
 
-function getCodingCards(topic, modules) {
-  return [
-    {
-      title: "Hands-on coding drill",
-      text: `Finish each milestone with a small build task that reinforces the current phase of ${topic}.`,
-      link: "https://leetcode.com/",
-    },
-    {
-      title: "Practice platform",
-      text: `Use problem sets to turn roadmap theory into repeated execution and confidence.`,
-      link: "https://www.hackerrank.com/",
-    },
-    {
-      title: "Portfolio challenge",
-      text: `End the roadmap with a capstone project that feels like a real-world engineering task.`,
-      link: "https://github.com/explore",
-    },
-  ];
-}
+  // Section Refs for smooth scrolling
+  const overviewRef = useRef(null);
+  const timelineRef = useRef(null);
+  const phasesRef = useRef(null);
+  const resourcesRef = useRef(null);
+  const capstoneRef = useRef(null);
 
-export default function RoadmapDisplay({ data, learningStyle, topic }) {
-  const roadmap = normalizeRoadmapData(data, learningStyle);
-  const styleMeta = STYLE_TEMPLATES[roadmap.style] || STYLE_TEMPLATES["Visual & Project-based"];
+  const totalPhases = roadmap.phases.length;
 
-  const styleCards =
-    roadmap.style === "Theoretical & Reading"
-      ? getReadingCards(topic || roadmap.title, roadmap.modules)
-      : roadmap.style === "Interactive & Coding"
-      ? getCodingCards(topic || roadmap.title, roadmap.modules)
-      : getVisualCards(topic || roadmap.title, roadmap.modules);
+  const scrollToSection = (ref, tabName) => {
+    setActiveNavTab(tabName);
+    if (ref && ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const scrollToPhaseCard = (idx) => {
+    setActiveNavTab("phases");
+    const targetCard = document.getElementById(`phase-card-${idx}`);
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const handleExportPdf = () => {
+    window.print();
+  };
 
   return (
-    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 24 }}>
-      <div
-        style={{
-          borderRadius: 28,
-          padding: "28px",
-          background: `linear-gradient(135deg, ${styleMeta.accentSoft} 0%, rgba(255,255,255,0.9) 100%)`,
-          border: `1px solid ${styleMeta.accentSoft}`,
-          boxShadow: "0 18px 45px rgba(15,23,42,0.08)",
-          overflow: "hidden",
-          position: "relative",
-        }}
-      >
-        <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at top right, ${styleMeta.accentSoft}, transparent 50%)` }} />
-        <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 18 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", background: styleMeta.accentSoft, color: styleMeta.accent, padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              {styleMeta.title}
-            </span>
-            <span style={{ display: "inline-flex", alignItems: "center", background: "rgba(255,255,255,0.7)", color: "#334155", padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
-              {roadmap.targetAudience}
-            </span>
+    <div className="roadmap-display-workspace printable-area">
+      {/* Header Bar */}
+      <RoadmapHeader
+        title={roadmap.title}
+        onBack={onBack}
+        onRegenerate={onRegenerate}
+        onExportPdf={handleExportPdf}
+        isSaved={isSaved}
+        onToggleSave={() => setIsSaved(!isSaved)}
+      />
+
+      <div className="roadmap-workspace-body">
+        {/* Left Navigation Sidebar */}
+        <aside className="roadmap-left-sidebar no-print">
+          <div className="sidebar-title">Roadmap Sections</div>
+          <nav className="sidebar-nav-links">
+            <button
+              className={`sidebar-link ${activeNavTab === "overview" ? "active" : ""}`}
+              onClick={() => scrollToSection(overviewRef, "overview")}
+            >
+              <DashboardIcon sx={{ fontSize: 18 }} />
+              <span>Overview</span>
+            </button>
+
+            <button
+              className={`sidebar-link ${activeNavTab === "timeline" ? "active" : ""}`}
+              onClick={() => scrollToSection(timelineRef, "timeline")}
+            >
+              <TimelineIcon sx={{ fontSize: 18 }} />
+              <span>Timeline</span>
+            </button>
+
+            <button
+              className={`sidebar-link ${activeNavTab === "phases" ? "active" : ""}`}
+              onClick={() => scrollToSection(phasesRef, "phases")}
+            >
+              <StyleIcon sx={{ fontSize: 18 }} />
+              <span>Phase Cards</span>
+            </button>
+
+            <button
+              className={`sidebar-link ${activeNavTab === "resources" ? "active" : ""}`}
+              onClick={() => scrollToSection(resourcesRef, "resources")}
+            >
+              <MenuBookIcon sx={{ fontSize: 18 }} />
+              <span>Resources</span>
+            </button>
+
+            <button
+              className={`sidebar-link ${activeNavTab === "capstone" ? "active" : ""}`}
+              onClick={() => scrollToSection(capstoneRef, "capstone")}
+            >
+              <RocketLaunchIcon sx={{ fontSize: 18 }} />
+              <span>Capstone</span>
+            </button>
+          </nav>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="roadmap-main-content">
+          {/* Section 1: Hero Summary */}
+          <div ref={overviewRef}>
+            <RoadmapHero
+              title={roadmap.title}
+              description={roadmap.description}
+              goal={roadmap.goal}
+              difficulty={roadmap.difficulty}
+              learningStyle={roadmap.learningStyle}
+              totalPhases={totalPhases}
+              onExplorePhases={() => scrollToSection(phasesRef, "phases")}
+              onExportPdf={handleExportPdf}
+              isSaved={isSaved}
+              onToggleSave={() => setIsSaved(!isSaved)}
+            />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <h2 style={{ margin: 0, fontSize: "2rem", lineHeight: 1.2, color: "#0f172a" }}>{roadmap.title}</h2>
-            <p style={{ margin: 0, color: "#475569", fontSize: "1rem", lineHeight: 1.7, maxWidth: 760 }}>{roadmap.description}</p>
+
+          {/* Section 2: Interactive Timeline */}
+          <div ref={timelineRef} className="workspace-section">
+            <TimelineNavigator
+              phases={roadmap.phases}
+              onSelectPhase={scrollToPhaseCard}
+            />
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            {roadmap.learningGoals.slice(0, 3).map((goal, index) => (
-              <span key={`${goal}-${index}`} style={{ background: "rgba(255,255,255,0.8)", color: "#0f172a", padding: "8px 12px", borderRadius: 999, fontSize: 13, fontWeight: 700, border: "1px solid rgba(15, 23, 42, 0.08)" }}>
-                {goal}
+
+          {/* Section 3: Phase Cards */}
+          <div ref={phasesRef} className="workspace-section">
+            <div className="section-title-bar">
+              <h2>Phase Cards & Milestones</h2>
+              <span className="section-subtitle">
+                Expand a phase to view topics, objectives, and key deliverables.
               </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-        <div style={{ borderRadius: 20, padding: 20, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(148, 163, 184, 0.24)" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: 8 }}>Learning goals</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {roadmap.learningGoals.length > 0 ? roadmap.learningGoals.map((goal, idx) => <div key={`${goal}-${idx}`} style={{ color: "#0f172a", fontWeight: 700 }}>{goal}</div>) : <div style={{ color: "#64748b" }}>Goals will appear here once the AI response includes them.</div>}
-          </div>
-        </div>
-        <div style={{ borderRadius: 20, padding: 20, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(148, 163, 184, 0.24)" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: 8 }}>Prerequisites</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {roadmap.prerequisites.length > 0 ? roadmap.prerequisites.map((item, idx) => <div key={`${item}-${idx}`} style={{ color: "#0f172a", fontWeight: 700 }}>{item}</div>) : <div style={{ color: "#64748b" }}>No prerequisites were provided in the draft response.</div>}
-          </div>
-        </div>
-        <div style={{ borderRadius: 20, padding: 20, background: "rgba(255,255,255,0.9)", border: "1px solid rgba(148, 163, 184, 0.24)" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: 8 }}>Style adaptation</div>
-          <div style={{ color: "#0f172a", fontWeight: 700, marginBottom: 6 }}>{roadmap.style}</div>
-          <div style={{ color: "#64748b", fontSize: 14, lineHeight: 1.6 }}>{styleMeta.description}</div>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <h3 style={{ margin: 0, fontSize: "1.2rem", color: "#0f172a" }}>Learning phases</h3>
-          <span style={{ color: "#64748b", fontSize: 13, fontWeight: 700 }}>{roadmap.modules.length} milestones</span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {roadmap.modules.map((module, index) => (
-            <div key={`${module.title}-${index}`} style={{ borderRadius: 22, padding: 20, background: "rgba(255,255,255,0.95)", border: "1px solid rgba(148, 163, 184, 0.24)", boxShadow: "0 10px 25px rgba(15, 23, 42, 0.04)" }}>
-              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: "50%", background: styleMeta.accentSoft, color: styleMeta.accent, fontWeight: 800 }}>{index + 1}</span>
-                  <div>
-                    <h4 style={{ margin: 0, color: "#0f172a", fontSize: "1rem" }}>{module.title}</h4>
-                    <div style={{ color: "#64748b", fontSize: 13, marginTop: 2 }}>{module.estimatedTime} • {module.difficulty}</div>
-                  </div>
-                </div>
-                <div style={{ color: "#64748b", fontSize: 13, fontWeight: 700 }}>{module.estimatedTime}</div>
-              </div>
-              <p style={{ margin: "0 0 12px", color: "#475569", lineHeight: 1.7 }}>{module.description}</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {module.topics.map((topicItem, topicIndex) => (
-                  <div key={`${topicItem.name}-${topicIndex}`} style={{ borderRadius: 16, padding: "12px 14px", background: "rgba(248, 250, 252, 0.9)", border: "1px solid rgba(226, 232, 240, 0.9)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 4 }}>
-                      <div style={{ color: "#0f172a", fontWeight: 700 }}>{topicItem.name}</div>
-                      <span style={{ color: styleMeta.accent, fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>{topicItem.importance}</span>
-                    </div>
-                    <div style={{ color: "#64748b", fontSize: 14, lineHeight: 1.6 }}>{topicItem.details}</div>
-                  </div>
-                ))}
-              </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <h3 style={{ margin: 0, fontSize: "1.2rem", color: "#0f172a" }}>Style-specific support</h3>
-        <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          {styleCards.map((card, index) => (
-            <div key={`${card.title}-${index}`} style={{ borderRadius: 20, overflow: "hidden", background: "#fff", border: "1px solid rgba(148, 163, 184, 0.24)", boxShadow: "0 10px 25px rgba(15, 23, 42, 0.04)" }}>
-              {card.image && (
-                <img src={card.image} alt={card.title} style={{ width: "100%", height: 140, objectFit: "cover" }} />
-              )}
-              <div style={{ padding: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: styleMeta.accent }} />
-                  <div style={{ color: "#0f172a", fontWeight: 800 }}>{card.title}</div>
-                </div>
-                <div style={{ color: "#64748b", fontSize: 14, lineHeight: 1.6, marginBottom: 10 }}>{card.text}</div>
-                {card.link && (
-                  <a href={card.link} target="_blank" rel="noreferrer" style={{ color: styleMeta.accent, fontSize: 13, fontWeight: 800, textDecoration: "none" }}>
-                    Open resource →
-                  </a>
-                )}
-              </div>
+            <div className="phase-cards-stack">
+              {roadmap.phases.map((phase, idx) => (
+                <PhaseCard
+                  key={idx}
+                  phaseIndex={idx}
+                  phase={phase}
+                  defaultExpanded={idx === 0}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+
+          {/* Section 4: Resource Gallery (Agent Curated Resources) */}
+          <div ref={resourcesRef} className="workspace-section">
+            <ResourceGallery topic={topic || roadmap.title} references={roadmap.references} />
+          </div>
+
+          {/* Section 5: Capstone Project Section */}
+          <div ref={capstoneRef} className="workspace-section">
+            <CapstoneSection topic={topic || roadmap.title} />
+          </div>
+        </main>
       </div>
 
-      <div style={{ borderRadius: 24, padding: 20, background: "linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.95))", color: "#fff" }}>
-        <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Capstone focus</div>
-        <div style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: 8 }}>Finish the roadmap with a portfolio-ready showcase.</div>
-        <div style={{ color: "rgba(255,255,255,0.8)", lineHeight: 1.7 }}>
-          The final milestone should help the learner apply what they learned in a real-world artifact, project, or demonstration that can be shared publicly.
-        </div>
-      </div>
+      {/* Floating AI Assistant Drawer */}
+      <FloatingAIAssistant
+        topic={topic || roadmap.title}
+        currentPhaseTitle="Roadmap Overview"
+      />
     </div>
   );
 }

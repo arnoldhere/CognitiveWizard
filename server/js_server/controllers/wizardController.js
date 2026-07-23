@@ -9,14 +9,17 @@ const { WizardContent } = require("../models");
  */
 async function generateContent(req, res, next) {
   try {
-    const { topic, content_type, details } = req.body || {};
+    const { topic, content_type, details, skill_level, goal, learning_style } = req.body || {};
     logger.info(`[WIZARD] Generate: topic="${topic}", type="${content_type}" by ${req.user?.email}`);
 
     // Call py_server to generate the content (stateless)
     const aiResponse = await pyAxios.post("/wizard/generate-raw", {
       topic,
       content_type,
-      details
+      details,
+      skill_level,
+      goal,
+      learning_style
     });
 
     if (!aiResponse.data || !aiResponse.data.content) {
