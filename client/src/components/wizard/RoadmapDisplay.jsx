@@ -7,6 +7,9 @@ import PhaseCard from "./PhaseCard";
 import ResourceGallery from "./ResourceGallery";
 import FloatingAIAssistant from "./FloatingAIAssistant";
 import CapstoneSection from "./CapstoneSection";
+import PdfExportModal from "./PdfExportModal";
+
+import { exportWizardPdf } from "../../services/api";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import TimelineIcon from "@mui/icons-material/Timeline";
@@ -105,6 +108,12 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
   const [isSaved, setIsSaved] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState("overview");
 
+  // PDF Export State
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [exportStepIndex, setExportStepIndex] = useState(0);
+  const [exportSuccess, setExportSuccess] = useState(false);
+  const [exportError, setExportError] = useState(null);
+
   // Section Refs for smooth scrolling
   const overviewRef = useRef(null);
   const timelineRef = useRef(null);
@@ -129,8 +138,52 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
     }
   };
 
-  const handleExportPdf = () => {
-    window.print();
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    setExportStepIndex(0);
+    setExportSuccess(false);
+    setExportError(null);
+
+    const stepInterval = setInterval(() => {
+      setExportStepIndex((prev) => (prev < 4 ? prev + 1 : prev));
+    }, 800);
+
+    try {
+      const rawContent = data?.content || data || {};
+      const payload = {
+        topic: topic || roadmap.title,
+        content_type: "roadmap",
+        details: data?.details || "",
+        content: rawContent,
+        skill_level: roadmap.difficulty,
+        goal: roadmap.goal,
+        learning_style: roadmap.learningStyle,
+      };
+
+      const blob = await exportWizardPdf(payload);
+      clearInterval(stepInterval);
+      setExportStepIndex(4);
+      setExportSuccess(true);
+
+      // Create blob download link
+      const downloadUrl = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      const safeTitle = (topic || roadmap.title).replace(/[^\w\s-]/g, "").replace(/\s+/g, "_");
+      link.setAttribute("download", `${safeTitle}_roadmap.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setTimeout(() => {
+        setIsExportingPdf(false);
+        setExportSuccess(false);
+      }, 1800);
+    } catch (err) {
+      clearInterval(stepInterval);
+      setExportError(err.message || "Failed to generate PDF. Please try again.");
+    }
   };
 
   return (
@@ -255,6 +308,16 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
       <FloatingAIAssistant
         topic={topic || roadmap.title}
         currentPhaseTitle="Roadmap Overview"
+      />
+
+      {/* Backend PDF Export Animated Modal */}
+      <PdfExportModal
+        isOpen={isExportingPdf}
+        currentStepIndex={exportStepIndex}
+        isSuccess={exportSuccess}
+        error={exportError}
+        onRetry={handleExportPdf}
+        onClose={() => setIsExportingPdf(false)}
       />
     </div>
   );

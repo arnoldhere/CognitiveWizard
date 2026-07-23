@@ -114,9 +114,45 @@ async function deleteContent(req, res, next) {
   }
 }
 
+/**
+ * POST /wizard/export-pdf
+ * Proxy PDF export request to py_server and stream binary PDF file back.
+ */
+async function exportPdf(req, res, next) {
+  try {
+    const { topic, content_type, details, content, skill_level, goal, learning_style } = req.body || {};
+    logger.info(`[WIZARD] Export PDF: topic="${topic}" by ${req.user?.email}`);
+
+    const pdfResponse = await pyAxios.post(
+      "/wizard/export-pdf",
+      {
+        topic,
+        content_type,
+        details,
+        content,
+        skill_level,
+        goal,
+        learning_style,
+      },
+      { responseType: "arraybuffer" }
+    );
+
+    const filename = `${(topic || "roadmap").replace(/\s+/g, "_")}_roadmap.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(pdfResponse.data);
+  } catch (err) {
+    if (err.response) {
+      return res.status(err.response.status).json(err.response.data);
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   generateContent,
   getHistory,
   getContent,
   deleteContent,
+  exportPdf,
 };

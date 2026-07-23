@@ -16,9 +16,11 @@ import logging
 from collections import defaultdict
 from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import Response
 from agents.graphs.refr_retr_graph import compiled_reference_graph
-from schemas.wizard import WizardRawRequest, WizardRawResponse
+from schemas.wizard import WizardRawRequest, WizardRawResponse, WizardPdfExportRequest
 from services.wizard_service import generate_wizard_content
+from services.roadmap_pdf_service import generate_roadmap_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -218,3 +220,26 @@ async def generate_raw_content(request: WizardRawRequest):
     return WizardRawResponse(
         content=data, warnings=agent_warnings if agent_warnings else None
     )
+
+
+@router.post("/export-pdf")
+async def export_roadmap_pdf(request: WizardPdfExportRequest):
+    """
+    Export the roadmap content as a beautifully formatted PDF document.
+    """
+    try:
+        topic_name = request.topic or request.content.get("title", "Roadmap")
+        pdf_bytes = generate_roadmap_pdf(request.content, topic_name=topic_name)
+
+        filename = f"{topic_name.replace(' ', '_')}_roadmap.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.exception("PDF export failed for topic=%s: %s", request.topic, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate PDF document.",
+        )

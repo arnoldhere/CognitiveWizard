@@ -140,6 +140,15 @@ export const generateWizardContent = async (payload) => {
   }, "Failed to generate wizard content. Please try again.");
 };
 
+export const exportWizardPdf = async (payload) => {
+  return requestWithFriendlyErrors(async () => {
+    const res = await API.post("/wizard/export-pdf", payload, {
+      responseType: "blob",
+    });
+    return res.data;
+  }, "Failed to generate PDF document. Please try again.");
+};
+
 export const getWizardHistory = async (skip = 0, limit = 20) => {
   const res = await API.get(`/wizard/history?skip=${skip}&limit=${limit}`);
   return res.data;

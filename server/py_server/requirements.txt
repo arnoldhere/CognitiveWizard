@@ -79,3 +79,6 @@ youtube-transcript-api==1.2.2
 
 # Messaging
 kafka-python==2.2.15
+
+# others
+reportlab

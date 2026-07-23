@@ -28,6 +28,7 @@ const {
   getHistory,
   getContent,
   deleteContent,
+  exportPdf,
 } = require("../../controllers/wizardController");
 
 const { getActiveQuestionSets } = require("../../controllers/wizardQuestionSetController");
@@ -39,6 +40,9 @@ router.use(authenticate);
 
 /** Generate AI-powered learning content (course/roadmap/schedule). AI rate-limited. */
 router.post("/generate", aiLimiter, generateContent);
+
+/** Export roadmap content as PDF */
+router.post("/export-pdf", exportPdf);
 
 /** Get current user's wizard content history */
 router.get("/history", getHistory);

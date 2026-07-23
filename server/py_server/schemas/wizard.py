@@ -41,3 +41,13 @@ class WizardRawRequest(BaseModel):
 class WizardRawResponse(BaseModel):
     content: Dict[str, Any]
     warnings: Optional[list[str]] = None
+
+
+class WizardPdfExportRequest(BaseModel):
+    topic: str
+    content_type: str = "roadmap"
+    details: Optional[str] = None
+    content: Dict[str, Any]
+    skill_level: Optional[str] = None
+    goal: Optional[str] = None
+    learning_style: Optional[str] = None
