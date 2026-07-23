@@ -7,7 +7,7 @@ Combine provider score, domain trust, and query relevance.
 
 from __future__ import annotations
 from dataclasses import dataclass
-from agents.utils.resource_filter import domain_preference_score
+from agents.tools.resource_filter import domain_preference_score
 
 
 def compute_resource_score(raw: dict, topic: str) -> float:

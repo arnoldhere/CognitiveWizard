@@ -205,4 +205,4 @@ class ReferenceRetriever:
 
 
 # Initialize the reference retriever as a singleton for use in the node layer
-reference_retriever = ReferenceRetriever()
+reference_retriever = ReferenceRetriever(TavilySearchProvider(api_key=AgenticSettings.TAVILY_API_KEY))

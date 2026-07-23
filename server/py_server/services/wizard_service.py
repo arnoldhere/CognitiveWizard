@@ -5,7 +5,7 @@ from typing import Any, Dict, Tuple
 from langchain_core.messages import HumanMessage, SystemMessage
 from providers.llm.factory import get_llm_for_task
 from providers.llm.tasks import TaskType
-from utils.prompt_builder.wizard_prompt import build_wizard_prompt
+from utils.builders.wizard_prompt import build_wizard_prompt
 
 logger = logging.getLogger(__name__)
 

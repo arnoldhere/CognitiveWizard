@@ -2,10 +2,18 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+
 class WizardGenerateRequest(BaseModel):
     topic: str = Field(..., description="The main topic or subject")
-    content_type: str = Field(..., description="The type of content to generate (e.g., plan, roadmap, schedule, course, curriculum, syllabus)")
-    details: Optional[str] = Field(None, description="Any additional instructions, context, or requirements from the user")
+    content_type: str = Field(
+        ...,
+        description="The type of content to generate (e.g., plan, roadmap, schedule, course, curriculum, syllabus)",
+    )
+    details: Optional[str] = Field(
+        None,
+        description="Any additional instructions, context, or requirements from the user",
+    )
+
 
 class WizardContentResponse(BaseModel):
     id: int
@@ -19,3 +27,17 @@ class WizardContentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class WizardRawRequest(BaseModel):
+    topic: str
+    content_type: str
+    details: Optional[str] = None
+    skill_level: Optional[str] = None
+    goal: Optional[str] = None
+    learning_style: Optional[str] = None
+
+
+class WizardRawResponse(BaseModel):
+    content: Dict[str, Any]
+    warnings: Optional[list[str]] = None

@@ -21,6 +21,11 @@ class AgenticSettings:
     ALLOWED_DOMAINS: list = None
     BLOCKED_DOMAINS: list = None
     TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", None)
+    
+    # LangSmith Observability
+    LANGCHAIN_TRACING_V2: str = os.getenv("LANGCHAIN_TRACING_V2", "false")
+    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY", None)
+    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "CognitiveWizard-Agent")
 
 
 settings = AgenticSettings()
