@@ -13,6 +13,8 @@ import {
     Divider,
     InputAdornment,
     Grid,
+    FormControlLabel,
+    Checkbox,
 } from "@mui/material";
 import {
     EmailOutlined,
@@ -21,6 +23,7 @@ import {
     CalendarMonthOutlined,
     Psychology,
     Person2Outlined,
+    School,
 } from "@mui/icons-material";
 
 export default function Signup() {
@@ -32,6 +35,7 @@ export default function Signup() {
         full_name: "",
         phone: "",
         dob: "",
+        is_tutor: false,
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -44,14 +48,15 @@ export default function Signup() {
             await signup(form);
             navigate("/login", { replace: true });
         } catch (err) {
-            setError(err.response?.data?.detail || "Unable to create account.");
+            setError(err.response?.data?.detail || err.response?.data?.error || "Unable to create account.");
         } finally {
             setLoading(false);
         }
     };
 
     const updateField = (field) => (event) => {
-        setForm({ ...form, [field]: event.target.value });
+        const val = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        setForm({ ...form, [field]: val });
     };
 
     return (
@@ -74,7 +79,7 @@ export default function Signup() {
                             </Box>
                             <Box>
                                 <Typography variant="h5" fontWeight={900}>Join CognitiveWizard</Typography>
-                                <Typography color="text.secondary">Start with a secure learner account.</Typography>
+                                <Typography color="text.secondary">Start with a secure account.</Typography>
                             </Box>
                         </Box>
 
@@ -94,6 +99,41 @@ export default function Signup() {
                                 </Grid>
                                 <Grid item xs={12}>
                                     <TextField fullWidth required label="Password" type="password" value={form.password} onChange={updateField("password")} InputProps={{ startAdornment: <InputAdornment position="start"><LockOutlined /></InputAdornment> }} />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Box
+                                        sx={{
+                                            p: 2,
+                                            borderRadius: 2.5,
+                                            background: "rgba(20, 140, 255, 0.04)",
+                                            border: "1px solid rgba(20, 140, 255, 0.16)",
+                                            display: "flex",
+                                            alignItems: "flex-start",
+                                            gap: 1.5
+                                        }}
+                                    >
+                                        <FormControlLabel
+                                            control={
+                                                <Checkbox
+                                                    checked={form.is_tutor}
+                                                    onChange={updateField("is_tutor")}
+                                                    color="primary"
+                                                    icon={<School sx={{ opacity: 0.5 }} />}
+                                                    checkedIcon={<School color="primary" />}
+                                                />
+                                            }
+                                            label={
+                                                <Box>
+                                                    <Typography variant="subtitle2" fontWeight={800} color="text.primary">
+                                                        Are you a Tutor / Educator?
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary" display="block">
+                                                        Enable tutor role to publish and introduce courses, roadmaps, and guides for students.
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                        />
+                                    </Box>
                                 </Grid>
                             </Grid>
 

@@ -13,6 +13,7 @@ class WizardGenerateRequest(BaseModel):
         None,
         description="Any additional instructions, context, or requirements from the user",
     )
+    user_role: Optional[str] = Field("user", description="The role of the requesting user (user/tutor/admin)")
 
 
 class WizardContentResponse(BaseModel):
@@ -36,6 +37,7 @@ class WizardRawRequest(BaseModel):
     skill_level: Optional[str] = None
     goal: Optional[str] = None
     learning_style: Optional[str] = None
+    user_role: Optional[str] = "user"
 
 
 class WizardRawResponse(BaseModel):
@@ -51,3 +53,4 @@ class WizardPdfExportRequest(BaseModel):
     skill_level: Optional[str] = None
     goal: Optional[str] = None
     learning_style: Optional[str] = None
+    user_role: Optional[str] = "user"

@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 
-const navItems = [
+const baseNavItems = [
   { to: "/", label: "Home", end: true },
+  { to: "/marketplace", label: "Marketplace" },
   { to: "/wizard", label: "AI Wizard" },
   { to: "/quiz", label: "Quiz" },
   { to: "/quick-study", label: "Quick Study" },
@@ -16,7 +17,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, isTutor } = useAuth();
   const location = useLocation();
 
   const closeMenu = () => { setOpen(false); setShowProfile(false); };
@@ -53,7 +54,7 @@ export default function Navbar() {
         </button>
 
         <nav className={`nav-links${open ? " nav-open" : ""}`} aria-label="Main navigation">
-          {navItems.map(item => (
+          {baseNavItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -75,11 +76,31 @@ export default function Navbar() {
                   aria-haspopup="true"
                   aria-expanded={showProfile}
                   onClick={() => setShowProfile(v => !v)}
+                  style={isTutor ? { borderColor: "rgba(245, 158, 11, 0.4)", background: "rgba(245, 158, 11, 0.08)" } : {}}
                 >
-                  <span className="profile-avatar" aria-hidden="true">
+                  <span className="profile-avatar" style={isTutor ? { background: "linear-gradient(135deg, #F59E0B, #D97706)" } : {}} aria-hidden="true">
                     {(userLabel[0] || "U").toUpperCase()}
                   </span>
-                  <span className="profile-name">{userLabel}</span>
+                  <span className="profile-name">
+                    {userLabel}
+                    {user?.role && (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          fontSize: "0.68rem",
+                          fontWeight: 800,
+                          padding: "2px 6px",
+                          borderRadius: 6,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.5,
+                          background: user.role === "tutor" ? "#F59E0B" : user.role === "admin" ? "#1ED9F2" : "rgba(20, 140, 255, 0.15)",
+                          color: user.role === "tutor" ? "#FFFFFF" : user.role === "admin" ? "#07152E" : "#148CFF",
+                        }}
+                      >
+                        {user.role}
+                      </span>
+                    )}
+                  </span>
                 </button>
                 {showProfile && (
                   <div className="profile-dropdown" role="menu">

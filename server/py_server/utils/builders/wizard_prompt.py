@@ -9,6 +9,7 @@ def build_wizard_prompt(
     skill_level: str | None = None,
     goal: str | None = None,
     learning_style: str | None = None,
+    user_role: str | None = "user",
 ) -> str:
     """
     Builds the complete prompt for the Study-Learning AI Assistant.
@@ -21,9 +22,11 @@ def build_wizard_prompt(
         skill_level: Beginner / intermediate / advanced — narrows the content depth.
         goal: The user's stated learning goal (e.g. 'get a job as ML engineer').
         learning_style: visual / theoretical / interactive — shapes content emphasis.
+        user_role: user / tutor / admin — shapes instructional vs learning perspective.
     """
 
     content_type = content_type.lower().strip()
+    role_str = (user_role or "user").lower().strip()
 
     prompt = f"""
       {sys_prompt()}
@@ -37,6 +40,21 @@ def build_wizard_prompt(
       Topic:
       {topic}
 
+      """
+
+    # Role-specific framing
+    if role_str == "tutor":
+        prompt += """
+      USER ROLE: TUTOR / INSTRUCTOR (Authoring & Publishing Mode)
+      The requester is an educator, faculty member, or professional tutor creating curriculum materials for published student use.
+      - Structure the content with rigorous pedagogical depth, teaching objectives, module breakdown, student activity suggestions, and evaluation criteria.
+      - Ensure the output can be published directly as an authoritative guide/course/roadmap for learners.
+      """
+    else:
+        prompt += """
+      USER ROLE: LEARNER / STUDENT (Self-Study Mode)
+      The requester is a student or self-directed learner.
+      - Structure the content for intuitive personal study, self-paced progress, actionable milestones, and clear practical application.
       """
 
     # Inject optional learner context to sharpen LLM output

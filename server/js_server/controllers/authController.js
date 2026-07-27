@@ -16,13 +16,15 @@ const { redisClient } = require("../config/redis");
 
 async function signup(req, res, next) {
   try {
-    const { email, password, full_name, phone, dob } = req.body;
-    logger.info(`[AUTH] Signup attempt: ${email}`);
+    const { email, password, full_name, phone, dob, is_tutor, role } = req.body;
+    logger.info(`[AUTH] Signup attempt: ${email} (is_tutor: ${Boolean(is_tutor)})`);
 
     const existing = await User.findOne({ where: { email } });
     if (existing) {
       return res.status(400).json({ error: "Email already registered" });
     }
+
+    const assignedRole = (is_tutor === true || is_tutor === "true" || role === "tutor") ? "tutor" : (role || "user");
 
     const hashed_password = await bcrypt.hash(password, 10);
     const user = await User.create({
@@ -31,7 +33,7 @@ async function signup(req, res, next) {
       full_name,
       phone,
       dob,
-      role: "user"
+      role: assignedRole
     });
 
     const userObj = user.toJSON();

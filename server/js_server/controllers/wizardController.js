@@ -13,13 +13,15 @@ async function generateContent(req, res, next) {
     logger.info(`[WIZARD] Generate: topic="${topic}", type="${content_type}" by ${req.user?.email}`);
 
     // Call py_server to generate the content (stateless)
+    const user_role = req.user?.role || "user";
     const aiResponse = await pyAxios.post("/wizard/generate-raw", {
       topic,
       content_type,
       details,
       skill_level,
       goal,
-      learning_style
+      learning_style,
+      user_role
     });
 
     if (!aiResponse.data || !aiResponse.data.content) {

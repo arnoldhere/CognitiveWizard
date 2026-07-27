@@ -124,6 +124,7 @@ async def generate_raw_content(request: WizardRawRequest):
                     skill_level=request.skill_level,
                     goal=request.goal,
                     learning_style=request.learning_style,
+                    user_role=request.user_role,
                 ),
                 return_exceptions=False,  # surface real errors; each has own try/except
             )
@@ -198,6 +199,7 @@ async def generate_raw_content(request: WizardRawRequest):
                 skill_level=request.skill_level,
                 goal=request.goal,
                 learning_style=request.learning_style,
+                user_role=request.user_role,
             )
         except Exception as e:
             logger.exception(

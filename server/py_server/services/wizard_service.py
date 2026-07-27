@@ -18,6 +18,7 @@ async def generate_wizard_content(
     skill_level: Optional[str] = None,
     goal: Optional[str] = None,
     learning_style: Optional[str] = None,
+    user_role: Optional[str] = "user",
 ) -> Tuple[bool, Dict]:
     """
     Generate structured educational content via LLM.
@@ -32,14 +33,15 @@ async def generate_wizard_content(
         skill_level:    beginner / intermediate / advanced.
         goal:           User's learning goal.
         learning_style: visual / theoretical / interactive.
+        user_role:      user / tutor / admin.
 
     Returns:
         (success: bool, data: dict) — data is empty dict on failure.
     """
     try:
         logger.info(
-            "Generating wizard content: topic=%s type=%s skill_level=%s",
-            topic, content_type, skill_level,
+            "Generating wizard content: topic=%s type=%s skill_level=%s role=%s",
+            topic, content_type, skill_level, user_role,
         )
 
         # Build the LLM prompt with all available context
@@ -50,6 +52,7 @@ async def generate_wizard_content(
             skill_level=skill_level,
             goal=goal,
             learning_style=learning_style,
+            user_role=user_role,
         )
 
         llm = get_llm_for_task(TaskType.WIZARD)

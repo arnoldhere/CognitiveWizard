@@ -18,6 +18,7 @@ import ErrorBoundary from "./components/utils/ErrorBoundary";
 import SummarizerPage from "./pages/Summarize";
 import WizardModule from "./pages/WizardModule";
 import ForgotPassword from "./pages/ForgotPassword";
+import Marketplace from "./pages/Marketplace";
 
 // Admin Imports
 import AdminRoute from "./components/AdminRoute";
@@ -38,6 +39,7 @@ function AppRoutes() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
 

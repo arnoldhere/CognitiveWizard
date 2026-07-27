@@ -156,6 +156,9 @@ export function AuthProvider({ children }) {
         updateUser,
         refreshUser,
         isAuthenticated: Boolean(token && user),
+        isTutor: user?.role === "tutor",
+        isAdmin: user?.role === "admin",
+        isUser: user?.role === "user" || !user?.role,
         isLoading: loading || initializing,
     };
 
