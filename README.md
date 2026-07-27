@@ -1,112 +1,103 @@
-# CognitiveWizard - AI Quiz & Learning Assistant
+# CognitiveWizard
 
-## 📌 Overview
+CognitiveWizard is an AI-assisted study platform for turning learning material and goals into useful, adaptive study experiences. It combines structured learning tools with conversational retrieval so learners can understand, practise, revise, and plan from one place.
 
-CognitiveWizard is an AI-powered learning platform that provides adaptive and smart materials and tools for learning and study purpose.
-The platform provides Quiz and Summarization engine, RAG powered chatbot and more tools.
+## Current product scope
 
----
+The platform is organised around four core modules:
 
-## Core idea
-> An AI-driven personalized learning engine
-- Generates quizzes dynamically
-- Summarization for quick notes and study
-- Personal assistant for study & chat
-- Adapts learning path
+- **Quiz generation** — creates structured quizzes from a topic or learning material, with validation and grading support.
+- **Summarization engine** — accepts documents, URLs, and YouTube links, preprocesses the source, and produces readable study notes.
+- **RAG chatbot** — answers questions using user-uploaded material and retrieval pipelines, with chat history and source-aware context.
+- **AI Wizard** — generates structured learning plans. Roadmap generation is the current working capability: it accepts planning inputs, retrieves relevant references, and returns a structured roadmap response.
 
----
+Course/syllabus generation, schedules, and guides are part of the AI Wizard direction but are not yet presented as completed product capabilities. Their planning and preparation automation will be expanded in later iterations.
 
-## Proposed High-Level Architecture
+## Repository layout
 
-```
-User Query
-    │
-    ▼
-React Frontend
-    │  All API calls → 
-    ▼
-Express Gateway  [js_server]
-    ├── Security layer: Helmet + CORS
-    ├── Rate limiting: global / auth / AI-ML tiers
-    ├── HTTP logging: Morgan → Winston
-    ├── JWT verification middleware
-    ├── Route delegation by domain
-    ├── Route mapping according to tasks
-    │
-    ▼
-FastAPI py_server 
-    ├── MySQL 
-    ├── MongoDB 
-    ├── Redis 
-    └── ChromaDB 
+```text
+client/              React + Vite web application
+server/js_server/    Express API gateway, auth, persistence-facing routes
+server/py_server/    FastAPI AI service, quiz, summarization, RAG, and wizard logic
+docker-compose.yml   Local container orchestration for the three application services
 ```
 
-## Core Features
+## Architecture
 
-### 1. AI Quiz Generation
+```text
+Browser
+   │
+   ▼
+React/Vite frontend :80
+   │
+   ▼
+Express API gateway :3000
+   │
+   ▼
+FastAPI AI backend :8000
+   ├── Quiz generation and validation
+   ├── Summarization and document ingestion
+   ├── RAG retrieval, chat memory, and vector storage
+   └── AI Wizard roadmap and reference retrieval
 
-* Input: topic, difficulty
-* Output: MCQs or subjective questions
-* Powered by transformer models
+External/runtime dependencies:
+   MySQL · MongoDB · Redis · LLM/embedding providers · optional search provider
+```
 
-### 2. Summarization Engine
+The Express gateway is the browser-facing API boundary. It handles authentication, CORS, rate limiting, request logging, domain routes, and proxying to the FastAPI service. The AI backend exposes the task-specific Python APIs and `/health` endpoint.
 
-* user inputs pdf, url (blog or article) or Youtube url
-* input data is preproccesed and divided to chunks and sent to Llama model for summarization
-* summarization is displayed in readable format for quick study
+## Running with Docker Compose
 
-### 3. AI powered Study planner (not released)
+### Prerequisites
 
-* Input:
-    - User goals (exam, skill, deadline)
-    - Available time
-    - Current knowledge level
-* Output: personalized study schedule
-    - Dynamically adjusts plan based on:
-    - Performance in quizzes
-    - Learning pace
-    - Missed sessions
-* Features:
-    - Daily / weekly roadmap
-    - Topic prioritization (weak → strong areas)
-    - Smart revision cycles (spaced repetition)
-    - Break and workload optimization
-    - rescheduling on missed tasks
+- Docker Engine with the Compose plugin
+- A configured environment for the gateway and AI backend
+- Reachable MySQL, MongoDB, and Redis instances
+- Credentials for the selected LLM/embedding provider
+- A search provider key such as `TAVILY_API_KEY` when reference retrieval is enabled
+
+The current Compose file does **not** create database containers. The checked-in environment files are used by the services and may point to managed infrastructure. For a new deployment, create local, untracked environment files or provide equivalent deployment secrets; do not commit credentials.
+
+### Build and start
+
+```bash
+docker compose build
+docker compose up -d
+docker compose ps
+docker compose down
+```
+
+The frontend API URL is baked into the Vite build. Set `VITE_BACKEND_BASE_URL` as a Compose build argument when the browser must reach the gateway at a different public URL, for example:
+
+```bash
+VITE_BACKEND_BASE_URL=https://api.example.com docker compose build frontend
+```
+
+For production, use a production environment file or your secret manager and review CORS origins, JWT secrets, administrator credentials, provider keys, and database URLs before starting the stack.
+
+## Development without Docker
+
+Install the JavaScript dependencies in `client/` and `server/js_server/`, and install Python dependencies from `server/py_server/requirements.txt`. Then run the services with their respective package/runtime commands:
+
+```bash
+# frontend
+cd client && npm run dev
+
+# gateway
+cd server/js_server && npm start
+
+# AI backend
+cd server/py_server && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The gateway and AI backend require the environment variables used by their configuration modules. The frontend uses `VITE_BACKEND_BASE_URL` to select the gateway URL.
 
 
-### 4. RAG Powered Chatbot
-    A personal assitant for study related chat with modern techniques such as RAG, Langchain. It features a query router that dynamically selects between user-uploaded documents and external knowledge bases, followed by a retriever, a re-ranker, and an LLM generator.
+Python tests are located in `server/py_server/tests`. The frontend provides `npm run lint`; the gateway currently has no substantive automated test script.
 
-### 5. Recommendation System
+## Enhancements
 
-* Suggest next topics based on:
-
-  * Performance
-  * Sentiment
-  * Weak areas
-
----
-
-## Evaluation Metrics
-
-* Accuracy of answer evaluation
-* Quality of generated questions
-* User engagement and retention
-* Quiz generation success rate
-
----
-
-## 🚀 Future Enhancements
-
-* Voice-based quizzes
-* Adaptive difficulty tuning
-* Multi-language support
-* Fine-tuned domain-specific models
-* Multiple question types (multiple answer, true/false, etc.)
-* Answer explanation generation
-
----
-
-## 💡 Key Insight
-
-This project combines NLP, LLMs, and system design to simulate a real-world intelligent tutoring system, making it highly relevant for industry applications. The improved quiz pipeline ensures reliability and maintainability for production deployments.
+- Expand AI Wizard output types from roadmaps into courses, syllabus, schedules, and guides.
+- Add deeper plan preparation and automation around generated learning plans.
+- Improve adaptive difficulty, revision recommendations, and learner progress feedback.
+- Extend quiz formats, explanations, multilingual support, and voice-based study flows.
