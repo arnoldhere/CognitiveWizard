@@ -8,6 +8,8 @@ import PsychologyIcon from "@mui/icons-material/Psychology";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
+import VerifiedIcon from "@mui/icons-material/Verified";
 
 export default function RoadmapHero({
   title,
@@ -16,12 +18,17 @@ export default function RoadmapHero({
   totalDuration,
   difficulty,
   learningStyle,
+  prerequisites = [],
+  outcomes = [],
   totalPhases = 0,
   onExplorePhases,
   onExportPdf,
   isSaved,
   onToggleSave,
 }) {
+  const hasPrereqs = Array.isArray(prerequisites) && prerequisites.length > 0;
+  const hasOutcomes = Array.isArray(outcomes) && outcomes.length > 0;
+
   return (
     <div className="roadmap-hero-card">
       <div className="hero-gradient-overlay" />
@@ -71,6 +78,43 @@ export default function RoadmapHero({
         </div>
       </div>
 
+      {(hasPrereqs || hasOutcomes) && (
+        <div className="hero-req-outcomes-grid">
+          {hasPrereqs && (
+            <div className="hero-info-box prereq-box">
+              <div className="info-box-header">
+                <AssignmentTurnedInIcon sx={{ fontSize: 18, color: "#0666d9" }} />
+                <span>Prerequisites</span>
+              </div>
+              <div className="prereq-pills">
+                {prerequisites.map((req, idx) => (
+                  <span key={idx} className="prereq-chip">
+                    • {typeof req === "string" ? req : req.title || req.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasOutcomes && (
+            <div className="hero-info-box outcomes-box">
+              <div className="info-box-header">
+                <VerifiedIcon sx={{ fontSize: 18, color: "#10b981" }} />
+                <span>Expected Outcomes</span>
+              </div>
+              <ul className="outcomes-list">
+                {outcomes.map((out, idx) => (
+                  <li key={idx}>
+                    <span className="outcome-bullet">✓</span>
+                    <span>{typeof out === "string" ? out : out.title || out.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="hero-actions">
         {onExplorePhases && (
           <button className="hero-btn-primary" onClick={onExplorePhases}>
@@ -83,7 +127,6 @@ export default function RoadmapHero({
           <DownloadIcon fontSize="small" />
           <span>Download PDF</span>
         </button>
-
       </div>
     </div>
   );

@@ -255,6 +255,8 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
               goal={roadmap.goal}
               difficulty={roadmap.difficulty}
               learningStyle={roadmap.learningStyle}
+              prerequisites={roadmap.prerequisites}
+              outcomes={roadmap.outcomes}
               totalPhases={totalPhases}
               onExplorePhases={() => scrollToSection(phasesRef, "phases")}
               onExportPdf={handleExportPdf}

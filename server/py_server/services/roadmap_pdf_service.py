@@ -216,7 +216,40 @@ def generate_roadmap_pdf(content_data: Dict[str, Any], topic_name: str = "") -> 
         )
     )
     story.append(meta_table)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 10))
+
+    # Prerequisites & Target Outcomes Box
+    prereqs = content_data.get("prerequisites") or []
+    outcomes = content_data.get("outcomes") or []
+
+    if prereqs or outcomes:
+        req_out_cells = []
+        if prereqs:
+            prereq_str = "<br/>".join([f"• {clean_text(str(p))}" for p in prereqs])
+            req_out_cells.append(Paragraph(f"<b>Prerequisites:</b><br/>{prereq_str}", body_style))
+        else:
+            req_out_cells.append(Paragraph("", body_style))
+
+        if outcomes:
+            outcome_str = "<br/>".join([f"✓ {clean_text(str(o))}" for o in outcomes])
+            req_out_cells.append(Paragraph(f"<b>Target Outcomes:</b><br/>{outcome_str}", body_style))
+        else:
+            req_out_cells.append(Paragraph("", body_style))
+
+        req_table = Table([req_out_cells], colWidths=[270, 270])
+        req_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAFAFA")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#F3F4F6")),
+                    ("PADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(req_table)
+        story.append(Spacer(1, 14))
 
     # 2. Learning Phases & Milestones
     story.append(Paragraph("Learning Milestones & Phases", section_heading))

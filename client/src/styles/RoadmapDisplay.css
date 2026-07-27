@@ -366,6 +366,81 @@
   color: var(--text, #07152E);
 }
 
+/* ─── PREREQUISITES & OUTCOMES BOXES ─── */
+.hero-req-outcomes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.hero-info-box {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  padding: 16px 20px;
+  border: 1px solid rgba(20, 140, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hero-info-box.prereq-box {
+  border-left: 4px solid #0666d9;
+}
+
+.hero-info-box.outcomes-box {
+  border-left: 4px solid #10b981;
+}
+
+.info-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text, #07152e);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.prereq-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prereq-chip {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0666d9;
+  background: rgba(6, 102, 217, 0.08);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.outcomes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.outcomes-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text, #07152e);
+  line-height: 1.4;
+}
+
+.outcome-bullet {
+  color: #10b981;
+  font-weight: 900;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
