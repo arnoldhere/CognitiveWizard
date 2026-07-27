@@ -53,22 +53,22 @@ import {
 
 /* ─── Teal Palette Constants ─────────────────────────────── */
 const T = {
-    bg:           "#F0FBF8",
+    bg:           "#F5F9FF",
     surface:      "rgba(255,255,255,0.88)",
     surfaceSolid: "#ffffff",
-    border:       "rgba(13,148,136,0.14)",
-    borderStrong: "rgba(13,148,136,0.28)",
+    border:       "rgba(20, 140, 255,0.14)",
+    borderStrong: "rgba(20, 140, 255,0.28)",
     borderWhite:  "rgba(255,255,255,0.88)",
-    text:         "#0F2027",
-    textLight:    "#4A6572",
-    muted:        "#7A9BA8",
-    primary:      "#0D9488",
-    primaryDark:  "#0F766E",
-    primaryLight: "#2DD4BF",
-    accent:       "#F97316",
-    cyan:         "#06B6D4",
-    shadow:       "0 12px 40px rgba(13,148,136,0.09)",
-    shadowLg:     "0 20px 60px rgba(13,148,136,0.12)",
+    text:         "#07152E",
+    textLight:    "#4D6486",
+    muted:        "#7187A9",
+    primary:      "#148CFF",
+    primaryDark:  "#0666D9",
+    primaryLight: "#1ED9F2",
+    accent:       "#7655F6",
+    cyan:         "#1ED9F2",
+    shadow:       "0 12px 40px rgba(20, 140, 255,0.09)",
+    shadowLg:     "0 20px 60px rgba(20, 140, 255,0.12)",
 };
 
 /* ─── Shared sx helpers ──────────────────────────────────── */
@@ -88,16 +88,16 @@ const tealGradientBtn = {
     fontFamily: '"Plus Jakarta Sans", sans-serif',
     background: `linear-gradient(135deg, ${T.primary}, ${T.primaryDark})`,
     color: "#fff",
-    boxShadow: "0 4px 14px rgba(13,148,136,0.28)",
+    boxShadow: "0 4px 14px rgba(20, 140, 255,0.28)",
     position: "relative",
     overflow: "hidden",
     "&:hover": {
-        background: `linear-gradient(135deg, #0F9D91, ${T.primaryDark})`,
-        boxShadow: "0 8px 24px rgba(13,148,136,0.40)",
+        background: `linear-gradient(135deg, #148CFF, ${T.primaryDark})`,
+        boxShadow: "0 8px 24px rgba(20, 140, 255,0.40)",
         transform: "translateY(-1px)",
     },
     "&:disabled": {
-        background: "rgba(13,148,136,0.18)",
+        background: "rgba(20, 140, 255,0.18)",
         color: "rgba(255,255,255,0.6)",
         boxShadow: "none",
     },
@@ -112,7 +112,7 @@ const outlinedBtn = {
     "&:hover": {
         borderColor: T.primary,
         color: T.primary,
-        background: "rgba(13,148,136,0.05)",
+        background: "rgba(20, 140, 255,0.05)",
     },
 };
 
@@ -141,8 +141,8 @@ function InfoRow({ icon, label, value }) {
                         display: "inline-flex",
                         p: 0.7,
                         borderRadius: 1.5,
-                        background: "rgba(13,148,136,0.08)",
-                        border: "1px solid rgba(13,148,136,0.16)",
+                        background: "rgba(20, 140, 255,0.08)",
+                        border: "1px solid rgba(20, 140, 255,0.16)",
                         color: T.primary,
                         fontSize: 18,
                     }}
@@ -364,7 +364,7 @@ export default function Profile() {
                     }
                 },
                 prefill: { name: user?.full_name || "", email: user?.email || "" },
-                theme: { color: "#0D9488" },
+                theme: { color: "#148CFF" },
             };
             if (!window.Razorpay) {
                 throw new Error("Razorpay checkout script not loaded.");
@@ -412,7 +412,7 @@ export default function Profile() {
                         fontSize: "1.6rem",
                         fontWeight: 800,
                         border: `3px solid rgba(255,255,255,0.9)`,
-                        boxShadow: "0 4px 16px rgba(13,148,136,0.22)",
+                        boxShadow: "0 4px 16px rgba(20, 140, 255,0.22)",
                     }}
                 >
                     {user?.full_name
@@ -500,7 +500,7 @@ export default function Profile() {
                                 fontSize: "2rem",
                                 fontWeight: 800,
                                 border: `3px solid rgba(255,255,255,0.9)`,
-                                boxShadow: "0 6px 20px rgba(13,148,136,0.20)",
+                                boxShadow: "0 6px 20px rgba(20, 140, 255,0.20)",
                             }}
                         >
                             {user?.full_name
@@ -534,12 +534,12 @@ export default function Profile() {
                                     color: user?.role === "admin" ? T.cyan : T.primary,
                                     borderColor:
                                         user?.role === "admin"
-                                            ? "rgba(6,182,212,0.35)"
-                                            : "rgba(13,148,136,0.35)",
+                                            ? "rgba(30, 217, 242,0.35)"
+                                            : "rgba(20, 140, 255,0.35)",
                                     backgroundColor:
                                         user?.role === "admin"
-                                            ? "rgba(6,182,212,0.08)"
-                                            : "rgba(13,148,136,0.08)",
+                                            ? "rgba(30, 217, 242,0.08)"
+                                            : "rgba(20, 140, 255,0.08)",
                                 }}
                             />
                         </Box>
@@ -597,8 +597,8 @@ export default function Profile() {
                                 severity="success"
                                 sx={{
                                     mb: 3,
-                                    bgcolor: "rgba(13,148,136,0.08)",
-                                    border: "1px solid rgba(13,148,136,0.24)",
+                                    bgcolor: "rgba(20, 140, 255,0.08)",
+                                    border: "1px solid rgba(20, 140, 255,0.24)",
                                     color: T.primary,
                                     "& .MuiAlert-icon": { color: T.primary },
                                     borderRadius: 2,
@@ -626,7 +626,7 @@ export default function Profile() {
                             sx={{
                                 p: { xs: 3, md: 4 },
                                 borderRadius: 3,
-                                background: "rgba(240,251,248,0.7)",
+                                background: "rgba(245,249,255,0.76)",
                                 border: `1px solid ${T.border}`,
                             }}
                         >
@@ -805,8 +805,8 @@ export default function Profile() {
                         sx={{
                             mb: 3,
                             borderRadius: 2,
-                            bgcolor: "rgba(13,148,136,0.08)",
-                            border: "1px solid rgba(13,148,136,0.22)",
+                            bgcolor: "rgba(20, 140, 255,0.08)",
+                            border: "1px solid rgba(20, 140, 255,0.22)",
                             color: T.primary,
                         }}
                         onClose={() => setCancelSuccess(null)}
@@ -834,9 +834,9 @@ export default function Profile() {
                                     p: 3,
                                     mb: 4,
                                     borderRadius: 4,
-                                    background: "rgba(13,148,136,0.05)",
+                                    background: "rgba(20, 140, 255,0.05)",
                                     border: `1.5px solid ${T.borderStrong}`,
-                                    boxShadow: "0 0 24px rgba(13,148,136,0.10)",
+                                    boxShadow: "0 0 24px rgba(20, 140, 255,0.10)",
                                 }}
                             >
                                 <Box
@@ -913,7 +913,7 @@ export default function Profile() {
                                                         subscriptionStatus.days_left <= 5
                                                             ? subscriptionStatus.days_left <= 1
                                                                 ? "#ef4444"
-                                                                : "#F97316"
+                                                                : "#7655F6"
                                                             : T.primary,
                                                 }}
                                             />
@@ -926,7 +926,7 @@ export default function Profile() {
                                                         subscriptionStatus.days_left <= 5
                                                             ? subscriptionStatus.days_left <= 1
                                                                 ? "#ef4444"
-                                                                : "#F97316"
+                                                                : "#7655F6"
                                                             : T.primary,
                                                 }}
                                             >
@@ -949,14 +949,14 @@ export default function Profile() {
                                                     mt: 1,
                                                     height: 6,
                                                     borderRadius: 3,
-                                                    backgroundColor: "rgba(13,148,136,0.10)",
+                                                    backgroundColor: "rgba(20, 140, 255,0.10)",
                                                     "& .MuiLinearProgress-bar": {
                                                         borderRadius: 3,
                                                         backgroundColor:
                                                             subscriptionStatus.days_left <= 5
                                                                 ? subscriptionStatus.days_left <= 1
                                                                     ? "#ef4444"
-                                                                    : "#F97316"
+                                                                    : "#7655F6"
                                                                 : T.primary,
                                                     },
                                                 }}
@@ -1022,7 +1022,7 @@ export default function Profile() {
                                                 borderRadius: 4,
                                                 height: "100%",
                                                 background: isCurrent
-                                                    ? "rgba(13,148,136,0.06)"
+                                                    ? "rgba(20, 140, 255,0.06)"
                                                     : T.surface,
                                                 border: isCurrent
                                                     ? `2px solid ${T.primary}`
@@ -1031,7 +1031,7 @@ export default function Profile() {
                                                     ? `1px solid ${T.borderStrong}`
                                                     : `1px solid ${T.border}`,
                                                 boxShadow: isCurrent
-                                                    ? `0 0 28px rgba(13,148,136,0.16), ${T.shadow}`
+                                                    ? `0 0 28px rgba(20, 140, 255,0.16), ${T.shadow}`
                                                     : T.shadow,
                                                 opacity: isSubscribed && !isCurrent ? 0.65 : 1,
                                                 position: "relative",
@@ -1140,8 +1140,8 @@ export default function Profile() {
                                                                 mt: 1,
                                                                 py: 1.25,
                                                                 "&.Mui-disabled": {
-                                                                    background: "rgba(13,148,136,0.12)",
-                                                                    color: "rgba(13,148,136,0.4)",
+                                                                    background: "rgba(20, 140, 255,0.12)",
+                                                                    color: "rgba(20, 140, 255,0.4)",
                                                                 },
                                                             }}
                                                         >
@@ -1275,11 +1275,11 @@ export default function Profile() {
                                         borderRadius: 2.5,
                                         border: "1px solid",
                                         borderColor: item.is_correct
-                                            ? "rgba(13,148,136,0.25)"
-                                            : "rgba(249,115,22,0.25)",
+                                            ? "rgba(20, 140, 255,0.25)"
+                                            : "rgba(118, 85, 246,0.25)",
                                         background: item.is_correct
-                                            ? "rgba(13,148,136,0.05)"
-                                            : "rgba(249,115,22,0.05)",
+                                            ? "rgba(20, 140, 255,0.05)"
+                                            : "rgba(118, 85, 246,0.05)",
                                     }}
                                 >
                                     <Typography
@@ -1291,7 +1291,7 @@ export default function Profile() {
                                     <Typography
                                         variant="body2"
                                         sx={{
-                                            color: item.is_correct ? T.primary : "#EA6C0A",
+                                            color: item.is_correct ? T.primary : "#5736C8",
                                             mb: 0.5,
                                             fontWeight: 600,
                                         }}

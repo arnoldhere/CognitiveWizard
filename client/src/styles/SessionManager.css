@@ -10,14 +10,14 @@
   width: 100%;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #0D9488, #0F766E);
+  background: linear-gradient(135deg, #148CFF, #0666D9);
   color: #fff;
   padding: 13px 18px;
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.24s ease;
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.28);
+  box-shadow: 0 4px 14px rgba(20, 140, 255, 0.28);
   position: relative;
   overflow: hidden;
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
@@ -32,7 +32,7 @@
 .session-actions button:hover:not(:disabled)::after { transform: translateX(100%) }
 .session-actions button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(13, 148, 136, 0.38);
+  box-shadow: 0 8px 24px rgba(20, 140, 255, 0.38);
 }
 .session-actions button:disabled {
   opacity: 0.5;
@@ -49,7 +49,7 @@
 }
 .session-list-wrapper::-webkit-scrollbar { width: 4px }
 .session-list-wrapper::-webkit-scrollbar-thumb {
-  background: rgba(13, 148, 136, 0.22);
+  background: rgba(20, 140, 255, 0.22);
   border-radius: 999px;
 }
 
@@ -70,24 +70,24 @@
   padding: 13px 15px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.85);
-  outline: 1px solid rgba(13, 148, 136, 0.08);
+  outline: 1px solid rgba(20, 140, 255, 0.08);
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(12px);
   transition: all 0.22s ease;
   cursor: pointer;
 }
 .session-item:hover {
-  border-color: rgba(13, 148, 136, 0.28);
-  outline-color: rgba(13, 148, 136, 0.15);
+  border-color: rgba(20, 140, 255, 0.28);
+  outline-color: rgba(20, 140, 255, 0.15);
   background: rgba(255, 255, 255, 0.96);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.09);
+  box-shadow: 0 6px 20px rgba(20, 140, 255, 0.09);
 }
 .session-item.is-selected {
-  border-color: rgba(13, 148, 136, 0.35);
-  outline-color: rgba(13, 148, 136, 0.18);
-  background: rgba(13, 148, 136, 0.05);
-  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.12);
+  border-color: rgba(20, 140, 255, 0.35);
+  outline-color: rgba(20, 140, 255, 0.18);
+  background: rgba(20, 140, 255, 0.05);
+  box-shadow: 0 0 0 2px rgba(20, 140, 255, 0.12);
 }
 
 /* ─── SESSION BUTTON (inner clickable row) ─── */
@@ -105,7 +105,7 @@
 .session-title {
   display: block;
   font-weight: 700;
-  color: #0F2027;
+  color: #07152E;
   margin-bottom: 4px;
   font-size: 0.9rem;
   white-space: nowrap;
@@ -116,7 +116,7 @@
 .session-meta {
   display: block;
   font-size: 0.76rem;
-  color: #7A9BA8;
+  color: #7187A9;
 }
 
 /* ─── ACTION ICONS ─── */
@@ -131,11 +131,11 @@
   transition: all 0.2s ease;
 }
 .session-edit {
-  background: rgba(249, 115, 22, 0.10);
-  color: #EA6C0A;
+  background: rgba(118, 85, 246, 0.10);
+  color: #5736C8;
 }
 .session-edit:hover {
-  background: rgba(249, 115, 22, 0.18);
+  background: rgba(118, 85, 246, 0.18);
   transform: scale(1.1);
 }
 .session-delete {
@@ -156,12 +156,12 @@
   width: 100%;
 }
 .session-title-input {
-  border: 1.5px solid rgba(13, 148, 136, 0.28);
+  border: 1.5px solid rgba(20, 140, 255, 0.28);
   border-radius: 8px;
   padding: 7px 12px;
   font-size: 0.88rem;
   font-weight: 600;
-  color: #0F2027;
+  color: #07152E;
   background: rgba(255, 255, 255, 0.90);
   width: 100%;
   outline: none;
@@ -169,8 +169,8 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .session-title-input:focus {
-  border-color: #0D9488;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.14);
+  border-color: #148CFF;
+  box-shadow: 0 0 0 3px rgba(20, 140, 255, 0.14);
 }
 .session-edit-actions { display: flex; gap: 5px }
 .session-edit-save,
@@ -183,8 +183,8 @@
   transition: all 0.2s ease;
   display: flex; align-items: center; justify-content: center;
 }
-.session-edit-save  { background: rgba(13, 148, 136, 0.12); color: #0D9488 }
-.session-edit-save:hover  { background: rgba(13, 148, 136, 0.22); transform: scale(1.1) }
+.session-edit-save  { background: rgba(20, 140, 255, 0.12); color: #148CFF }
+.session-edit-save:hover  { background: rgba(20, 140, 255, 0.22); transform: scale(1.1) }
 .session-edit-cancel { background: rgba(239, 68, 68, 0.12); color: #dc2626 }
 .session-edit-cancel:hover { background: rgba(239, 68, 68, 0.22); transform: scale(1.1) }
 
@@ -192,15 +192,15 @@
 .session-empty {
   padding: 22px 16px;
   border-radius: 12px;
-  border: 1.5px dashed rgba(13, 148, 136, 0.28);
-  background: rgba(13, 148, 136, 0.04);
+  border: 1.5px dashed rgba(20, 140, 255, 0.28);
+  background: rgba(20, 140, 255, 0.04);
   text-align: center;
 }
 .session-empty p {
   margin: 0 0 6px;
   font-weight: 700;
-  color: #0F2027;
+  color: #07152E;
   font-size: 0.92rem;
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
-.session-empty small { color: #7A9BA8; font-size: 0.8rem }
+.session-empty small { color: #7187A9; font-size: 0.8rem }

@@ -206,7 +206,7 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
               alignItems={{ xs: "flex-start", md: "center" }}
             >
               <Box>
-                <Typography variant="overline" sx={{ letterSpacing: 2, color: "#38bdf8" }}>
+                <Typography variant="overline" sx={{ letterSpacing: 2, color: "#1ED9F2" }}>
                   Secure Quiz Mode
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
@@ -221,14 +221,14 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                   <Chip
                     label={`Timer ${formatSeconds(timeLeft)}`}
                     sx={{
-                      bgcolor: isLastTwoMinutes ? "rgba(239,68,68,0.24)" : "rgba(16,185,129,0.22)",
-                      color: isLastTwoMinutes ? "#fecaca" : "#bbf7d0",
+                      bgcolor: isLastTwoMinutes ? "rgba(239,68,68,0.24)" : "rgba(30, 217, 242,0.22)",
+                      color: isLastTwoMinutes ? "#fecaca" : "#DDF9FF",
                       fontWeight: 700,
                     }}
                   />
                   <Chip
                     label={isFullscreen ? "Fullscreen active" : "Fullscreen recommended"}
-                    sx={{ bgcolor: "rgba(34,197,94,0.16)", color: "#bbf7d0" }}
+                    sx={{ bgcolor: "rgba(34,197,94,0.16)", color: "#DDF9FF" }}
                   />
                 </Stack>
               </Box>
@@ -256,7 +256,7 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                   borderRadius: 3,
                   bgcolor: "rgba(251, 191, 36, 0.14)",
                   color: "#fde68a",
-                  "& .MuiAlert-icon": { color: "#fbbf24" },
+                  "& .MuiAlert-icon": { color: "#A38CFF" },
                 }}
               >
                 {fullscreenNotice}
@@ -284,7 +284,7 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                   borderRadius: 3,
                   bgcolor: "rgba(56,189,248,0.12)",
                   color: "#bae6fd",
-                  "& .MuiAlert-icon": { color: "#38bdf8" },
+                  "& .MuiAlert-icon": { color: "#1ED9F2" },
                 }}
               >
                 Time is up. Your quiz is being submitted automatically.
@@ -314,7 +314,7 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                   bgcolor: "rgba(148,163,184,0.16)",
                   "& .MuiLinearProgress-bar": {
                     borderRadius: 999,
-                    background: "linear-gradient(90deg, #38bdf8, #818cf8)",
+                    background: "linear-gradient(90deg, #1ED9F2, #A38CFF)",
                   },
                 }}
               />
@@ -362,12 +362,12 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                               py: 2,
                               borderRadius: 3,
                               border: "2px solid",
-                              borderColor: isSelected ? "#4f46e5" : "#cbd5e1",
+                              borderColor: isSelected ? "#7655F6" : "#cbd5e1",
                               background: isSelected ? "rgba(79,70,229,0.12)" : "#fff",
                               transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
                               cursor: "pointer",
                               "&:hover": {
-                                borderColor: "#4f46e5",
+                                borderColor: "#7655F6",
                                 background: isSelected ? "rgba(79,70,229,0.15)" : "rgba(79,70,229,0.08)",
                                 transform: "translateY(-2px)",
                                 boxShadow: "0 4px 12px rgba(79,70,229,0.15)",
@@ -379,9 +379,9 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                               control={
                                 <Radio
                                   sx={{
-                                    color: isSelected ? "#4f46e5" : "#cbd5e1",
+                                    color: isSelected ? "#7655F6" : "#cbd5e1",
                                     "&.Mui-checked": {
-                                      color: "#4f46e5",
+                                      color: "#7655F6",
                                     },
                                   }}
                                 />
@@ -396,8 +396,8 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                                       alignItems: "center",
                                       justifyContent: "center",
                                       borderRadius: "50%",
-                                      background: isSelected ? "#4f46e5" : "rgba(79,70,229,0.1)",
-                                      color: isSelected ? "white" : "#4f46e5",
+                                      background: isSelected ? "#7655F6" : "rgba(79,70,229,0.1)",
+                                      color: isSelected ? "white" : "#7655F6",
                                       fontWeight: 700,
                                       fontSize: "0.9rem",
                                     }}
@@ -461,7 +461,7 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                     borderRadius: 999,
                     px: 3.5,
                     py: 1.25,
-                    background: "linear-gradient(90deg, #0ea5e9, #4f46e5)",
+                    background: "linear-gradient(90deg, #148CFF, #7655F6)",
                   }}
                 >
                   Next Question
@@ -476,7 +476,7 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
                     borderRadius: 999,
                     px: 3.5,
                     py: 1.25,
-                    background: "linear-gradient(90deg, #10b981, #0ea5e9)",
+                    background: "linear-gradient(90deg, #1ED9F2, #148CFF)",
                   }}
                 >
                   {submitting ? "Submitting..." : "Submit Quiz"}

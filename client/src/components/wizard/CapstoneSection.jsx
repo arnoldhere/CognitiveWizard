@@ -24,7 +24,7 @@ export default function CapstoneSection({ topic, capstoneData }) {
     <div className="capstone-section-root">
       <div className="capstone-banner-header">
         <div className="capstone-icon-badge">
-          <RocketLaunchIcon sx={{ fontSize: 24, color: "#a855f7" }} />
+          <RocketLaunchIcon sx={{ fontSize: 24, color: "#7655F6" }} />
         </div>
         <div>
           <div className="capstone-tag">Final Mastery Outcome</div>
@@ -55,7 +55,7 @@ export default function CapstoneSection({ topic, capstoneData }) {
           <ul className="capstone-list">
             {capstone.deliverables.map((item, dIdx) => (
               <li key={dIdx}>
-                <TaskAltIcon sx={{ fontSize: 16, color: "#10b981" }} />
+                <TaskAltIcon sx={{ fontSize: 16, color: "#1ED9F2" }} />
                 <span>{item}</span>
               </li>
             ))}
@@ -70,7 +70,7 @@ export default function CapstoneSection({ topic, capstoneData }) {
           <ul className="capstone-list bonus">
             {capstone.bonus_features.map((item, bIdx) => (
               <li key={bIdx}>
-                <StarIcon sx={{ fontSize: 16, color: "#f59e0b" }} />
+                <StarIcon sx={{ fontSize: 16, color: "#A38CFF" }} />
                 <span>{item}</span>
               </li>
             ))}

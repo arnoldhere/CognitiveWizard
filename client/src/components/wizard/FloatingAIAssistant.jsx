@@ -62,7 +62,7 @@ export default function FloatingAIAssistant({ topic, currentPhaseTitle }) {
         <div className="floating-ai-drawer">
           <div className="drawer-header">
             <div className="drawer-header-title">
-              <AutoAwesomeIcon sx={{ color: "#a855f7" }} />
+              <AutoAwesomeIcon sx={{ color: "#7655F6" }} />
               <div>
                 <h4>AI Mentor & Assistant</h4>
                 <span>Active on {topic || "Roadmap"}</span>

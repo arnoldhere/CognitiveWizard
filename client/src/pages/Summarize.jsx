@@ -72,40 +72,40 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
 
     const modeConfig = {
         concise: {
-            icon: <Lightbulb sx={{ fontSize: 24, color: "#F59E0B" }} />,
+            icon: <Lightbulb sx={{ fontSize: 24, color: "#A38CFF" }} />,
             title: "Quick Insight",
             subtitle: "Ultra-concise summary",
             bgColor: "rgba(245, 158, 11, 0.08)",
             borderColor: "rgba(245, 158, 11, 0.28)",
-            accentColor: "#D97706",
-            markerColor: "#F59E0B",
+            accentColor: "#5736C8",
+            markerColor: "#A38CFF",
         },
         brief: {
-            icon: <CheckCircle sx={{ fontSize: 24, color: "#0D9488" }} />,
+            icon: <CheckCircle sx={{ fontSize: 24, color: "#148CFF" }} />,
             title: "Brief Overview",
             subtitle: "Key points summary",
-            bgColor: "rgba(13, 148, 136, 0.08)",
-            borderColor: "rgba(13, 148, 136, 0.28)",
-            accentColor: "#0D9488",
-            markerColor: "#2DD4BF",
+            bgColor: "rgba(20, 140, 255, 0.08)",
+            borderColor: "rgba(20, 140, 255, 0.28)",
+            accentColor: "#148CFF",
+            markerColor: "#1ED9F2",
         },
         summary: {
-            icon: <TrendingUp sx={{ fontSize: 24, color: "#06B6D4" }} />,
+            icon: <TrendingUp sx={{ fontSize: 24, color: "#1ED9F2" }} />,
             title: "Main Summary",
             subtitle: "Balanced overview",
-            bgColor: "rgba(6, 182, 212, 0.08)",
-            borderColor: "rgba(6, 182, 212, 0.28)",
-            accentColor: "#0891B2",
-            markerColor: "#06B6D4",
+            bgColor: "rgba(30, 217, 242, 0.08)",
+            borderColor: "rgba(30, 217, 242, 0.28)",
+            accentColor: "#0BAABD",
+            markerColor: "#1ED9F2",
         },
         detailed: {
-            icon: <AutoAwesome sx={{ fontSize: 24, color: "#F97316" }} />,
+            icon: <AutoAwesome sx={{ fontSize: 24, color: "#7655F6" }} />,
             title: "Detailed Analysis",
             subtitle: "Comprehensive summary",
-            bgColor: "rgba(249, 115, 22, 0.08)",
-            borderColor: "rgba(249, 115, 22, 0.28)",
-            accentColor: "#EA6C0A",
-            markerColor: "#F97316",
+            bgColor: "rgba(118, 85, 246, 0.08)",
+            borderColor: "rgba(118, 85, 246, 0.28)",
+            accentColor: "#5736C8",
+            markerColor: "#7655F6",
         },
     };
 
@@ -131,7 +131,7 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                     borderRadius: 4,
                     background: "rgba(255, 255, 255, 0.90)",
                     border: `1.5px solid ${config.borderColor}`,
-                    boxShadow: `0 12px 40px rgba(13,148,136,0.10), 0 2px 8px rgba(0,0,0,0.03)`,
+                    boxShadow: `0 12px 40px rgba(20, 140, 255,0.10), 0 2px 8px rgba(0,0,0,0.03)`,
                     backdropFilter: "blur(20px)",
                     outline: "1px solid rgba(255,255,255,0.85)",
                 }}
@@ -144,7 +144,7 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                         gap: 2,
                         mb: 3,
                         pb: 3,
-                        borderBottom: "1px solid rgba(13,148,136,0.12)",
+                        borderBottom: "1px solid rgba(20, 140, 255,0.12)",
                     }}
                 >
                     <Box
@@ -165,7 +165,7 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                             variant="h6"
                             fontWeight={800}
                             sx={{
-                                color: "#0F2027",
+                                color: "#07152E",
                                 fontFamily: '"Plus Jakarta Sans", sans-serif',
                             }}
                         >
@@ -198,7 +198,7 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                                                     key={i}
                                                     style={{
                                                         fontWeight: 800,
-                                                        color: "#0F2027",
+                                                        color: "#07152E",
                                                     }}
                                                 >
                                                     {part.replace(/\*\*/g, "")}
@@ -242,7 +242,7 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                 </Box>
 
                 {/* FOOTER STATS */}
-                <Divider sx={{ my: 3, borderColor: "rgba(13,148,136,0.12)" }} />
+                <Divider sx={{ my: 3, borderColor: "rgba(20, 140, 255,0.12)" }} />
                 <Box
                     sx={{
                         display: "flex",
@@ -260,22 +260,22 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                             <Typography
                                 variant="caption"
                                 sx={{
-                                    color: "#7A9BA8",
+                                    color: "#7187A9",
                                     fontSize: "0.72rem",
                                     fontWeight: 600,
-                                    background: "rgba(13,148,136,0.06)",
+                                    background: "rgba(20, 140, 255,0.06)",
                                     px: 1.5,
                                     py: 0.8,
                                     borderRadius: 2,
-                                    border: "1px solid rgba(13,148,136,0.14)",
+                                    border: "1px solid rgba(20, 140, 255,0.14)",
                                 }}
                             >
                                 Tokens:{" "}
-                                <span style={{ color: "#0D9488", fontWeight: 700 }}>
+                                <span style={{ color: "#148CFF", fontWeight: 700 }}>
                                     {tokenUsage.input_tokens || tokenUsage.prompt_tokens || 0}
                                 </span>{" "}
                                 in /{" "}
-                                <span style={{ color: "#F97316", fontWeight: 700 }}>
+                                <span style={{ color: "#7655F6", fontWeight: 700 }}>
                                     {tokenUsage.output_tokens || tokenUsage.completion_tokens || 0}
                                 </span>{" "}
                                 out
@@ -289,17 +289,17 @@ const SummaryDisplay = ({ summary, mode, tokenUsage }) => {
                             sx={{
                                 textTransform: "none",
                                 fontWeight: 700,
-                                color: copied ? "#0D9488" : "#4A6572",
+                                color: copied ? "#148CFF" : "#4D6486",
                                 borderColor: copied
-                                    ? "rgba(13,148,136,0.4)"
-                                    : "rgba(13,148,136,0.22)",
+                                    ? "rgba(20, 140, 255,0.4)"
+                                    : "rgba(20, 140, 255,0.22)",
                                 bgcolor: copied
-                                    ? "rgba(13,148,136,0.06)"
+                                    ? "rgba(20, 140, 255,0.06)"
                                     : "rgba(255,255,255,0.7)",
                                 "&:hover": {
-                                    background: "rgba(13,148,136,0.08)",
-                                    borderColor: "rgba(13,148,136,0.4)",
-                                    color: "#0D9488",
+                                    background: "rgba(20, 140, 255,0.08)",
+                                    borderColor: "rgba(20, 140, 255,0.4)",
+                                    color: "#148CFF",
                                 },
                                 transition: "all 0.2s ease",
                             }}
@@ -414,7 +414,7 @@ export default function SummarizerPage() {
                         fontWeight: 800,
                         letterSpacing: "0.14em",
                         fontSize: "0.75rem",
-                        background: "linear-gradient(90deg, #0D9488, #06B6D4)",
+                        background: "linear-gradient(90deg, #148CFF, #1ED9F2)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                         backgroundClip: "text",
@@ -429,7 +429,7 @@ export default function SummarizerPage() {
                     sx={{
                         fontFamily: '"Plus Jakarta Sans", sans-serif',
                         letterSpacing: "-0.025em",
-                        background: "linear-gradient(135deg, #0F2027 0%, #0D9488 55%, #06B6D4 100%)",
+                        background: "linear-gradient(135deg, #07152E 0%, #148CFF 55%, #1ED9F2 100%)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                         backgroundClip: "text",
@@ -441,7 +441,7 @@ export default function SummarizerPage() {
                 <Typography
                     mt={1.5}
                     sx={{
-                        color: "#4A6572",
+                        color: "#4D6486",
                         fontSize: "1.05rem",
                         lineHeight: 1.7,
                         fontWeight: 500,
@@ -464,8 +464,8 @@ export default function SummarizerPage() {
                     background: "rgba(255, 255, 255, 0.88)",
                     backdropFilter: "blur(24px)",
                     border: "1px solid rgba(255, 255, 255, 0.92)",
-                    outline: "1px solid rgba(13,148,136,0.10)",
-                    boxShadow: "0 16px 50px rgba(13,148,136,0.10), 0 4px 16px rgba(0,0,0,0.03)",
+                    outline: "1px solid rgba(20, 140, 255,0.10)",
+                    boxShadow: "0 16px 50px rgba(20, 140, 255,0.10), 0 4px 16px rgba(0,0,0,0.03)",
                 }}
             >
                 {/* TABS */}
@@ -475,18 +475,18 @@ export default function SummarizerPage() {
                     centered
                     sx={{
                         mb: 4,
-                        borderBottom: "1px solid rgba(13,148,136,0.12)",
+                        borderBottom: "1px solid rgba(20, 140, 255,0.12)",
                         "& .MuiTab-root": {
                             textTransform: "none",
                             fontWeight: 700,
-                            color: "#7A9BA8",
+                            color: "#7187A9",
                             fontFamily: '"Plus Jakarta Sans", sans-serif',
                             "&.Mui-selected": {
-                                color: "#0D9488",
+                                color: "#148CFF",
                             },
                         },
                         "& .MuiTabs-indicator": {
-                            backgroundColor: "#0D9488",
+                            backgroundColor: "#148CFF",
                             height: 3,
                             borderRadius: "3px 3px 0 0",
                         },
@@ -506,7 +506,7 @@ export default function SummarizerPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             sx={{
-                                border: "2px dashed rgba(13,148,136,0.30)",
+                                border: "2px dashed rgba(20, 140, 255,0.30)",
                                 borderRadius: 3,
                                 p: { xs: 3, md: 5 },
                                 textAlign: "center",
@@ -514,26 +514,26 @@ export default function SummarizerPage() {
                                 transition: "all 0.22s ease",
                                 background: "rgba(255,255,255,0.65)",
                                 "&:hover": {
-                                    background: "rgba(13,148,136,0.04)",
-                                    borderColor: "#0D9488",
-                                    boxShadow: "0 4px 16px rgba(13,148,136,0.10)",
+                                    background: "rgba(20, 140, 255,0.04)",
+                                    borderColor: "#148CFF",
+                                    boxShadow: "0 4px 16px rgba(20, 140, 255,0.10)",
                                 },
                             }}
                         >
                             <UploadFile
                                 sx={{
                                     fontSize: 52,
-                                    color: "#2DD4BF",
+                                    color: "#1ED9F2",
                                     mb: 1.5,
-                                    filter: "drop-shadow(0 4px 8px rgba(13,148,136,0.2))",
+                                    filter: "drop-shadow(0 4px 8px rgba(20, 140, 255,0.2))",
                                 }}
                             />
-                            <Typography sx={{ color: "#0F2027", fontWeight: 700, fontSize: "1rem" }}>
+                            <Typography sx={{ color: "#07152E", fontWeight: 700, fontSize: "1rem" }}>
                                 Click or drag file to upload
                             </Typography>
                             <Typography
                                 variant="caption"
-                                sx={{ display: "block", mt: 0.5, color: "#7A9BA8" }}
+                                sx={{ display: "block", mt: 0.5, color: "#7187A9" }}
                             >
                                 PDF & DOCX up to 50MB
                             </Typography>
@@ -551,12 +551,12 @@ export default function SummarizerPage() {
                                         mt: 2.5,
                                         textTransform: "none",
                                         fontWeight: 700,
-                                        color: "#0D9488",
-                                        borderColor: "rgba(13,148,136,0.35)",
+                                        color: "#148CFF",
+                                        borderColor: "rgba(20, 140, 255,0.35)",
                                         borderRadius: 2,
                                         "&:hover": {
-                                            borderColor: "#0D9488",
-                                            background: "rgba(13,148,136,0.06)",
+                                            borderColor: "#148CFF",
+                                            background: "rgba(20, 140, 255,0.06)",
                                         },
                                     }}
                                 >
@@ -574,14 +574,14 @@ export default function SummarizerPage() {
                                         px: 2,
                                         py: 0.8,
                                         borderRadius: 2,
-                                        background: "rgba(13,148,136,0.08)",
-                                        border: "1px solid rgba(13,148,136,0.22)",
+                                        background: "rgba(20, 140, 255,0.08)",
+                                        border: "1px solid rgba(20, 140, 255,0.22)",
                                     }}
                                 >
-                                    <CheckCircle sx={{ fontSize: 16, color: "#0D9488" }} />
+                                    <CheckCircle sx={{ fontSize: 16, color: "#148CFF" }} />
                                     <Typography
                                         sx={{
-                                            color: "#0D9488",
+                                            color: "#148CFF",
                                             fontWeight: 700,
                                             fontSize: "0.88rem",
                                         }}
@@ -657,8 +657,8 @@ export default function SummarizerPage() {
                             fontFamily: '"Plus Jakarta Sans", sans-serif',
                             fontSize: "1rem",
                             color: "#ffffff",
-                            background: "linear-gradient(135deg, #0D9488, #06B6D4)",
-                            boxShadow: "0 6px 22px rgba(13,148,136,0.32)",
+                            background: "linear-gradient(135deg, #148CFF, #1ED9F2)",
+                            boxShadow: "0 6px 22px rgba(20, 140, 255,0.32)",
                             position: "relative",
                             overflow: "hidden",
                             "&::after": {
@@ -674,12 +674,12 @@ export default function SummarizerPage() {
                                 transform: "translateX(100%)",
                             },
                             "&:hover": {
-                                background: "linear-gradient(135deg, #0F9D91, #0891B2)",
-                                boxShadow: "0 10px 30px rgba(13,148,136,0.42)",
+                                background: "linear-gradient(135deg, #148CFF, #0BAABD)",
+                                boxShadow: "0 10px 30px rgba(20, 140, 255,0.42)",
                                 transform: "translateY(-1px)",
                             },
                             "&:disabled": {
-                                background: "rgba(13,148,136,0.25)",
+                                background: "rgba(20, 140, 255,0.25)",
                                 color: "rgba(255,255,255,0.7)",
                                 boxShadow: "none",
                             },

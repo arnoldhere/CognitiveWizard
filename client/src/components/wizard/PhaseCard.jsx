@@ -58,7 +58,7 @@ export default function PhaseCard({
           {topics.length > 0 && (
             <div className="phase-section">
               <div className="phase-section-title">
-                <LightbulbIcon sx={{ fontSize: 18, color: "#eab308" }} />
+                <LightbulbIcon sx={{ fontSize: 18, color: "#A38CFF" }} />
                 <span>Key Concepts & Objectives</span>
               </div>
 
@@ -92,13 +92,13 @@ export default function PhaseCard({
           {deliverables.length > 0 && (
             <div className="phase-section">
               <div className="phase-section-title">
-                <TaskAltIcon sx={{ fontSize: 18, color: "#10b981" }} />
+                <TaskAltIcon sx={{ fontSize: 18, color: "#1ED9F2" }} />
                 <span>Phase Deliverables</span>
               </div>
               <ul className="deliverables-list">
                 {deliverables.map((item, dIdx) => (
                   <li key={dIdx}>
-                    <CheckCircleIcon sx={{ fontSize: 14, color: "#10b981" }} />
+                    <CheckCircleIcon sx={{ fontSize: 14, color: "#1ED9F2" }} />
                     <span>{typeof item === "string" ? item : item.title || item.name}</span>
                   </li>
                 ))}

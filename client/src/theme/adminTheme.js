@@ -3,16 +3,20 @@ import { createTheme } from '@mui/material/styles';
 /**
  * CognitiveWizard Admin Theme
  * ===========================
- * Primary:    #F26F67 (coral),  #1E1E2C (dark navy)
- * Secondary:  #3B8FF3 (blue),   #34B1AA (teal),  #E0B50F (gold)
+ * Derived from the CognitiveWizard logo: midnight navy, electric blue,
+ * cyan starlight, and arcane violet.
  */
 
 const brand = {
-    coral:  { main: '#F26F67', light: '#F59A94', dark: '#D14E46' },
-    navy:   { 50: '#F0F0F5', 100: '#DCDCE6', 200: '#B0B0C8', 300: '#7A7A9C', 400: '#4A4A6A', 500: '#2E2E40', 600: '#262636', 700: '#1E1E2C', 800: '#161622', 900: '#0E0E18', 950: '#08080F' },
-    blue:   { main: '#3B8FF3', light: '#6AABF7', dark: '#2670CC' },
-    teal:   { main: '#34B1AA', light: '#5ECEC7', dark: '#238D87' },
-    gold:   { main: '#E0B50F', light: '#EDD04A', dark: '#B8940A' },
+    azure: { main: '#148CFF', light: '#56B5FF', dark: '#0666D9' },
+    cyan: { main: '#1ED9F2', light: '#71EEFF', dark: '#0BAABD' },
+    violet: { main: '#7655F6', light: '#A38CFF', dark: '#5736C8' },
+    coral: {
+        main: '#FF6B6B',
+        light: '#FF9A8B',
+        dark: '#E54868',
+    },
+    navy: { 50: '#F4F8FF', 100: '#DDE9FC', 200: '#B7C8E5', 300: '#859AB9', 400: '#536B91', 500: '#2C4164', 600: '#1B2B48', 700: '#101D35', 800: '#09142A', 900: '#050D1E', 950: '#020716' },
 };
 
 const sharedTypography = {
@@ -33,13 +37,13 @@ const sharedShape = { shape: { borderRadius: 12 } };
 export const lightAdminTheme = createTheme({
     palette: {
         mode: 'light',
-        background: { default: '#F4F4F8', paper: '#FFFFFF' },
-        primary: { main: brand.coral.main, light: brand.coral.light, dark: brand.coral.dark, contrastText: '#fff' },
-        secondary: { main: brand.blue.main },
-        error: { main: '#E5484D' },
-        warning: { main: brand.gold.main },
-        info: { main: brand.blue.main },
-        success: { main: brand.teal.main },
+        background: { default: '#F5F9FF', paper: '#FFFFFF' },
+        primary: { main: brand.azure.main, light: brand.azure.light, dark: brand.azure.dark, contrastText: '#fff' },
+        secondary: { main: brand.violet.main },
+        error: { main: '#E54868' },
+        warning: { main: brand.violet.main },
+        info: { main: brand.azure.main },
+        success: { main: brand.cyan.dark },
         text: { primary: brand.navy[700], secondary: brand.navy[300] },
         divider: brand.navy[100],
     },
@@ -54,12 +58,12 @@ export const darkAdminTheme = createTheme({
     palette: {
         mode: 'dark',
         background: { default: brand.navy[950], paper: brand.navy[900] },
-        primary: { main: brand.coral.main, light: brand.coral.light, dark: brand.coral.dark, contrastText: '#fff' },
-        secondary: { main: brand.blue.light },
+        primary: { main: brand.azure.main, light: brand.azure.light, dark: brand.azure.dark, contrastText: '#fff' },
+        secondary: { main: brand.violet.light },
         error: { main: '#FF6369' },
-        warning: { main: brand.gold.light },
-        info: { main: brand.blue.light },
-        success: { main: brand.teal.light },
+        warning: { main: brand.violet.light },
+        info: { main: brand.azure.light },
+        success: { main: brand.cyan.light },
         text: { primary: brand.navy[50], secondary: brand.navy[300] },
         divider: 'rgba(176, 176, 200, 0.10)',
     },
@@ -79,11 +83,11 @@ function sharedComponents(mode) {
                     borderRadius: 8,
                     padding: '8px 20px',
                     boxShadow: 'none',
-                    '&:hover': { boxShadow: isDark ? '0 4px 14px rgba(242,111,103,0.35)' : '0 4px 14px rgba(242,111,103,0.25)' },
+                    '&:hover': { boxShadow: isDark ? '0 7px 20px rgba(20,140,255,0.32)' : '0 7px 20px rgba(20,140,255,0.22)' },
                 },
                 contained: {
-                    background: `linear-gradient(135deg, ${brand.coral.main} 0%, ${brand.coral.dark} 100%)`,
-                    '&:hover': { background: `linear-gradient(135deg, ${brand.coral.light} 0%, ${brand.coral.main} 100%)` },
+                    background: `linear-gradient(135deg, ${brand.azure.main} 0%, ${brand.violet.main} 100%)`,
+                    '&:hover': { background: `linear-gradient(135deg, ${brand.cyan.main} 0%, ${brand.azure.main} 55%, ${brand.violet.main} 100%)` },
                 },
             },
         },
@@ -131,12 +135,12 @@ function sharedComponents(mode) {
                     borderRadius: 10,
                     margin: '2px 8px',
                     '&.Mui-selected': {
-                        backgroundColor: isDark ? 'rgba(242,111,103,0.14)' : 'rgba(242,111,103,0.08)',
-                        color: isDark ? brand.coral.light : brand.coral.dark,
-                        '& .MuiListItemIcon-root': { color: isDark ? brand.coral.light : brand.coral.dark },
-                        '&:hover': { backgroundColor: isDark ? 'rgba(242,111,103,0.22)' : 'rgba(242,111,103,0.14)' },
+                        backgroundColor: isDark ? 'rgba(20,140,255,0.16)' : 'rgba(20,140,255,0.09)',
+                        color: isDark ? brand.azure.light : brand.azure.dark,
+                        '& .MuiListItemIcon-root': { color: isDark ? brand.azure.light : brand.azure.dark },
+                        '&:hover': { backgroundColor: isDark ? 'rgba(20,140,255,0.25)' : 'rgba(20,140,255,0.15)' },
                     },
-                    '&:hover': { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(242,111,103,0.05)' },
+                    '&:hover': { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(20,140,255,0.05)' },
                 },
             },
         },
@@ -167,8 +171,17 @@ function sharedComponents(mode) {
         MuiSwitch: {
             styleOverrides: {
                 switchBase: {
-                    '&.Mui-checked': { color: brand.teal.main },
-                    '&.Mui-checked + .MuiSwitch-track': { backgroundColor: brand.teal.main },
+                    '&.Mui-checked': { color: brand.cyan.main },
+                    '&.Mui-checked + .MuiSwitch-track': { backgroundColor: brand.cyan.main },
+                },
+            },
+        },
+        MuiCssBaseline: {
+            styleOverrides: {
+                body: {
+                    background: isDark
+                        ? 'radial-gradient(circle at 85% -10%, rgba(20,140,255,0.18), transparent 28%), radial-gradient(circle at 20% 0%, rgba(118,85,246,0.13), transparent 25%), #020716'
+                        : 'radial-gradient(circle at 85% -10%, rgba(20,140,255,0.12), transparent 30%), #F5F9FF',
                 },
             },
         },

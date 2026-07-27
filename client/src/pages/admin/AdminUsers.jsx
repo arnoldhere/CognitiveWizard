@@ -51,8 +51,9 @@ export default function AdminUsers() {
     return (
         <Box sx={{ pb: 4 }}>
             {/* Header */}
-            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 4, flexWrap: "wrap", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 4, flexWrap: "wrap", gap: 2, p: { xs: 2.5, md: 3 }, borderRadius: 4, border: "1px solid", borderColor: "divider", background: "linear-gradient(115deg, rgba(20,140,255,0.15), rgba(118,85,246,0.10) 58%, rgba(30,217,242,0.06))" }}>
                 <Box>
+                    <Typography variant="overline" sx={{ color: "primary.light", fontWeight: 800, letterSpacing: "0.14em" }}>Access control</Typography>
                     <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>User Management</Typography>
                     <Typography variant="body2" color="text.secondary">
                         Manage platform users and control access permissions
@@ -79,7 +80,7 @@ export default function AdminUsers() {
 
             {loading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
-                    <CircularProgress sx={{ color: "#F26F67" }} />
+                    <CircularProgress color="primary" />
                 </Box>
             ) : (
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
@@ -109,8 +110,8 @@ export default function AdminUsers() {
                                             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                                                 <Avatar sx={{
                                                     width: 34, height: 34, fontSize: "0.8rem", fontWeight: 700,
-                                                    bgcolor: userItem.role === "admin" ? "rgba(242,111,103,0.15)" : "rgba(52,177,170,0.15)",
-                                                    color: userItem.role === "admin" ? "#F26F67" : "#34B1AA",
+                                                    bgcolor: userItem.role === "admin" ? "rgba(20,140,255,0.16)" : "rgba(30,217,242,0.14)",
+                                                    color: userItem.role === "admin" ? "#56B5FF" : "#1ED9F2",
                                                 }}>
                                                     {userItem.full_name?.charAt(0) || userItem.email?.charAt(0)?.toUpperCase()}
                                                 </Avatar>
@@ -128,8 +129,8 @@ export default function AdminUsers() {
                                                 sx={{
                                                     textTransform: "capitalize",
                                                     fontWeight: 700,
-                                                    bgcolor: userItem.role === "admin" ? "rgba(242,111,103,0.12)" : "rgba(176,176,200,0.1)",
-                                                    color: userItem.role === "admin" ? "#F26F67" : "text.secondary",
+                                                    bgcolor: userItem.role === "admin" ? "rgba(20,140,255,0.14)" : "rgba(168,199,255,0.10)",
+                                                    color: userItem.role === "admin" ? "#56B5FF" : "text.secondary",
                                                     border: "none",
                                                     gap: 0.5,
                                                     "& .MuiChip-icon": { marginLeft: "4px" }
@@ -148,8 +149,8 @@ export default function AdminUsers() {
                                                 size="small"
                                                 sx={{
                                                     fontWeight: 700,
-                                                    bgcolor: userItem.is_active ? "rgba(52,177,170,0.12)" : "rgba(242,111,103,0.12)",
-                                                    color: userItem.is_active ? "#34B1AA" : "#F26F67",
+                                                    bgcolor: userItem.is_active ? "rgba(30,217,242,0.14)" : "rgba(255,99,126,0.12)",
+                                                    color: userItem.is_active ? "#1ED9F2" : "#FF637E",
                                                     border: "none",
                                                     gap: 0.5,
                                                     "& .MuiChip-icon": { marginLeft: "4px" }
@@ -158,7 +159,7 @@ export default function AdminUsers() {
                                         </TableCell>
                                         <TableCell align="center">
                                             {updating === userItem.id ? (
-                                                <CircularProgress size={20} sx={{ color: "#F26F67" }} />
+                                                <CircularProgress size={20} color="primary" />
                                             ) : (
                                                 <Switch
                                                     checked={userItem.is_active}
@@ -166,8 +167,8 @@ export default function AdminUsers() {
                                                     disabled={userItem.role === "admin"}
                                                     size="small"
                                                     sx={{
-                                                        "& .MuiSwitch-switchBase.Mui-checked": { color: "#34B1AA" },
-                                                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#34B1AA" },
+                                                        "& .MuiSwitch-switchBase.Mui-checked": { color: "#1ED9F2" },
+                                                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#1ED9F2" },
                                                     }}
                                                 />
                                             )}

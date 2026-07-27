@@ -41,7 +41,7 @@ const ModuleItem = ({ mod, type }) => {
   const [expanded, setExpanded] = useState(false);
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "16px", padding: "24px", position: "relative", overflow: "hidden", transition: "all 0.3s", cursor: "pointer" }} onClick={() => setExpanded(!expanded)} className="hover-lift">
-      <div style={{ position: "absolute", top: 0, left: 0, width: "6px", height: "100%", background: "linear-gradient(to bottom, #7c3aed, #06b6d4)" }} />
+      <div style={{ position: "absolute", top: 0, left: 0, width: "6px", height: "100%", background: "linear-gradient(to bottom, #5736C8, #1ED9F2)" }} />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
         <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 800, color: "var(--text)" }}>{mod.title}</h3>
@@ -62,7 +62,7 @@ const ModuleItem = ({ mod, type }) => {
       {expanded && mod.key_takeaways && mod.key_takeaways.length > 0 && (
         <div style={{ marginBottom: "20px" }}>
           <h4 style={{ margin: "0 0 8px", color: "var(--text)", fontSize: "0.95rem" }}>Key Takeaways:</h4>
-          <ul style={{ margin: 0, paddingLeft: "20px", color: "#a855f7", fontSize: "0.95rem" }}>
+          <ul style={{ margin: 0, paddingLeft: "20px", color: "#7655F6", fontSize: "0.95rem" }}>
             {mod.key_takeaways.map((k, i) => <li key={i}>{k}</li>)}
           </ul>
         </div>
@@ -72,11 +72,11 @@ const ModuleItem = ({ mod, type }) => {
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {mod.topics.map((topic, idx) => (
             <div key={idx} style={{
-              background: "rgba(6, 182, 212, 0.05)",
+              background: "rgba(30, 217, 242, 0.05)",
               padding: "16px", borderRadius: "12px",
-              border: "1px solid rgba(6, 182, 212, 0.1)"
+              border: "1px solid rgba(30, 217, 242, 0.1)"
             }}>
-              <h4 style={{ margin: "0 0 6px", color: "#22d3ee", fontSize: "1rem", fontWeight: 700 }}>
+              <h4 style={{ margin: "0 0 6px", color: "#1ED9F2", fontSize: "1rem", fontWeight: 700 }}>
                 {topic.name || topic}
               </h4>
               {(topic.details || topic.content) && (
@@ -85,7 +85,7 @@ const ModuleItem = ({ mod, type }) => {
                 </p>
               )}
               {topic.practical_task && (
-                <div style={{ marginTop: "12px", padding: "8px 12px", background: "rgba(16, 185, 129, 0.1)", borderRadius: "6px", color: "#10b981", fontSize: "0.85rem", fontWeight: 600 }}>
+                <div style={{ marginTop: "12px", padding: "8px 12px", background: "rgba(30, 217, 242, 0.1)", borderRadius: "6px", color: "#1ED9F2", fontSize: "0.85rem", fontWeight: 600 }}>
                   <TaskAltIcon sx={{ fontSize: "1rem", marginRight: "4px", verticalAlign: "middle" }} />
                   Task: {topic.practical_task}
                 </div>
@@ -244,7 +244,7 @@ export default function WizardModule() {
     return (
       <div style={{ animation: "fadeIn 0.5s ease", width: "100%", maxWidth: "800px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: "48px" }}>
-          <span style={{ display: "inline-block", background: "rgba(6, 182, 212, 0.1)", color: "#06b6d4", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <span style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             {data.content_type}
           </span>
           <h1 style={{ fontSize: "2.8rem", fontWeight: 900, color: "var(--text)", marginBottom: "16px", lineHeight: 1.2 }}>
@@ -278,7 +278,7 @@ export default function WizardModule() {
           </p>
           {setsLoading ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>
-              <CircularProgress size={36} sx={{ color: "#06b6d4" }} />
+              <CircularProgress size={36} sx={{ color: "#1ED9F2" }} />
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -292,12 +292,12 @@ export default function WizardModule() {
                   style={{
                     display: "flex", alignItems: "center", padding: "20px 24px",
                     borderRadius: "12px", cursor: "pointer", transition: "all 0.2s ease",
-                    background: answers.contentType === type.content_type ? "rgba(6, 182, 212, 0.1)" : "var(--surface-soft)",
-                    border: answers.contentType === type.content_type ? "1px solid #06b6d4" : "1px solid var(--border)"
+                    background: answers.contentType === type.content_type ? "rgba(30, 217, 242, 0.1)" : "var(--surface-soft)",
+                    border: answers.contentType === type.content_type ? "1px solid #1ED9F2" : "1px solid var(--border)"
                   }}
                   className="wiz-hover-card"
                 >
-                  <div style={{ color: answers.contentType === type.content_type ? "#06b6d4" : "var(--primary-light)", marginRight: "20px" }}>
+                  <div style={{ color: answers.contentType === type.content_type ? "#1ED9F2" : "var(--primary-light)", marginRight: "20px" }}>
                     {getIcon(type.icon)}
                   </div>
                   <div style={{ flex: 1 }}>
@@ -316,7 +316,7 @@ export default function WizardModule() {
     if (step === 1) {
       return (
         <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
-          <div style={{ display: "inline-block", background: "rgba(6, 182, 212, 0.1)", color: "#06b6d4", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "24px" }}>
+          <div style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "24px" }}>
             {answers.contentType}
           </div>
           <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)" }}>What is the topic?</h2>
@@ -365,8 +365,8 @@ export default function WizardModule() {
                   style={{
                     padding: "16px 24px", borderRadius: "12px", fontSize: "1.05rem",
                     background: answers[ansKey] === opt ? "rgba(168, 85, 247, 0.15)" : "var(--surface-soft)",
-                    border: answers[ansKey] === opt ? "1px solid #a855f7" : "1px solid var(--border)",
-                    color: answers[ansKey] === opt ? "#c084fc" : "var(--text)",
+                    border: answers[ansKey] === opt ? "1px solid #7655F6" : "1px solid var(--border)",
+                    color: answers[ansKey] === opt ? "#A38CFF" : "var(--text)",
                     fontWeight: 600, cursor: "pointer", transition: "all 0.2s", textAlign: "center"
                   }}
                 >
@@ -389,16 +389,16 @@ export default function WizardModule() {
                     }}
                     style={{
                       padding: "16px 24px", borderRadius: "12px", fontSize: "1.05rem",
-                      background: selected ? "rgba(6, 182, 212, 0.15)" : "var(--surface-soft)",
-                      border: selected ? "1px solid #06b6d4" : "1px solid var(--border)",
-                      color: selected ? "#06b6d4" : "var(--text)",
+                      background: selected ? "rgba(30, 217, 242, 0.15)" : "var(--surface-soft)",
+                      border: selected ? "1px solid #1ED9F2" : "1px solid var(--border)",
+                      color: selected ? "#1ED9F2" : "var(--text)",
                       fontWeight: 600, cursor: "pointer", transition: "all 0.2s", textAlign: "left",
                       display: "flex", alignItems: "center", gap: "12px"
                     }}
                   >
                     <span style={{
-                      width: 18, height: 18, borderRadius: 4, border: `2px solid ${selected ? "#06b6d4" : "var(--border)"}`,
-                      background: selected ? "#06b6d4" : "transparent", display: "inline-flex",
+                      width: 18, height: 18, borderRadius: 4, border: `2px solid ${selected ? "#1ED9F2" : "var(--border)"}`,
+                      background: selected ? "#1ED9F2" : "transparent", display: "inline-flex",
                       alignItems: "center", justifyContent: "center", flexShrink: 0
                     }}>
                       {selected && <span style={{ color: "#fff", fontSize: 12, fontWeight: 900 }}>✓</span>}
@@ -433,7 +433,7 @@ export default function WizardModule() {
     if (step === 2 + activeQuestions.length) {
       return (
         <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
-          <div style={{ display: "inline-block", background: "rgba(16, 185, 129, 0.1)", color: "#10b981", padding: "12px", borderRadius: "50%", marginBottom: "24px" }}>
+          <div style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "12px", borderRadius: "50%", marginBottom: "24px" }}>
             <AutoAwesomeIcon sx={{ fontSize: 40 }} />
           </div>
           <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)" }}>Ready to Generate</h2>
@@ -445,7 +445,7 @@ export default function WizardModule() {
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               <div>
                 <div style={{ color: "var(--text-light)", fontSize: "0.85rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Format</div>
-                <div style={{ color: "#06b6d4", fontWeight: 700, fontSize: "1.1rem" }}>{answers.contentType}</div>
+                <div style={{ color: "#1ED9F2", fontWeight: 700, fontSize: "1.1rem" }}>{answers.contentType}</div>
               </div>
               <div>
                 <div style={{ color: "var(--text-light)", fontSize: "0.85rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Topic</div>
@@ -505,7 +505,7 @@ export default function WizardModule() {
                     {Array.from({ length: activeQuestions.length > 0 ? 3 + activeQuestions.length : 1 }).map((_, idx) => (
                       <div key={idx} style={{
                         width: "24px", height: "4px", borderRadius: "2px",
-                        background: idx === step ? "#06b6d4" : idx < step ? "rgba(6, 182, 212, 0.3)" : "rgba(255,255,255,0.1)",
+                        background: idx === step ? "#1ED9F2" : idx < step ? "rgba(30, 217, 242, 0.3)" : "rgba(255,255,255,0.1)",
                         transition: "all 0.3s ease"
                       }} />
                     ))}
@@ -519,12 +519,12 @@ export default function WizardModule() {
 
                 <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
                   {step > 0 && step < (2 + activeQuestions.length) && (
-                    <button onClick={handleNext} className="btn-primary" style={{ padding: "14px 40px", fontSize: "1.1rem", borderRadius: "30px", background: "linear-gradient(135deg, #7c3aed, #06b6d4)", minWidth: "200px" }}>
+                    <button onClick={handleNext} className="btn-primary" style={{ padding: "14px 40px", fontSize: "1.1rem", borderRadius: "30px", background: "linear-gradient(135deg, #5736C8, #1ED9F2)", minWidth: "200px" }}>
                       Continue
                     </button>
                   )}
                   {step === (2 + activeQuestions.length) && (
-                    <button onClick={handleGenerate} className="btn-primary" style={{ padding: "14px 40px", fontSize: "1.1rem", borderRadius: "30px", background: "linear-gradient(135deg, #10b981, #059669)", minWidth: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <button onClick={handleGenerate} className="btn-primary" style={{ padding: "14px 40px", fontSize: "1.1rem", borderRadius: "30px", background: "linear-gradient(135deg, #1ED9F2, #0BAABD)", minWidth: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <AutoAwesomeIcon style={{ marginRight: "8px" }} /> Generate Now
                     </button>
                   )}
@@ -537,7 +537,7 @@ export default function WizardModule() {
               <div style={{ animation: "fadeIn 0.5s ease", width: "100%" }}>
                 {isLoading ? (
                   <div style={{ textAlign: "center", padding: "100px 0" }}>
-                    <CircularProgress size={60} thickness={4} sx={{ color: "#06b6d4", marginBottom: "32px" }} />
+                    <CircularProgress size={60} thickness={4} sx={{ color: "#1ED9F2", marginBottom: "32px" }} />
                     <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>Generating {answers.contentType}...</h2>
                     <p style={{ color: "var(--text-light)", fontSize: "1.1rem" }}>This usually takes a few seconds.</p>
                   </div>
@@ -547,7 +547,7 @@ export default function WizardModule() {
                       <button onClick={startOver} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", color: "var(--text)", padding: "10px 20px", borderRadius: "20px", cursor: "pointer", display: "flex", alignItems: "center", fontWeight: 600, transition: "all 0.2s" }} className="hover-bg-surface">
                         <ArrowBackIcon style={{ fontSize: "1.1rem", marginRight: "6px" }} /> Start Over
                       </button>
-                      {message && <div style={{ display: "flex", alignItems: "center", color: "#10b981", fontWeight: 600, fontSize: "0.95rem" }}><CheckCircleIcon style={{ fontSize: "1.2rem", marginRight: "6px" }} /> Done</div>}
+                      {message && <div style={{ display: "flex", alignItems: "center", color: "#1ED9F2", fontWeight: 600, fontSize: "0.95rem" }}><CheckCircleIcon style={{ fontSize: "1.2rem", marginRight: "6px" }} /> Done</div>}
                     </div>
 
                     {renderContentData(generatedData)}
@@ -568,7 +568,7 @@ export default function WizardModule() {
 
             {isHistoryLoading ? (
               <div style={{ textAlign: "center", padding: "60px 0" }}>
-                <CircularProgress size={40} sx={{ color: "#06b6d4" }} />
+                <CircularProgress size={40} sx={{ color: "#1ED9F2" }} />
               </div>
             ) : historyItems.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 0", background: "var(--surface-soft)", borderRadius: "16px", border: "1px dashed var(--border)" }}>
@@ -581,7 +581,7 @@ export default function WizardModule() {
                 {historyItems.map(item => (
                   <div key={item.id} onClick={() => setSelectedHistoryItem(item)} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", transition: "all 0.2s" }} className="hover-lift">
                     <div>
-                      <div style={{ display: "inline-block", background: "rgba(6, 182, 212, 0.1)", color: "#06b6d4", padding: "4px 10px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 700, marginBottom: "8px", textTransform: "uppercase" }}>
+                      <div style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "4px 10px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 700, marginBottom: "8px", textTransform: "uppercase" }}>
                         {item.content_type}
                       </div>
                       <h4 style={{ margin: "0 0 4px", fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>{item.topic}</h4>
@@ -615,11 +615,11 @@ export default function WizardModule() {
         __html: `
         .wiz-hover-card:hover {
           transform: translateY(-2px);
-          border-color: #06b6d4 !important;
-          background: rgba(6, 182, 212, 0.05) !important;
+          border-color: #1ED9F2 !important;
+          background: rgba(30, 217, 242, 0.05) !important;
         }
         .wiz-input-clean:focus {
-          border-bottom-color: #06b6d4 !important;
+          border-bottom-color: #1ED9F2 !important;
         }
         .hover-lift:hover {
           transform: translateY(-4px);

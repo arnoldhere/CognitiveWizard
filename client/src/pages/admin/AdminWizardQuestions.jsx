@@ -21,10 +21,10 @@ import {
 
 // Palette
 const palette = {
-    coral: "#F26F67",
-    teal: "#34B1AA",
-    blue: "#3B8FF3",
-    gold: "#E0B50F",
+    coral: "#148CFF",
+    teal: "#1ED9F2",
+    blue: "#7655F6",
+    gold: "#A8C7FF",
 };
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -526,8 +526,9 @@ export default function AdminWizardQuestions() {
     return (
         <Box sx={{ pb: 6 }}>
             {/* Header */}
-            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 4, flexWrap: "wrap", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 4, flexWrap: "wrap", gap: 2, p: { xs: 2.5, md: 3 }, borderRadius: 4, border: "1px solid", borderColor: "divider", background: "linear-gradient(115deg, rgba(30,217,242,0.12), rgba(20,140,255,0.14) 52%, rgba(118,85,246,0.13))" }}>
                 <Box>
+                    <Typography variant="overline" sx={{ color: "primary.light", fontWeight: 800, letterSpacing: "0.14em" }}>Wizard orchestration</Typography>
                     <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Wizard Question Sets</Typography>
                     <Typography variant="body2" color="text.secondary">
                         Manage the questions shown to users in the AI Content Wizard — per content type.
@@ -633,8 +634,8 @@ export default function AdminWizardQuestions() {
 
                                                 <Tooltip title="Delete">
                                                     <IconButton size="small" onClick={() => setDeleteTarget(set)}
-                                                        sx={{ bgcolor: "rgba(242,111,103,0.12)", "&:hover": { bgcolor: "rgba(242,111,103,0.24)" } }}>
-                                                        <Trash2 size={16} color={palette.coral} />
+                                                        sx={{ bgcolor: "rgba(255,99,126,0.12)", "&:hover": { bgcolor: "rgba(255,99,126,0.24)" } }}>
+                                                        <Trash2 size={16} color="#FF637E" />
                                                     </IconButton>
                                                 </Tooltip>
 

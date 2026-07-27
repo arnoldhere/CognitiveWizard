@@ -15,10 +15,10 @@ import { motion } from "framer-motion";
 import { getLLMConfigs, updateLLMConfig } from "../../services/admin";
 
 const palette = {
-    coral: "#F26F67",
-    teal:  "#34B1AA",
-    blue:  "#3B8FF3",
-    gold:  "#E0B50F",
+    coral: "#148CFF",
+    teal:  "#1ED9F2",
+    blue:  "#7655F6",
+    gold:  "#A8C7FF",
 };
 
 const PARAM_META = {
@@ -110,7 +110,7 @@ function ConfigCard({ config, index, onChange, onSave, saving }) {
                             sx={{
                                 color: palette.coral,
                                 "& .MuiSlider-thumb": { width: 14, height: 14 },
-                                "& .MuiSlider-track": { background: `linear-gradient(90deg, ${palette.coral}, #F59A94)` }
+                                "& .MuiSlider-track": { background: `linear-gradient(90deg, ${palette.coral}, #1ED9F2)` }
                             }}
                         />
                     </Box>
@@ -274,7 +274,8 @@ export default function AdminLLMConfigs() {
 
     return (
         <Box sx={{ pb: 4 }}>
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 4, p: { xs: 2.5, md: 3 }, borderRadius: 4, border: "1px solid", borderColor: "divider", background: "linear-gradient(115deg, rgba(118,85,246,0.18), rgba(20,140,255,0.12) 58%, rgba(30,217,242,0.06))" }}>
+                <Typography variant="overline" sx={{ color: "secondary.main", fontWeight: 800, letterSpacing: "0.14em" }}>Model operations</Typography>
                 <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>LLM Configurations</Typography>
                 <Typography variant="body2" color="text.secondary">
                     Fine-tune AI model parameters per task — changes apply to the next request cycle.

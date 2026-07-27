@@ -115,7 +115,7 @@ export default function AdminLayout() {
                                 {isActive && (
                                     <Box sx={{
                                         width: 3, height: 20, borderRadius: 2,
-                                        background: "linear-gradient(180deg, #F26F67, #D14E46)",
+                                        background: "linear-gradient(180deg, #1ED9F2, #148CFF 52%, #7655F6)",
                                         ml: 1,
                                     }} />
                                 )}
@@ -131,12 +131,12 @@ export default function AdminLayout() {
             <Box sx={{ p: 2 }}>
                 <Box sx={{
                     display: "flex", alignItems: "center", gap: 1.5, p: 1.5,
-                    borderRadius: 2.5, bgcolor: isDark ? "rgba(242,111,103,0.06)" : "rgba(242,111,103,0.04)",
-                    border: "1px solid", borderColor: isDark ? "rgba(242,111,103,0.12)" : "rgba(242,111,103,0.10)",
+                    borderRadius: 2.5, bgcolor: isDark ? "rgba(20,140,255,0.08)" : "rgba(20,140,255,0.05)",
+                    border: "1px solid", borderColor: isDark ? "rgba(30,217,242,0.16)" : "rgba(20,140,255,0.13)",
                 }}>
                     <Avatar sx={{
                         width: 34, height: 34, fontSize: "0.85rem", fontWeight: 700,
-                        background: "linear-gradient(135deg, #F26F67, #D14E46)",
+                        background: "linear-gradient(135deg, #1ED9F2, #148CFF 55%, #7655F6)",
                     }}>{avatarLetter}</Avatar>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography variant="body2" fontWeight={600} noWrap>
@@ -170,7 +170,7 @@ export default function AdminLayout() {
                         left: { md: drawerWidth },
                         px: { xs: 2, md: 3 }, py: 1,
                         display: "flex", alignItems: "center", gap: 2,
-                        bgcolor: isDark ? "rgba(8,8,15,0.85)" : "rgba(255,255,255,0.88)",
+                        bgcolor: isDark ? "rgba(2,7,22,0.84)" : "rgba(255,255,255,0.88)",
                         backdropFilter: "blur(12px)",
                         borderBottom: "1px solid",
                         borderColor: isDark ? "rgba(176,176,200,0.08)" : "rgba(220,220,230,0.8)",
@@ -217,8 +217,8 @@ export default function AdminLayout() {
                         <IconButton onClick={handleMenu} sx={{ p: 0 }}>
                             <Avatar sx={{
                                 width: 34, height: 34, fontSize: "0.85rem", fontWeight: 700,
-                                background: "linear-gradient(135deg, #F26F67, #D14E46)",
-                                boxShadow: "0 2px 8px rgba(242,111,103,0.35)",
+                                background: "linear-gradient(135deg, #1ED9F2, #148CFF 55%, #7655F6)",
+                                boxShadow: "0 2px 12px rgba(20,140,255,0.4)",
                             }}>{avatarLetter}</Avatar>
                         </IconButton>
                     </Tooltip>

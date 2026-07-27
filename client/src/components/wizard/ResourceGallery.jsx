@@ -11,10 +11,10 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 const CATEGORY_MAP = {
   youtube: { label: "Videos", icon: <YouTubeIcon sx={{ color: "#ef4444" }} /> },
-  article: { label: "Articles", icon: <ArticleIcon sx={{ color: "#3b82f6" }} /> },
-  official_docs: { label: "Documentation", icon: <MenuBookIcon sx={{ color: "#8b5cf6" }} /> },
-  course: { label: "Courses & Repos", icon: <SchoolIcon sx={{ color: "#10b981" }} /> },
-  research_paper: { label: "Research Papers", icon: <DescriptionIcon sx={{ color: "#f59e0b" }} /> },
+  article: { label: "Articles", icon: <ArticleIcon sx={{ color: "#148CFF" }} /> },
+  official_docs: { label: "Documentation", icon: <MenuBookIcon sx={{ color: "#7655F6" }} /> },
+  course: { label: "Courses & Repos", icon: <SchoolIcon sx={{ color: "#1ED9F2" }} /> },
+  research_paper: { label: "Research Papers", icon: <DescriptionIcon sx={{ color: "#A38CFF" }} /> },
 };
 
 function getYoutubeThumbnail(url) {
@@ -169,7 +169,7 @@ export default function ResourceGallery({ topic, references = {} }) {
                   </div>
                   {item.relevance_score > 0 && (
                     <div className="resource-score-pill">
-                      <StarIcon sx={{ fontSize: 12, color: "#f59e0b" }} />
+                      <StarIcon sx={{ fontSize: 12, color: "#A38CFF" }} />
                       <span>{Math.round(item.relevance_score * 100)}% Match</span>
                     </div>
                   )}

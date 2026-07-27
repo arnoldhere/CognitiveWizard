@@ -5,12 +5,12 @@
   margin: 28px auto 56px;
   padding: 32px;
   border: 1px solid rgba(255, 255, 255, 0.90);
-  outline: 1px solid rgba(13, 148, 136, 0.10);
+  outline: 1px solid rgba(20, 140, 255, 0.10);
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  box-shadow: 0 20px 70px rgba(13, 148, 136, 0.10), 0 4px 20px rgba(13, 148, 136, 0.05);
+  box-shadow: 0 20px 70px rgba(20, 140, 255, 0.10), 0 4px 20px rgba(20, 140, 255, 0.05);
   overflow: hidden;
 }
 
@@ -19,8 +19,8 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(rgba(13, 148, 136, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(13, 148, 136, 0.04) 1px, transparent 1px);
+    linear-gradient(rgba(20, 140, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 140, 255, 0.04) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: linear-gradient(180deg, rgba(0,0,0,0.6), transparent 100%);
   pointer-events: none;
@@ -33,7 +33,7 @@
   top: -80px; right: -80px;
   width: 300px; height: 300px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(13, 148, 136, 0.10) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(20, 140, 255, 0.10) 0%, transparent 70%);
   pointer-events: none;
   filter: blur(40px);
   animation: orbDrift 14s ease-in-out infinite;
@@ -44,7 +44,7 @@
   bottom: -60px; left: -60px;
   width: 260px; height: 260px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.09) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(30, 217, 242, 0.09) 0%, transparent 70%);
   pointer-events: none;
   filter: blur(40px);
   animation: orbDrift 18s ease-in-out infinite reverse;
@@ -61,11 +61,11 @@
   margin-bottom: 32px;
   padding: 32px 40px;
   border: 1px solid rgba(255, 255, 255, 0.92);
-  outline: 1px solid rgba(13, 148, 136, 0.12);
+  outline: 1px solid rgba(20, 140, 255, 0.12);
   border-radius: 20px;
   background: linear-gradient(135deg,
-    rgba(13, 148, 136, 0.08) 0%,
-    rgba(6, 182, 212, 0.05) 50%,
+    rgba(20, 140, 255, 0.08) 0%,
+    rgba(30, 217, 242, 0.05) 50%,
     rgba(255, 255, 255, 0.60) 100%);
   backdrop-filter: blur(16px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
@@ -76,7 +76,7 @@
   content: "";
   position: absolute; top: -40px; right: -40px;
   width: 200px; height: 200px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(13,148,136,0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(20, 140, 255,0.12) 0%, transparent 70%);
   pointer-events: none; filter: blur(30px);
   animation: float 8s ease-in-out infinite;
 }
@@ -86,14 +86,14 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  background: linear-gradient(90deg, #0D9488, #06B6D4);
+  background: linear-gradient(90deg, #148CFF, #1ED9F2);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .chatbot-hero h1 {
   margin: 0 0 14px;
-  color: #0F2027;
+  color: #07152E;
   font-size: clamp(1.8rem, 3.5vw, 2.8rem);
   line-height: 1.1;
   font-weight: 900;
@@ -102,7 +102,7 @@
 .chatbot-hero p {
   margin: 0;
   max-width: 760px;
-  color: #4A6572;
+  color: #4D6486;
   font-size: 1rem;
   line-height: 1.7;
 }
@@ -122,20 +122,20 @@
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.92);
-  outline: 1px solid rgba(13, 148, 136, 0.10);
-  box-shadow: 0 8px 30px rgba(13, 148, 136, 0.07);
+  outline: 1px solid rgba(20, 140, 255, 0.10);
+  box-shadow: 0 8px 30px rgba(20, 140, 255, 0.07);
   backdrop-filter: blur(20px);
 }
 .rag-panel-header h2 {
   margin: 0 0 6px;
-  color: #0F2027;
+  color: #07152E;
   font-size: 1.05rem;
   font-weight: 700;
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 .rag-panel-header p {
   margin: 0;
-  color: #7A9BA8;
+  color: #7187A9;
   font-size: 0.88rem;
   line-height: 1.6;
 }

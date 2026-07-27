@@ -11,7 +11,7 @@
 
 .file-upload-input-label {
   font-size: 0.88rem;
-  color: #4A6572;
+  color: #4D6486;
   font-weight: 700;
   letter-spacing: 0.02em;
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -20,10 +20,10 @@
 /* ─── FILE DROP ZONE ─── */
 .file-upload-form input[type="file"] {
   width: 100%;
-  border: 2px dashed rgba(13, 148, 136, 0.28);
+  border: 2px dashed rgba(20, 140, 255, 0.28);
   border-radius: 14px;
   padding: 20px 16px;
-  color: #0F2027;
+  color: #07152E;
   background: rgba(255, 255, 255, 0.65);
   backdrop-filter: blur(10px);
   transition: all 0.22s ease;
@@ -31,14 +31,14 @@
   cursor: pointer;
 }
 .file-upload-form input[type="file"]:hover {
-  border-color: rgba(13, 148, 136, 0.50);
-  background: rgba(13, 148, 136, 0.04);
-  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.08);
+  border-color: rgba(20, 140, 255, 0.50);
+  background: rgba(20, 140, 255, 0.04);
+  box-shadow: 0 4px 16px rgba(20, 140, 255, 0.08);
 }
 .file-upload-form input[type="file"]:focus {
   outline: none;
-  border-color: #0D9488;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.14);
+  border-color: #148CFF;
+  box-shadow: 0 0 0 3px rgba(20, 140, 255, 0.14);
   background: rgba(255, 255, 255, 0.90);
 }
 
@@ -49,7 +49,7 @@
   gap: 12px;
   flex-wrap: wrap;
   font-size: 0.82rem;
-  color: #7A9BA8;
+  color: #7187A9;
   font-weight: 500;
 }
 
@@ -58,13 +58,13 @@
   border: none;
   border-radius: 12px;
   padding: 14px 18px;
-  background: linear-gradient(135deg, #0D9488, #0F766E);
+  background: linear-gradient(135deg, #148CFF, #0666D9);
   color: #fff;
   font-weight: 700;
   font-size: 0.92rem;
   cursor: pointer;
   transition: all 0.22s ease;
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.28);
+  box-shadow: 0 4px 14px rgba(20, 140, 255, 0.28);
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
   position: relative;
   overflow: hidden;
@@ -79,7 +79,7 @@
 .file-upload-form button:hover:not(:disabled)::after { transform: translateX(100%) }
 .file-upload-form button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(13, 148, 136, 0.38);
+  box-shadow: 0 8px 24px rgba(20, 140, 255, 0.38);
 }
 .file-upload-form button:disabled {
   opacity: 0.5;
@@ -93,9 +93,9 @@
   margin: 12px 0 0;
   padding: 13px 16px;
   border-radius: 12px;
-  border: 1px solid rgba(13, 148, 136, 0.28);
-  background: rgba(13, 148, 136, 0.08);
-  color: #0D9488;
+  border: 1px solid rgba(20, 140, 255, 0.28);
+  background: rgba(20, 140, 255, 0.08);
+  color: #148CFF;
   font-size: 0.88rem;
   line-height: 1.5;
   font-weight: 600;

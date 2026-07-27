@@ -55,7 +55,7 @@ export default function ReadingSection({ topic, references = {} }) {
               </div>
               {item.relevance_score && (
                 <div className="score-badge">
-                  <StarIcon sx={{ fontSize: 12, color: "#f59e0b" }} />
+                  <StarIcon sx={{ fontSize: 12, color: "#A38CFF" }} />
                   <span>{Math.round(item.relevance_score * 100)}% match</span>
                 </div>
               )}

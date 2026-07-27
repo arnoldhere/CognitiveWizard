@@ -24,7 +24,7 @@ export default function Loader({
           <CircularProgress
             size={64}
             thickness={4.2}
-            sx={{ color: "#38bdf8" }}
+            sx={{ color: "#1ED9F2" }}
           />
         </Box>
         <Box sx={{ textAlign: "center" }}>
@@ -42,7 +42,7 @@ export default function Loader({
             backgroundColor: "rgba(148, 163, 184, 0.18)",
             "& .MuiLinearProgress-bar": {
               borderRadius: 999,
-              background: "linear-gradient(90deg, #38bdf8, #818cf8)",
+              background: "linear-gradient(90deg, #1ED9F2, #A38CFF)",
             },
           }}
         />

@@ -86,10 +86,10 @@ export default function QuizForm({ onSubmit, disabled = false }) {
               fontWeight: 700,
               fontSize: "1rem",
               borderRadius: 2,
-              background: "linear-gradient(90deg, #4f46e5, #7c3aed)",
+              background: "linear-gradient(90deg, #7655F6, #5736C8)",
               boxShadow: "0 6px 20px rgba(79,70,229,0.4)",
               "&:hover": {
-                background: "linear-gradient(90deg, #4338ca, #6d28d9)",
+                background: "linear-gradient(90deg, #5736C8, #5736C8)",
               },
             }}
           >

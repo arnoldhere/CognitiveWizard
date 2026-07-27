@@ -28,14 +28,14 @@ const theme = createTheme({
   palette: {
     mode: "dark",
     primary: {
-      main: "#6366f1", // Indigo
-      light: "#818cf8",
-      dark: "#4f46e5",
+      main: "#7655F6", // Indigo
+      light: "#A38CFF",
+      dark: "#7655F6",
     },
     success: {
-      main: "#10b981", // Emerald
-      light: "#34d399",
-      dark: "#059669",
+      main: "#1ED9F2", // Emerald
+      light: "#71EEFF",
+      dark: "#0BAABD",
     },
     error: {
       main: "#f43f5e", // Rose
@@ -43,8 +43,8 @@ const theme = createTheme({
       dark: "#e11d48",
     },
     warning: {
-      main: "#f59e0b", // Amber
-      light: "#fbbf24",
+      main: "#A38CFF", // Amber
+      light: "#A38CFF",
     },
     background: {
       default: "#0f172a", // Slate 900
@@ -115,14 +115,14 @@ export default function QuizResults({ result, onStartAgain }) {
                 p: { xs: 4, md: 5 },
                 borderRadius: 4,
                 background: isPass
-                  ? "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.02) 100%)"
+                  ? "linear-gradient(135deg, rgba(30, 217, 242, 0.08) 0%, rgba(11, 170, 189, 0.02) 100%)"
                   : "linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(225, 29, 72, 0.02) 100%)",
-                border: `1px solid ${isPass ? "rgba(16, 185, 129, 0.2)" : "rgba(244, 63, 94, 0.2)"
+                border: `1px solid ${isPass ? "rgba(30, 217, 242, 0.2)" : "rgba(244, 63, 94, 0.2)"
                   }`,
                 position: "relative",
                 overflow: "hidden",
                 boxShadow: isPass
-                  ? "0 20px 40px -10px rgba(16, 185, 129, 0.15)"
+                  ? "0 20px 40px -10px rgba(30, 217, 242, 0.15)"
                   : "0 20px 40px -10px rgba(244, 63, 94, 0.15)",
               }}
             >
@@ -174,8 +174,8 @@ export default function QuizResults({ result, onStartAgain }) {
                       px: 2.5,
                       borderRadius: 4,
                       color: isPass ? "success.main" : "error.main",
-                      borderColor: isPass ? "rgba(16, 185, 129, 0.3)" : "rgba(244, 63, 94, 0.3)",
-                      backgroundColor: isPass ? "rgba(16, 185, 129, 0.1)" : "rgba(244, 63, 94, 0.1)",
+                      borderColor: isPass ? "rgba(30, 217, 242, 0.3)" : "rgba(244, 63, 94, 0.3)",
+                      backgroundColor: isPass ? "rgba(30, 217, 242, 0.1)" : "rgba(244, 63, 94, 0.1)",
                       border: "1px solid",
                     }}
                   />
@@ -201,7 +201,7 @@ export default function QuizResults({ result, onStartAgain }) {
                       <Typography
                         variant="h2"
                         sx={{
-                          background: `linear-gradient(135deg, ${result.score_percentage >= 60 ? "#10b981, #34d399" : "#f59e0b, #fbbf24"
+                          background: `linear-gradient(135deg, ${result.score_percentage >= 60 ? "#1ED9F2, #71EEFF" : "#A38CFF, #A38CFF"
                             })`,
                           WebkitBackgroundClip: "text",
                           WebkitTextFillColor: "transparent",
@@ -307,7 +307,7 @@ export default function QuizResults({ result, onStartAgain }) {
                       borderRadius: 4,
                       backgroundColor: "rgba(255,255,255,0.05)",
                       "& .MuiLinearProgress-bar": {
-                        background: `linear-gradient(90deg, ${result.score_percentage >= 60 ? "#10b981, #34d399" : "#f59e0b, #fbbf24"
+                        background: `linear-gradient(90deg, ${result.score_percentage >= 60 ? "#1ED9F2, #71EEFF" : "#A38CFF, #A38CFF"
                           })`,
                         borderRadius: 4,
                       },
@@ -325,10 +325,10 @@ export default function QuizResults({ result, onStartAgain }) {
                       px: 5,
                       py: 1.8,
                       fontSize: "1.05rem",
-                      background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
+                      background: "linear-gradient(135deg, #7655F6 0%, #7655F6 100%)",
                       boxShadow: "0 8px 25px -8px rgba(99, 102, 241, 0.6)",
                       "&:hover": {
-                        background: "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)",
+                        background: "linear-gradient(135deg, #7655F6 0%, #5736C8 100%)",
                         boxShadow: "0 12px 30px -8px rgba(99, 102, 241, 0.8)",
                         transform: "translateY(-2px)",
                       },
@@ -366,14 +366,14 @@ export default function QuizResults({ result, onStartAgain }) {
                       sx={{
                         p: { xs: 3, md: 4 },
                         borderRadius: 4,
-                        border: `1px solid ${item.is_correct ? "rgba(16, 185, 129, 0.15)" : "rgba(244, 63, 94, 0.15)"
+                        border: `1px solid ${item.is_correct ? "rgba(30, 217, 242, 0.15)" : "rgba(244, 63, 94, 0.15)"
                           }`,
                         background: item.is_correct
-                          ? "linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(5, 150, 105, 0.01) 100%)"
+                          ? "linear-gradient(135deg, rgba(30, 217, 242, 0.03) 0%, rgba(11, 170, 189, 0.01) 100%)"
                           : "linear-gradient(135deg, rgba(244, 63, 94, 0.03) 0%, rgba(225, 29, 72, 0.01) 100%)",
                         transition: "all 0.2s ease-in-out",
                         "&:hover": {
-                          borderColor: item.is_correct ? "rgba(16, 185, 129, 0.3)" : "rgba(244, 63, 94, 0.3)",
+                          borderColor: item.is_correct ? "rgba(30, 217, 242, 0.3)" : "rgba(244, 63, 94, 0.3)",
                           backgroundColor: "rgba(255,255,255,0.02)",
                         },
                       }}
@@ -396,8 +396,8 @@ export default function QuizResults({ result, onStartAgain }) {
                             label={item.is_correct ? "Correct" : "Incorrect"}
                             sx={{
                               color: item.is_correct ? "success.light" : "error.light",
-                              borderColor: item.is_correct ? "rgba(16, 185, 129, 0.3)" : "rgba(244, 63, 94, 0.3)",
-                              backgroundColor: item.is_correct ? "rgba(16, 185, 129, 0.1)" : "rgba(244, 63, 94, 0.1)",
+                              borderColor: item.is_correct ? "rgba(30, 217, 242, 0.3)" : "rgba(244, 63, 94, 0.3)",
+                              backgroundColor: item.is_correct ? "rgba(30, 217, 242, 0.1)" : "rgba(244, 63, 94, 0.1)",
                               fontWeight: 700,
                               px: 1,
                               border: "1px solid",
@@ -416,9 +416,9 @@ export default function QuizResults({ result, onStartAgain }) {
                                 sx={{
                                   p: 2.5,
                                   borderRadius: 3,
-                                  background: item.is_correct ? "rgba(16, 185, 129, 0.05)" : "rgba(244, 63, 94, 0.05)",
+                                  background: item.is_correct ? "rgba(30, 217, 242, 0.05)" : "rgba(244, 63, 94, 0.05)",
                                   border: "1px solid",
-                                  borderColor: item.is_correct ? "rgba(16, 185, 129, 0.2)" : "rgba(244, 63, 94, 0.2)",
+                                  borderColor: item.is_correct ? "rgba(30, 217, 242, 0.2)" : "rgba(244, 63, 94, 0.2)",
                                 }}
                               >
                                 <Typography
@@ -444,8 +444,8 @@ export default function QuizResults({ result, onStartAgain }) {
                                 sx={{
                                   p: 2.5,
                                   borderRadius: 3,
-                                  background: "rgba(16, 185, 129, 0.05)",
-                                  border: "1px solid rgba(16, 185, 129, 0.2)",
+                                  background: "rgba(30, 217, 242, 0.05)",
+                                  border: "1px solid rgba(30, 217, 242, 0.2)",
                                 }}
                               >
                                 <Typography variant="body1" sx={{ color: "success.light", fontWeight: 700 }}>
@@ -461,9 +461,9 @@ export default function QuizResults({ result, onStartAgain }) {
                           icon={item.is_correct ? <CheckCircle /> : <Info />}
                           sx={{
                             borderRadius: 3,
-                            bgcolor: item.is_correct ? "rgba(16, 185, 129, 0.05)" : "rgba(99, 102, 241, 0.05)",
+                            bgcolor: item.is_correct ? "rgba(30, 217, 242, 0.05)" : "rgba(99, 102, 241, 0.05)",
                             color: item.is_correct ? "success.light" : "primary.light",
-                            border: `1px solid ${item.is_correct ? "rgba(16, 185, 129, 0.15)" : "rgba(99, 102, 241, 0.15)"
+                            border: `1px solid ${item.is_correct ? "rgba(30, 217, 242, 0.15)" : "rgba(99, 102, 241, 0.15)"
                               }`,
                             alignItems: "center",
                             "& .MuiAlert-message": {

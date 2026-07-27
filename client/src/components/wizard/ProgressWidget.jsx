@@ -15,7 +15,7 @@ export default function ProgressWidget({
   return (
     <div className="progress-widget-root">
       <div className="progress-widget-header">
-        <TrendingUpIcon sx={{ color: "#10b981", fontSize: 20 }} />
+        <TrendingUpIcon sx={{ color: "#1ED9F2", fontSize: 20 }} />
         <h3>Your Learning Progress</h3>
       </div>
 
@@ -55,7 +55,7 @@ export default function ProgressWidget({
       {nextPhaseTitle && percent < 100 && (
         <div className="next-task-box">
           <div className="box-title">
-            <FlagIcon sx={{ fontSize: 14, color: "#8b5cf6" }} />
+            <FlagIcon sx={{ fontSize: 14, color: "#7655F6" }} />
             <span>Next Target</span>
           </div>
           <div className="next-phase-name">{nextPhaseTitle}</div>
@@ -64,7 +64,7 @@ export default function ProgressWidget({
 
       {percent === 100 && (
         <div className="congrats-box">
-          <CheckCircleIcon sx={{ color: "#10b981", fontSize: 20 }} />
+          <CheckCircleIcon sx={{ color: "#1ED9F2", fontSize: 20 }} />
           <span>Congratulations! You completed this roadmap!</span>
         </div>
       )}

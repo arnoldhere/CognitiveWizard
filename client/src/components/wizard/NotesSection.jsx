@@ -31,7 +31,7 @@ export default function NotesSection({ topic }) {
     <div className="notes-section-root">
       <div className="notes-header">
         <div className="notes-title">
-          <EditNoteIcon sx={{ fontSize: 24, color: "#8b5cf6" }} />
+          <EditNoteIcon sx={{ fontSize: 24, color: "#7655F6" }} />
           <div>
             <h2>Study Notes & Reminders</h2>
             <p>Jot down insights, concepts to revisit, and ideas as you work through {topic}.</p>

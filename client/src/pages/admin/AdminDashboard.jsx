@@ -18,11 +18,12 @@ const MotionCard = motion(Card);
 
 // Brand palette
 const palette = {
-    coral:   "#F26F67",
-    navy:    "#1E1E2C",
-    blue:    "#3B8FF3",
-    teal:    "#34B1AA",
-    gold:    "#E0B50F",
+    azure:   "#148CFF",
+    cyan:    "#1ED9F2",
+    violet:  "#7655F6",
+    navy:    "#050D1E",
+    ice:     "#A8C7FF",
+    danger:  "#FF637E",
 };
 
 // Lucide icon wrapper
@@ -71,8 +72,8 @@ function StatCard({ title, value, subtitle, icon, accent, trend, trendLabel, del
                     {trend !== undefined && (
                         <Box sx={{
                             display: "flex", alignItems: "center", gap: 0.5,
-                            bgcolor: isPositive ? "#34B1AA18" : "#F26F6718",
-                            color: isPositive ? palette.teal : palette.coral,
+                            bgcolor: isPositive ? `${palette.cyan}18` : `${palette.danger}18`,
+                            color: isPositive ? palette.cyan : palette.danger,
                             px: 1, py: 0.3, borderRadius: 1.5,
                             fontSize: "0.68rem", fontWeight: 700,
                         }}>
@@ -93,7 +94,7 @@ function StatCard({ title, value, subtitle, icon, accent, trend, trendLabel, del
 }
 
 // ─── Section heading ───────────────────────────────────────────────────────────
-function SectionHeading({ icon, title, subtitle, color = palette.coral }) {
+function SectionHeading({ icon, title, subtitle, color = palette.azure }) {
     return (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
             <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -126,7 +127,7 @@ export default function AdminDashboard() {
             value: stats?.totalUsers,
             subtitle: `+${stats?.newUsersToday ?? 0} today`,
             icon: Users,
-            accent: palette.coral,
+            accent: palette.azure,
             trend: stats?.newUsersToday ?? 0,
             trendLabel: `+${stats?.newUsersToday ?? 0} today`,
             delay: 0,
@@ -136,7 +137,7 @@ export default function AdminDashboard() {
             value: stats?.activeUsers,
             subtitle: "Currently enabled accounts",
             icon: UserCheck,
-            accent: palette.teal,
+            accent: palette.cyan,
             trend: stats?.activeUsers ?? 0,
             trendLabel: `${stats?.activeUsers ?? 0} active`,
             delay: 0.07,
@@ -146,7 +147,7 @@ export default function AdminDashboard() {
             value: stats?.disabledUsers,
             subtitle: "Access blocked accounts",
             icon: UserX,
-            accent: palette.coral,
+            accent: palette.danger,
             trend: -(stats?.disabledUsers ?? 0),
             trendLabel: `${stats?.disabledUsers ?? 0} blocked`,
             delay: 0.14,
@@ -156,7 +157,7 @@ export default function AdminDashboard() {
             value: stats?.totalChats,
             subtitle: `+${stats?.chatsToday ?? 0} today`,
             icon: Bot,
-            accent: palette.gold,
+            accent: palette.violet,
             trend: stats?.chatsToday ?? 0,
             trendLabel: `+${stats?.chatsToday ?? 0} today`,
             delay: 0.21,
@@ -166,7 +167,7 @@ export default function AdminDashboard() {
             value: stats?.totalQuizzes,
             subtitle: stats?.passRate ? `${stats.passRate}% pass rate` : "No quiz data yet",
             icon: GraduationCap,
-            accent: palette.blue,
+            accent: palette.azure,
             trend: stats?.totalQuizzes ?? 0,
             trendLabel: stats?.avgScore ? `Avg ${stats.avgScore}%` : "N/A",
             delay: 0.28,
@@ -176,7 +177,7 @@ export default function AdminDashboard() {
             value: stats?.totalWizardContent,
             subtitle: "AI-generated content items",
             icon: BookOpenText,
-            accent: "#A855F7",
+            accent: palette.violet,
             trend: stats?.totalWizardContent ?? 0,
             trendLabel: `${stats?.totalWizardContent ?? 0} total`,
             delay: 0.35,
@@ -186,7 +187,7 @@ export default function AdminDashboard() {
             value: stats?.newUsersThisWeek,
             subtitle: "User registrations (7d)",
             icon: UserPlus,
-            accent: palette.teal,
+            accent: palette.cyan,
             trend: stats?.newUsersThisWeek ?? 0,
             trendLabel: `+${stats?.newUsersThisWeek ?? 0} users`,
             delay: 0.42,
@@ -196,7 +197,7 @@ export default function AdminDashboard() {
             value: stats?.avgLatencyMs ? `${stats.avgLatencyMs}ms` : "N/A",
             subtitle: "Mean AI response time",
             icon: Gauge,
-            accent: "#FB923C",
+            accent: palette.ice,
             trend: undefined,
             delay: 0.49,
         },
@@ -204,15 +205,17 @@ export default function AdminDashboard() {
 
     // ── Pie data for user status ───────────────────────────────────────────────
     const pieData = [
-        { name: "Active", value: stats?.activeUsers || 0, color: palette.teal },
-        { name: "Disabled", value: stats?.disabledUsers || 0, color: palette.coral },
+        { name: "Active", value: stats?.activeUsers || 0, color: palette.cyan },
+        { name: "Disabled", value: stats?.disabledUsers || 0, color: palette.danger },
     ];
 
     return (
         <Box sx={{ pb: 6 }}>
             {/* Page Header */}
-            <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>Dashboard</Typography>
+            <Box sx={{ mb: 4, p: { xs: 2.5, md: 3 }, borderRadius: 4, overflow: "hidden", position: "relative", border: "1px solid", borderColor: "divider", background: "linear-gradient(115deg, rgba(20,140,255,0.17), rgba(118,85,246,0.13) 52%, rgba(30,217,242,0.08))" }}>
+                <Box sx={{ position: "absolute", width: 180, height: 180, right: -46, top: -90, borderRadius: "50%", bgcolor: "rgba(30,217,242,0.12)", filter: "blur(10px)" }} />
+                <Typography variant="overline" sx={{ color: "primary.light", fontWeight: 800, letterSpacing: "0.14em" }}>CognitiveWizard control room</Typography>
+                <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5, position: "relative" }}>Dashboard</Typography>
                 <Typography variant="body2" color="text.secondary">
                     Real-time platform KPIs and performance insights
                 </Typography>
@@ -234,7 +237,7 @@ export default function AdminDashboard() {
                 <Grid item xs={12} md={8}>
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.4 }}>
                         <Card sx={{ borderRadius: 3, p: 3 }}>
-                            <SectionHeading icon={UserPlus} title="New User Registrations" subtitle="Daily signups — last 7 days" color={palette.coral} />
+                            <SectionHeading icon={UserPlus} title="New User Registrations" subtitle="Daily signups — last 7 days" color={palette.azure} />
                             {loading
                                 ? <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 2 }} />
                                 : (
@@ -242,15 +245,15 @@ export default function AdminDashboard() {
                                         <AreaChart data={stats?.dailyRegistrations || []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                                             <defs>
                                                 <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor={palette.coral} stopOpacity={0.35} />
-                                                    <stop offset="95%" stopColor={palette.coral} stopOpacity={0} />
+                                                    <stop offset="5%" stopColor={palette.azure} stopOpacity={0.42} />
+                                                    <stop offset="95%" stopColor={palette.azure} stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(176,176,200,0.08)" />
                                             <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7A7A9C" }} axisLine={false} tickLine={false} />
                                             <YAxis tick={{ fontSize: 11, fill: "#7A7A9C" }} axisLine={false} tickLine={false} allowDecimals={false} />
                                             <RTooltip {...TOOLTIP_STYLE} formatter={(v) => [v, "New Users"]} />
-                                            <Area type="monotone" dataKey="users" stroke={palette.coral} strokeWidth={2.5} fill="url(#userGrad)" dot={{ fill: palette.coral, r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: "#F59A94" }} />
+                                            <Area type="monotone" dataKey="users" stroke={palette.azure} strokeWidth={2.5} fill="url(#userGrad)" dot={{ fill: palette.azure, r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: palette.cyan }} />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 )
@@ -263,7 +266,7 @@ export default function AdminDashboard() {
                 <Grid item xs={12} md={4}>
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55, duration: 0.4 }}>
                         <Card sx={{ borderRadius: 3, p: 3, height: "100%" }}>
-                            <SectionHeading icon={Users} title="User Status" subtitle="Active vs. disabled" color={palette.teal} />
+                            <SectionHeading icon={Users} title="User Status" subtitle="Active vs. disabled" color={palette.cyan} />
                             {loading
                                 ? <Skeleton variant="circular" width={140} height={140} sx={{ mx: "auto" }} />
                                 : (
@@ -303,7 +306,7 @@ export default function AdminDashboard() {
                 <Grid item xs={12} md={8}>
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.4 }}>
                         <Card sx={{ borderRadius: 3, p: 3 }}>
-                            <SectionHeading icon={Activity} title="Chat Activity" subtitle="Daily AI sessions — last 7 days" color={palette.gold} />
+                            <SectionHeading icon={Activity} title="Chat Activity" subtitle="Daily AI sessions — last 7 days" color={palette.violet} />
                             {loading
                                 ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 2 }} />
                                 : (
@@ -311,8 +314,8 @@ export default function AdminDashboard() {
                                         <BarChart data={stats?.dailyChatActivity || []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                                             <defs>
                                                 <linearGradient id="chatGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor={palette.gold} stopOpacity={0.9} />
-                                                    <stop offset="95%" stopColor={palette.gold} stopOpacity={0.35} />
+                                                    <stop offset="5%" stopColor={palette.violet} stopOpacity={0.9} />
+                                                    <stop offset="95%" stopColor={palette.violet} stopOpacity={0.35} />
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(176,176,200,0.08)" />
@@ -332,13 +335,13 @@ export default function AdminDashboard() {
                 <Grid item xs={12} md={4}>
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65, duration: 0.4 }}>
                         <Card sx={{ borderRadius: 3, p: 3, height: "100%" }}>
-                            <SectionHeading icon={Trophy} title="Quiz Insights" subtitle="Performance summary" color={palette.blue} />
+                            <SectionHeading icon={Trophy} title="Quiz Insights" subtitle="Performance summary" color={palette.azure} />
                             <Box sx={{ display: "grid", gap: 2, mt: 1 }}>
                                 {[
-                                    { label: "Total Quizzes", value: loading ? null : (stats?.totalQuizzes ?? 0), color: palette.blue },
-                                    { label: "Avg Score", value: loading ? null : (stats?.avgScore ? `${stats.avgScore}%` : "N/A"), color: "#A855F7" },
-                                    { label: "Pass Rate", value: loading ? null : (stats?.passRate ? `${stats.passRate}%` : "N/A"), color: palette.teal },
-                                    { label: "Wizard Content", value: loading ? null : (stats?.totalWizardContent ?? 0), color: "#FB923C" },
+                                    { label: "Total Quizzes", value: loading ? null : (stats?.totalQuizzes ?? 0), color: palette.azure },
+                                    { label: "Avg Score", value: loading ? null : (stats?.avgScore ? `${stats.avgScore}%` : "N/A"), color: palette.violet },
+                                    { label: "Pass Rate", value: loading ? null : (stats?.passRate ? `${stats.passRate}%` : "N/A"), color: palette.cyan },
+                                    { label: "Wizard Content", value: loading ? null : (stats?.totalWizardContent ?? 0), color: palette.ice },
                                 ].map(({ label, value, color }) => (
                                     <Box key={label} sx={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",

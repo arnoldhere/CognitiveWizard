@@ -231,7 +231,7 @@ export default function Home() {
           <div
             className="board-card"
             style={{
-              background: "linear-gradient(135deg,rgba(124,58,237,0.15) 0%,rgba(6,182,212,0.1) 100%)",
+              background: "linear-gradient(135deg,rgba(124,58,237,0.15) 0%,rgba(30, 217, 242,0.1) 100%)",
               border: "1px solid rgba(124,58,237,0.3)",
               textAlign: "center",
               padding: "56px 40px",

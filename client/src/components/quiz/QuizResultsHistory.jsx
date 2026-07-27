@@ -23,14 +23,14 @@ import { TrendingUp, Visibility, Search } from "@mui/icons-material";
 /* ─── Teal palette ──────────────────────────────────── */
 const T = {
     surface:     "rgba(255,255,255,0.88)",
-    border:      "rgba(13,148,136,0.14)",
+    border:      "rgba(20, 140, 255,0.14)",
     borderWhite: "rgba(255,255,255,0.88)",
-    text:        "#0F2027",
-    textLight:   "#4A6572",
-    muted:       "#7A9BA8",
-    primary:     "#0D9488",
-    cyan:        "#06B6D4",
-    shadow:      "0 8px 30px rgba(13,148,136,0.08)",
+    text:        "#07152E",
+    textLight:   "#4D6486",
+    muted:       "#7187A9",
+    primary:     "#148CFF",
+    cyan:        "#1ED9F2",
+    shadow:      "0 8px 30px rgba(20, 140, 255,0.08)",
 };
 
 /* ─── Shared header cell sx ─────────────────────────── */
@@ -41,7 +41,7 @@ const headCell = {
     textTransform: "uppercase",
     letterSpacing: "0.06em",
     borderBottom: `2px solid ${T.border}`,
-    background: "rgba(13,148,136,0.04)",
+    background: "rgba(20, 140, 255,0.04)",
     whiteSpace: "nowrap",
 };
 
@@ -101,7 +101,7 @@ export default function QuizResultsHistory({
     };
 
     /* score colour helper */
-    const scoreColor = (pct) => (pct >= 60 ? T.primary : "#EA6C0A");
+    const scoreColor = (pct) => (pct >= 60 ? T.primary : "#5736C8");
 
     if (loading) {
         return (
@@ -236,7 +236,7 @@ export default function QuizResultsHistory({
                                     sx={{
                                         "&:last-child td, &:last-child th": { border: 0 },
                                         "&:hover": {
-                                            bgcolor: "rgba(13,148,136,0.035)",
+                                            bgcolor: "rgba(20, 140, 255,0.035)",
                                         },
                                         transition: "background 0.18s ease",
                                     }}
@@ -256,8 +256,8 @@ export default function QuizResultsHistory({
                                                 textTransform: "capitalize",
                                                 fontWeight: 700,
                                                 color: T.primary,
-                                                borderColor: "rgba(13,148,136,0.30)",
-                                                backgroundColor: "rgba(13,148,136,0.07)",
+                                                borderColor: "rgba(20, 140, 255,0.30)",
+                                                backgroundColor: "rgba(20, 140, 255,0.07)",
                                                 fontSize: "0.75rem",
                                             }}
                                         />
@@ -275,16 +275,16 @@ export default function QuizResultsHistory({
                                                 fontSize: "0.75rem",
                                                 color:
                                                     row.result === "pass"
-                                                        ? "#059669"
-                                                        : "#EA6C0A",
+                                                        ? "#0BAABD"
+                                                        : "#5736C8",
                                                 borderColor:
                                                     row.result === "pass"
-                                                        ? "rgba(5,150,105,0.30)"
-                                                        : "rgba(249,115,22,0.30)",
+                                                        ? "rgba(11, 170, 189,0.30)"
+                                                        : "rgba(118, 85, 246,0.30)",
                                                 backgroundColor:
                                                     row.result === "pass"
-                                                        ? "rgba(5,150,105,0.07)"
-                                                        : "rgba(249,115,22,0.07)",
+                                                        ? "rgba(11, 170, 189,0.07)"
+                                                        : "rgba(118, 85, 246,0.07)",
                                                 "& .MuiChip-icon": { color: "inherit" },
                                             }}
                                         />
@@ -347,10 +347,10 @@ export default function QuizResultsHistory({
                                                     fontWeight: 700,
                                                     borderRadius: 99,
                                                     color: T.primary,
-                                                    borderColor: "rgba(13,148,136,0.35)",
+                                                    borderColor: "rgba(20, 140, 255,0.35)",
                                                     "&:hover": {
                                                         borderColor: T.primary,
-                                                        backgroundColor: "rgba(13,148,136,0.07)",
+                                                        backgroundColor: "rgba(20, 140, 255,0.07)",
                                                     },
                                                     transition: "all 0.18s ease",
                                                 }}

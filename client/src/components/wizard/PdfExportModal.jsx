@@ -24,13 +24,13 @@ export default function PdfExportModal({ isOpen, currentStepIndex, isSuccess, er
             <div className="pdf-icon-pulse-wrapper">
               <div className="pulse-ring" />
               <PictureAsPdfIcon sx={{ fontSize: 44, color: "#ef4444" }} />
-              <AutoAwesomeIcon className="sparkle-icon" sx={{ fontSize: 20, color: "#a855f7" }} />
+              <AutoAwesomeIcon className="sparkle-icon" sx={{ fontSize: 20, color: "#7655F6" }} />
             </div>
 
             <h3 className="pdf-modal-title">Preparing Your PDF Document</h3>
 
             <div className="pdf-loading-message">
-              <CircularProgress size={20} sx={{ color: "#06b6d4" }} />
+              <CircularProgress size={20} sx={{ color: "#1ED9F2" }} />
               <span>{LOADING_STEPS[Math.min(currentStepIndex, LOADING_STEPS.length - 1)]}</span>
             </div>
 
@@ -48,7 +48,7 @@ export default function PdfExportModal({ isOpen, currentStepIndex, isSuccess, er
         {isSuccess && (
           <div className="pdf-modal-content">
             <div className="success-icon-wrapper">
-              <CheckCircleIcon sx={{ fontSize: 56, color: "#10b981" }} />
+              <CheckCircleIcon sx={{ fontSize: 56, color: "#1ED9F2" }} />
             </div>
             <h3 className="pdf-modal-title">PDF Download Ready!</h3>
             <p className="pdf-modal-hint">Your roadmap PDF has been generated and downloaded successfully.</p>
