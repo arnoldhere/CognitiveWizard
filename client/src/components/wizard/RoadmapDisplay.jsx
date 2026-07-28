@@ -306,10 +306,19 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
         </main>
       </div>
 
-      {/* Floating AI Assistant Drawer */}
+      {/* Floating AI Tutor Drawer — RAG-powered */}
       <FloatingAIAssistant
         topic={topic || roadmap.title}
-        currentPhaseTitle="Roadmap Overview"
+        roadmapId={data?.id}
+        pdfPayload={{
+          topic: topic || roadmap.title,
+          content_type: "roadmap",
+          details: data?.details || "",
+          content: data?.content || data || {},
+          skill_level: roadmap.difficulty,
+          goal: roadmap.goal,
+          learning_style: roadmap.learningStyle,
+        }}
       />
 
       {/* Backend PDF Export Animated Modal */}

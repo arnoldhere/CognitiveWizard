@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import ErrorMessage from "../utils/ErrorMessage";
+import MarkdownRenderer from "../utils/MarkdownRenderer";
 import { askRagQuestion, fetchChatSessionHistory } from "../../services/rag";
 import { parseMessageTimestamp } from "../../utils/apiError";
 import "../../styles/ChatWindow.css";
@@ -70,7 +71,11 @@ function MessageBubble({ message }) {
 
   return (
     <div className={`chat-msg ${message.sender}`}>
-      <p>{message.text}</p>
+      {message.sender === "bot" ? (
+        <MarkdownRenderer content={message.text} className="chat-msg-markdown" />
+      ) : (
+        <p className="chat-msg-user-text">{message.text}</p>
+      )}
       {message.warning ? (
         <small className="chat-warning">{message.warning}</small>
       ) : null}

@@ -17,6 +17,7 @@ import "./App.css";
 import ErrorBoundary from "./components/utils/ErrorBoundary";
 import SummarizerPage from "./pages/Summarize";
 import WizardModule from "./pages/WizardModule";
+import WizardContentView from "./pages/WizardContentView";
 import ForgotPassword from "./pages/ForgotPassword";
 import Marketplace from "./pages/Marketplace";
 
@@ -71,6 +72,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <WizardModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wizard/view/:id"
+            element={
+              <ProtectedRoute>
+                <WizardContentView />
               </ProtectedRoute>
             }
           />

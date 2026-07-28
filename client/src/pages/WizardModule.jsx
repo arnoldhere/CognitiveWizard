@@ -116,7 +116,6 @@ export default function WizardModule() {
   // History State
   const [historyItems, setHistoryItems] = useState([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
 
   const rootRef = useRef(null);
   useGsapReveal(rootRef);
@@ -157,7 +156,6 @@ export default function WizardModule() {
     try {
       await deleteWizardContent(id);
       fetchHistory();
-      if (selectedHistoryItem?.id === id) setSelectedHistoryItem(null);
     } catch (err) {
       console.error("Delete failed");
     }
@@ -219,7 +217,6 @@ export default function WizardModule() {
     setStep(0);
     setGeneratedData(null);
     setAnswers({ contentType: "", topic: "" });
-    setSelectedHistoryItem(null);
     setActiveTab("generate");
   };
 
@@ -470,7 +467,7 @@ export default function WizardModule() {
     <section ref={rootRef} className="page-shell" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "6vh", paddingBottom: "10vh" }}>
 
       {/* TABS NAVIGATION */}
-      {!generatedData && !selectedHistoryItem && step < (2 + activeQuestions.length + 1) && (
+      {!generatedData && step < (2 + activeQuestions.length + 1) && (
         <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: "30px", padding: "6px", marginBottom: "40px", border: "1px solid var(--border)" }}>
           <button
             onClick={() => setActiveTab("generate")}
@@ -487,10 +484,10 @@ export default function WizardModule() {
         </div>
       )}
 
-      <div style={{ width: "100%", maxWidth: (generatedData || selectedHistoryItem || step >= (2 + activeQuestions.length + 1)) ? "1400px" : "800px", padding: "0 20px", transition: "max-width 0.3s ease" }}>
+      <div style={{ width: "100%", maxWidth: (generatedData || step >= (2 + activeQuestions.length + 1)) ? "1400px" : "800px", padding: "0 20px", transition: "max-width 0.3s ease" }}>
 
         {/* --- GENERATOR FLOW --- */}
-        {activeTab === "generate" && !selectedHistoryItem && (
+        {activeTab === "generate" && (
           <>
             {step < (2 + activeQuestions.length + 1) && (
               <div>
@@ -559,7 +556,7 @@ export default function WizardModule() {
         )}
 
         {/* --- MY CONTENT FLOW --- */}
-        {activeTab === "history" && !selectedHistoryItem && (
+        {activeTab === "history" && (
           <div style={{ animation: "fadeInUp 0.4s ease", width: "100%" }}>
             <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "8px", color: "var(--text)" }}>My Generated Content</h2>
             <p style={{ color: "var(--text-light)", marginBottom: "32px", fontSize: "1rem" }}>
@@ -579,7 +576,12 @@ export default function WizardModule() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {historyItems.map(item => (
-                  <div key={item.id} onClick={() => setSelectedHistoryItem(item)} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", transition: "all 0.2s" }} className="hover-lift">
+                  <div
+                    key={item.id}
+                    onClick={() => window.open(`/wizard/view/${item.id}`, "_blank")}
+                    style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", transition: "all 0.2s" }}
+                    className="hover-lift"
+                  >
                     <div>
                       <div style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "4px 10px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 700, marginBottom: "8px", textTransform: "uppercase" }}>
                         {item.content_type}
@@ -594,18 +596,6 @@ export default function WizardModule() {
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Viewing a specific history item */}
-        {activeTab === "history" && selectedHistoryItem && (
-          <div style={{ animation: "fadeIn 0.5s ease", width: "100%" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px" }}>
-              <button onClick={() => setSelectedHistoryItem(null)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", color: "var(--text)", padding: "10px 20px", borderRadius: "20px", cursor: "pointer", display: "flex", alignItems: "center", fontWeight: 600, transition: "all 0.2s" }} className="hover-bg-surface">
-                <ArrowBackIcon style={{ fontSize: "1.1rem", marginRight: "6px" }} /> Back to History
-              </button>
-            </div>
-            {renderContentData(selectedHistoryItem)}
           </div>
         )}
 

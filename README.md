@@ -1,6 +1,6 @@
 # CognitiveWizard
 
-CognitiveWizard is an AI-assisted study platform for turning learning material and goals into useful, adaptive study experiences. It combines structured learning tools with conversational retrieval so learners can understand, practise, revise, and plan from one place.
+CognitiveWizard is an AI-assisted study platform for turning learning material and goals into useful, adaptive study experiences. It combines structured learning tools with conversational retrieval so learners can understand, practise, revise, and plan from anywhere.
 
 ## Current product scope
 

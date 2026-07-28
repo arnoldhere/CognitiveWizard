@@ -1,163 +1,291 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CloseIcon from "@mui/icons-material/Close";
 import SendIcon from "@mui/icons-material/Send";
-import QuizIcon from "@mui/icons-material/Quiz";
-import StyleIcon from "@mui/icons-material/Style";
-import SummarizeIcon from "@mui/icons-material/Summarize";
-import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import CircularProgress from "@mui/material/CircularProgress";
+import MarkdownRenderer from "../utils/MarkdownRenderer";
+import { exportWizardPdf } from "../../services/api";
+import { uploadDocument, createChatSession, askRagQuestion } from "../../services/rag";
 
-export default function FloatingAIAssistant({ topic, currentPhaseTitle }) {
+const SESSION_STORAGE_KEY = (id) => `wiz_rag_session_${id}`;
+
+const INIT_STEPS = [
+  "Preparing roadmap document…",
+  "Building knowledge base…",
+  "Creating your tutor session…",
+  "Almost ready…",
+];
+
+export default function FloatingAIAssistant({ topic, roadmapId, pdfPayload }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputMsg, setInputMsg] = useState("");
-  const [chatHistory, setChatHistory] = useState([
-    {
-      sender: "ai",
-      text: `Hi! I'm your AI Learning Mentor for ${topic || "this topic"}. How can I assist your study session today?`,
-    },
-  ]);
+  const [chatHistory, setChatHistory] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
 
-  const handleSend = (textToSend) => {
-    const query = textToSend || inputMsg;
-    if (!query.trim()) return;
+  // RAG init state
+  const [ragSessionId, setRagSessionId] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [initStepIndex, setInitStepIndex] = useState(0);
+  const [initError, setInitError] = useState(null);
+  const [isRagReady, setIsRagReady] = useState(false);
 
-    // Add user message
-    setChatHistory((prev) => [...prev, { sender: "user", text: query }]);
-    if (!textToSend) setInputMsg("");
-    setIsTyping(true);
+  const chatBodyRef = useRef(null);
+  const inputRef = useRef(null);
+  const stepTimerRef = useRef(null);
 
-    // Simulate AI response based on topic/query
-    setTimeout(() => {
-      let aiText = `Here is a quick overview regarding "${query}": Keep breaking down concepts into hands-on code examples and review key takeaways after each phase.`;
-      if (query.toLowerCase().includes("quiz")) {
-        aiText = `Here is a quick quiz question for ${topic}: What is the main architectural benefit of breaking down learning into milestone phases? (A) Rapid feedback (B) Less distraction (C) Both A and B.`;
-      } else if (query.toLowerCase().includes("summarize")) {
-        aiText = `Summary of ${currentPhaseTitle || "Phase"}: Focus on mastering core definitions, completing the practical task, and reviewing recommended references before moving to the next milestone.`;
-      } else if (query.toLowerCase().includes("flashcard")) {
-        aiText = `Flashcard 1: [Term] ${topic} Core Concept — [Definition] Key mechanism for structuring applications efficiently.`;
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  }, [chatHistory, isTyping]);
+
+  // Focus input when ready
+  useEffect(() => {
+    if (isRagReady && isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isRagReady, isOpen]);
+
+  // When drawer opens, initialize RAG if not already done
+  useEffect(() => {
+    if (isOpen && !isRagReady && !isInitializing) {
+      initializeRagSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  const initializeRagSession = async () => {
+    setIsInitializing(true);
+    setInitError(null);
+    setInitStepIndex(0);
+
+    // Animate through init steps
+    let stepIdx = 0;
+    stepTimerRef.current = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, INIT_STEPS.length - 1);
+      setInitStepIndex(stepIdx);
+    }, 1200);
+
+    try {
+      // 1. Check localStorage for an existing session bound to this roadmap
+      if (roadmapId) {
+        const cachedId = localStorage.getItem(SESSION_STORAGE_KEY(roadmapId));
+        if (cachedId) {
+          clearInterval(stepTimerRef.current);
+          setRagSessionId(cachedId);
+          setIsRagReady(true);
+          setChatHistory([
+            {
+              sender: "ai",
+              text: `Hi! I'm your AI Learning Tutor for **${topic || "this roadmap"}**. I have your roadmap loaded as my knowledge base — ask me anything about the curriculum, phases, topics, or resources!`,
+            },
+          ]);
+          setIsInitializing(false);
+          return;
+        }
       }
 
-      setChatHistory((prev) => [...prev, { sender: "ai", text: aiText }]);
-      setIsTyping(false);
-    }, 1000);
+      // 2. Generate the roadmap PDF
+      let pdfBlob = null;
+      if (pdfPayload) {
+        try {
+          pdfBlob = await exportWizardPdf(pdfPayload);
+        } catch (pdfErr) {
+          console.warn("[AI Tutor] PDF generation failed, skipping upload:", pdfErr.message);
+        }
+      }
+
+      // 3. Upload PDF to RAG knowledge base
+      if (pdfBlob) {
+        const filename = `${(topic || "roadmap").replace(/\s+/g, "_")}_roadmap.pdf`;
+        const file = new File([pdfBlob], filename, { type: "application/pdf" });
+        await uploadDocument(file);
+      }
+
+      // 4. Create a named chat session
+      const sessionTitle = `🗺️ ${topic || "Roadmap"}`;
+      const sessionResult = await createChatSession({ title: sessionTitle });
+      // createChatSession returns payload?.data ?? payload from rag.js
+      const sessionId =
+        sessionResult?.session_id ||
+        sessionResult?.data?.session_id ||
+        null;
+
+      // 5. Persist to localStorage
+      if (roadmapId && sessionId) {
+        localStorage.setItem(SESSION_STORAGE_KEY(roadmapId), sessionId);
+      }
+
+      clearInterval(stepTimerRef.current);
+      setRagSessionId(sessionId);
+      setIsRagReady(true);
+      setChatHistory([
+        {
+          sender: "ai",
+          text: `Hi! I'm your AI Learning Tutor for **${topic || "this roadmap"}**. I've loaded your roadmap as my knowledge base. Ask me anything about the curriculum, phases, topics, or resources!`,
+        },
+      ]);
+    } catch (err) {
+      clearInterval(stepTimerRef.current);
+      console.error("[AI Tutor] Initialization failed:", err);
+      setInitError(err.message || "Failed to set up AI Tutor. Please try again.");
+    } finally {
+      setIsInitializing(false);
+    }
   };
 
-  const handleActionChip = (actionLabel, promptText) => {
-    handleSend(promptText);
+  const resetAndRetry = () => {
+    // Clear cached session so we create a fresh one
+    if (roadmapId) {
+      localStorage.removeItem(SESSION_STORAGE_KEY(roadmapId));
+    }
+    setRagSessionId(null);
+    setIsRagReady(false);
+    setInitError(null);
+    setChatHistory([]);
+    initializeRagSession();
   };
+
+  const handleSend = async (overrideText) => {
+    const query = overrideText || inputMsg;
+    if (!query.trim() || !isRagReady || isTyping) return;
+
+    setChatHistory((prev) => [...prev, { sender: "user", text: query }]);
+    setInputMsg("");
+    setIsTyping(true);
+
+    try {
+      const result = await askRagQuestion({
+        query,
+        use_rag: true,
+        session_id: ragSessionId,
+        use_langchain: true,
+      });
+      const answer = result?.answer || "I couldn't find a relevant answer. Try rephrasing your question.";
+      setChatHistory((prev) => [...prev, { sender: "ai", text: answer }]);
+    } catch (err) {
+      console.error("[AI Tutor] Chat error:", err);
+      setChatHistory((prev) => [
+        ...prev,
+        { sender: "ai", text: "Sorry, something went wrong. Please try again." },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  // Format message text — replaced by MarkdownRenderer
+  // (kept as no-op for any remaining callsites)
+  const formatText = (text) => text;
 
   return (
     <div className="floating-ai-root">
-      {/* Floating Toggle Button */}
+      {/* FAB trigger button */}
       {!isOpen && (
-        <button className="floating-ai-fab" onClick={() => setIsOpen(true)}>
+        <button className="floating-ai-fab" onClick={() => setIsOpen(true)} aria-label="Open AI Tutor">
           <AutoAwesomeIcon />
-          <span>Ask AI Mentor</span>
+          <span>Ask AI Tutor</span>
         </button>
       )}
 
-      {/* AI Assistant Chat Window Drawer */}
+      {/* Drawer panel */}
       {isOpen && (
-        <div className="floating-ai-drawer">
+        <div className="floating-ai-drawer" role="dialog" aria-label="AI Tutor chat">
+          {/* Header */}
           <div className="drawer-header">
             <div className="drawer-header-title">
               <AutoAwesomeIcon sx={{ color: "#7655F6" }} />
               <div>
-                <h4>AI Mentor & Assistant</h4>
-                <span>Active on {topic || "Roadmap"}</span>
+                <h4>AI Learning Tutor</h4>
+                <span>RAG-powered · {topic || "Roadmap"}</span>
               </div>
             </div>
-            <button className="drawer-close-btn" onClick={() => setIsOpen(false)}>
+            <button
+              className="drawer-close-btn"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close AI Tutor"
+            >
               <CloseIcon fontSize="small" />
             </button>
           </div>
 
-          {/* Quick Action Chips */}
-          <div className="drawer-actions-row">
-            <button
-              className="action-chip"
-              onClick={() =>
-                handleActionChip(
-                  "Explain Topic",
-                  `Can you explain the main concepts of ${topic} in simple terms?`
-                )
-              }
-            >
-              <LightbulbIcon sx={{ fontSize: 14 }} />
-              <span>Explain Topic</span>
-            </button>
+          {/* ── Initializing overlay ── */}
+          {isInitializing && (
+            <div className="drawer-init-overlay">
+              <CircularProgress size={36} sx={{ color: "#7655F6", mb: "16px" }} />
+              <p className="drawer-init-step">{INIT_STEPS[initStepIndex]}</p>
+              <p className="drawer-init-sub">Setting up your personal AI tutor…</p>
+            </div>
+          )}
 
-            <button
-              className="action-chip"
-              onClick={() =>
-                handleActionChip(
-                  "Summarize Phase",
-                  `Summarize key takeaways for ${currentPhaseTitle || "current phase"}`
-                )
-              }
-            >
-              <SummarizeIcon sx={{ fontSize: 14 }} />
-              <span>Summarize Phase</span>
-            </button>
+          {/* ── Error state ── */}
+          {initError && !isInitializing && (
+            <div className="drawer-error-box">
+              <p className="drawer-error-msg">{initError}</p>
+              <button className="drawer-retry-btn" onClick={resetAndRetry}>
+                <RefreshIcon sx={{ fontSize: 16, mr: "4px" }} /> Retry
+              </button>
+            </div>
+          )}
 
-            <button
-              className="action-chip"
-              onClick={() =>
-                handleActionChip(
-                  "Generate Quiz",
-                  `Generate a quick quiz question for ${topic}`
-                )
-              }
-            >
-              <QuizIcon sx={{ fontSize: 14 }} />
-              <span>Generate Quiz</span>
-            </button>
-
-            <button
-              className="action-chip"
-              onClick={() =>
-                handleActionChip(
-                  "Flashcards",
-                  `Generate flashcards for ${topic}`
-                )
-              }
-            >
-              <StyleIcon sx={{ fontSize: 14 }} />
-              <span>Flashcards</span>
-            </button>
-          </div>
-
-          {/* Chat History */}
-          <div className="drawer-chat-body">
-            {chatHistory.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`chat-bubble-row ${msg.sender === "user" ? "user" : "ai"}`}
-              >
-                <div className="chat-bubble">{msg.text}</div>
+          {/* ── Chat ready ── */}
+          {isRagReady && !isInitializing && (
+            <>
+              <div className="drawer-chat-body" ref={chatBodyRef}>
+                  {chatHistory.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`chat-bubble-row ${msg.sender === "user" ? "user" : "ai"}`}
+                    >
+                      {msg.sender === "ai" ? (
+                        <div className="chat-bubble chat-bubble-ai-md">
+                          <MarkdownRenderer content={msg.text} />
+                        </div>
+                      ) : (
+                        <div className="chat-bubble">{msg.text}</div>
+                      )}
+                    </div>
+                  ))}
+                {isTyping && (
+                  <div className="chat-bubble-row ai">
+                    <div className="chat-bubble typing-indicator">
+                      <span /><span /><span />
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
-            {isTyping && (
-              <div className="chat-bubble-row ai">
-                <div className="chat-bubble typing">AI is thinking...</div>
-              </div>
-            )}
-          </div>
 
-          {/* Input Box */}
-          <div className="drawer-input-row">
-            <input
-              type="text"
-              placeholder="Ask anything about this roadmap..."
-              value={inputMsg}
-              onChange={(e) => setInputMsg(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            />
-            <button className="send-btn" onClick={() => handleSend()}>
-              <SendIcon fontSize="small" />
-            </button>
-          </div>
+              <div className="drawer-input-row">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Ask anything about this roadmap…"
+                  value={inputMsg}
+                  onChange={(e) => setInputMsg(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isTyping}
+                  aria-label="Chat input"
+                />
+                <button
+                  className="send-btn"
+                  onClick={() => handleSend()}
+                  disabled={isTyping || !inputMsg.trim()}
+                  aria-label="Send message"
+                >
+                  <SendIcon fontSize="small" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
