@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
     Container,
     Typography,
@@ -23,6 +23,7 @@ import {
     Divider,
     Alert,
     Snackbar,
+    CircularProgress,
 } from "@mui/material";
 import {
     Search,
@@ -39,6 +40,7 @@ import {
     LocalOffer,
     WorkspacePremium,
 } from "@mui/icons-material";
+import { getPublishedCourses } from "../services/api";
 
 /* ── Palette Constants ── */
 const T = {
@@ -70,167 +72,59 @@ const glassCard = {
     },
 };
 
-/* ── Static Tutor Material Data ── */
-const staticMarketplaceItems = [
-    {
-        id: 1,
-        title: "Full-Stack Modern Web Engineering 2026",
-        contentType: "roadmap",
-        topic: "Web Development",
-        tutorName: "Prof. Alex Rivera",
-        tutorTitle: "Senior Web Educator & Full-Stack Architect",
-        tutorAvatar: "A",
-        tutorVerified: true,
-        rating: 4.9,
-        reviewsCount: 312,
-        enrolledCount: 1420,
-        difficulty: "Intermediate",
-        estimatedTime: "12 Weeks (6 hrs/week)",
-        modulesCount: 8,
-        description: "A comprehensive, phase-by-phase learning path covering React 19, Node.js microservices, PostgreSQL, GraphQL, and modern DevOps deployment pipelines.",
-        tags: ["React", "Node.js", "PostgreSQL", "System Architecture"],
-        modules: [
-            { name: "Phase 1: Modern JavaScript & Async Paradigms", duration: "1.5 Weeks", detail: "Deep dive into ESNext, Event Loop, Closures, Promises, and Module systems." },
-            { name: "Phase 2: React 19 Core & Client State Patterns", duration: "2 Weeks", detail: "Server Components, Action hooks, Context, and state management best practices." },
-            { name: "Phase 3: Express & Node API Architecture", duration: "2 Weeks", detail: "RESTful principles, JWT authentication, rate limiting, and middleware chains." },
-            { name: "Phase 4: Database Design & Query Optimization", duration: "2.5 Weeks", detail: "PostgreSQL schemas, indexing strategies, transactions, and Prisma ORM." },
-            { name: "Phase 5: Cloud Deployment & CI/CD Pipelines", duration: "2 Weeks", detail: "Docker containers, GitHub Actions, and production infrastructure management." }
-        ]
-    },
-    {
-        id: 2,
-        title: "Mastering Machine Learning & Neural Networks",
-        contentType: "course",
-        topic: "Artificial Intelligence",
-        tutorName: "Dr. Elena Vance",
-        tutorTitle: "AI Research Lead & University Lecturer",
-        tutorAvatar: "E",
-        tutorVerified: true,
-        rating: 4.95,
-        reviewsCount: 480,
-        enrolledCount: 2890,
-        difficulty: "Advanced",
-        estimatedTime: "16 Weeks (8 hrs/week)",
-        modulesCount: 10,
-        description: "Rigorous curriculum covering foundational mathematics, supervised & unsupervised learning, PyTorch deep learning architectures, and Large Language Model fine-tuning.",
-        tags: ["Python", "PyTorch", "Machine Learning", "LLMs"],
-        modules: [
-            { name: "Module 1: Mathematical Foundations for AI", duration: "2 Weeks", detail: "Linear Algebra, Vector Calculus, Probability distributions, and Gradient Descent." },
-            { name: "Module 2: Supervised Learning Algorithms", duration: "3 Weeks", detail: "Regression, Decision Trees, SVMs, Ensemble methods, and Model evaluation." },
-            { name: "Module 3: Neural Networks & PyTorch", duration: "3 Weeks", detail: "Backpropagation, CNNs, ResNets, Optimizers, and Loss functions." },
-            { name: "Module 4: Transformers & Attention Mechanisms", duration: "4 Weeks", detail: "Self-attention, Transformer architectures, BERT, GPT, and fine-tuning with LoRA." },
-            { name: "Module 5: Capstone: Building a Production RAG System", duration: "4 Weeks", detail: "Vector DB indexing, hybrid retrieval, guardrails, and model evaluation." }
-        ]
-    },
-    {
-        id: 3,
-        title: "System Design & Distributed Architectures Guide",
-        contentType: "guide",
-        topic: "Software Architecture",
-        tutorName: "Marcus Vance",
-        tutorTitle: "Staff Systems Engineer & Author",
-        tutorAvatar: "M",
-        tutorVerified: true,
-        rating: 4.88,
-        reviewsCount: 195,
-        enrolledCount: 2150,
-        difficulty: "Advanced",
-        estimatedTime: "6 Weeks (4 hrs/week)",
-        modulesCount: 5,
-        description: "Step-by-step practical guide to designing high-throughput, fault-tolerant distributed systems. Includes real-world case studies of top tech platforms.",
-        tags: ["System Design", "Scalability", "Redis", "Kafka"],
-        modules: [
-            { name: "Step 1: Scalability & Load Balancing Strategies", duration: "1 Week", detail: "Horizontal vs Vertical scaling, DNS routing, Nginx/HAProxy configuration." },
-            { name: "Step 2: Caching Strategies & Memory Storage", duration: "1 Week", detail: "Cache-aside, Write-through, Redis cluster patterns, and Eviction policies." },
-            { name: "Step 3: Message Queues & Event-Driven Architecture", duration: "1.5 Weeks", detail: "Apache Kafka streams, RabbitMQ, Decoupling services, and Eventual consistency." },
-            { name: "Step 4: Database Sharding & Replication", duration: "1.5 Weeks", detail: "Consistent hashing, Master-Replica topologies, Distributed locks." },
-            { name: "Step 5: Monitoring, Telemetry & Disaster Recovery", duration: "1 Week", detail: "Prometheus, Grafana, Distributed Tracing (Jaeger), and Circuit Breakers." }
-        ]
-    },
-    {
-        id: 4,
-        title: "Data Structures & Algorithmic Thinking Roadmap",
-        contentType: "roadmap",
-        topic: "Computer Science",
-        tutorName: "Prof. Sarah Chen",
-        tutorTitle: "Computer Science Faculty",
-        tutorAvatar: "S",
-        tutorVerified: true,
-        rating: 4.92,
-        reviewsCount: 520,
-        enrolledCount: 3400,
-        difficulty: "Beginner to Intermediate",
-        estimatedTime: "10 Weeks (5 hrs/week)",
-        modulesCount: 6,
-        description: "Structured roadmap from fundamental data structures to advanced graph algorithms and dynamic programming for coding interviews and software engineering mastery.",
-        tags: ["Algorithms", "Data Structures", "Problem Solving", "Interview Prep"],
-        modules: [
-            { name: "Phase 1: Arrays, Linked Lists & Pointers", duration: "2 Weeks", detail: "Memory allocation, Two-pointer technique, Sliding window algorithms." },
-            { name: "Phase 2: Stacks, Queues & Hash Maps", duration: "1.5 Weeks", detail: "Collision resolution, Monotonic stacks, LRU Cache implementation." },
-            { name: "Phase 3: Trees, Heaps & Priority Queues", duration: "2 Weeks", detail: "Binary Search Trees, AVL Trees, Heapsort, Tries for prefix lookup." },
-            { name: "Phase 4: Graph Theory & Traversals", duration: "2.5 Weeks", detail: "BFS, DFS, Dijkstra's algorithm, Topological sort, Disjoint Set (Union-Find)." },
-            { name: "Phase 5: Dynamic Programming & Greedy Strategies", duration: "2 Weeks", detail: "Memoization, Tabulation, Knapsack variations, Longest Common Subsequence." }
-        ]
-    },
-    {
-        id: 5,
-        title: "Cybersecurity & Ethical Hacking Mastery",
-        contentType: "course",
-        topic: "Cybersecurity",
-        tutorName: "David Miller",
-        tutorTitle: "Certified Ethical Hacker & Defense Lead",
-        tutorAvatar: "D",
-        tutorVerified: true,
-        rating: 4.85,
-        reviewsCount: 140,
-        enrolledCount: 750,
-        difficulty: "Intermediate",
-        estimatedTime: "8 Weeks (5 hrs/week)",
-        modulesCount: 7,
-        description: "Hands-on course in network security, web application security (OWASP Top 10), penetration testing techniques, and defensive hardening.",
-        tags: ["Cybersecurity", "OWASP", "Penetration Testing", "Network Security"],
-        modules: [
-            { name: "Module 1: Networking Protocols & Packet Analysis", duration: "1.5 Weeks", detail: "TCP/IP, Wireshark inspection, Subnetting, and Port Scanning with Nmap." },
-            { name: "Module 2: Web Vulnerabilities & OWASP Top 10", duration: "2 Weeks", detail: "SQL Injection, XSS, CSRF, Authentication bypasses, and Burp Suite." },
-            { name: "Module 3: Cryptography & Public Key Infrastructure", duration: "1.5 Weeks", detail: "Symmetric/Asymmetric encryption, Hashing, TLS/SSL certificates." },
-            { name: "Module 4: Defensive Hardening & Incident Response", duration: "3 Weeks", detail: "Firewall rules, SIEM logging, SOC monitoring, and Remediation strategies." }
-        ]
-    },
-    {
-        id: 6,
-        title: "Cloud Native & Kubernetes DevOps Guide",
-        contentType: "guide",
-        topic: "DevOps & Cloud",
-        tutorName: "Priya Sharma",
-        tutorTitle: "Lead Cloud Architect",
-        tutorAvatar: "P",
-        tutorVerified: true,
-        rating: 4.91,
-        reviewsCount: 210,
-        enrolledCount: 1600,
-        difficulty: "Intermediate",
-        estimatedTime: "6 Weeks (4 hrs/week)",
-        modulesCount: 5,
-        description: "Actionable guide for containerizing applications with Docker, orchestrating clusters with Kubernetes, and managing Infrastructure as Code using Terraform.",
-        tags: ["DevOps", "Kubernetes", "Docker", "Terraform", "AWS"],
-        modules: [
-            { name: "Step 1: Containerization with Docker", duration: "1 Week", detail: "Dockerfile optimization, multi-stage builds, container security scanning." },
-            { name: "Step 2: Kubernetes Cluster Architecture", duration: "1.5 Weeks", detail: "Pods, Deployments, Services, Ingress controllers, and Helm charts." },
-            { name: "Step 3: Infrastructure as Code (Terraform)", duration: "1.5 Weeks", detail: "Provisioning AWS EKS, VPCs, and IAM policies declaratively." },
-            { name: "Step 4: Continuous Delivery & GitOps", duration: "2 Weeks", detail: "ArgoCD setup, Progressive rollouts, and Observability with Grafana." }
-        ]
-    }
-];
-
 export default function Marketplace() {
     const [selectedTab, setSelectedTab] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedItem, setSelectedItem] = useState(null);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMsg, setSnackbarMsg] = useState("");
+    
+    const [courses, setCourses] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchCourses() {
+            try {
+                const data = await getPublishedCourses();
+                // Map backend structure to UI structure
+                const formatted = data.map(item => {
+                    const c = item.content || {};
+                    return {
+                        id: item.id,
+                        title: c.title || item.topic,
+                        contentType: item.content_type?.toLowerCase() || "course",
+                        topic: item.topic,
+                        tutorName: item.user?.full_name || item.user?.email || "Unknown Tutor",
+                        tutorTitle: item.user?.role === "tutor" ? "Verified Faculty / Tutor" : "Instructor",
+                        tutorAvatar: (item.user?.full_name || item.user?.email || "T").charAt(0).toUpperCase(),
+                        tutorVerified: item.user?.role === "tutor",
+                        rating: (4.5 + Math.random() * 0.5).toFixed(1), // Mock rating since we don't have reviews yet
+                        reviewsCount: Math.floor(Math.random() * 200) + 10,
+                        enrolledCount: Math.floor(Math.random() * 1000) + 50,
+                        difficulty: c.skill_level || "Intermediate",
+                        estimatedTime: c.duration || "Self-paced",
+                        modulesCount: c.modules?.length || 0,
+                        description: c.description || "No description provided.",
+                        tags: c.tags || [item.topic],
+                        modules: (c.modules || []).map(m => ({
+                            name: m.title || "Module",
+                            duration: m.duration || "",
+                            detail: m.description || "",
+                        }))
+                    };
+                });
+                setCourses(formatted);
+            } catch (err) {
+                console.error("Failed to fetch published courses", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchCourses();
+    }, []);
 
     const filteredItems = useMemo(() => {
-        return staticMarketplaceItems.filter(item => {
+        return courses.filter(item => {
             const matchesTab =
                 selectedTab === "all" ||
                 item.contentType.toLowerCase() === selectedTab.toLowerCase();
@@ -241,11 +135,11 @@ export default function Marketplace() {
                 item.title.toLowerCase().includes(query) ||
                 item.topic.toLowerCase().includes(query) ||
                 item.tutorName.toLowerCase().includes(query) ||
-                item.tags.some(tag => tag.toLowerCase().includes(query));
+                (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query)));
 
             return matchesTab && matchesQuery;
         });
-    }, [selectedTab, searchQuery]);
+    }, [selectedTab, searchQuery, courses]);
 
     const handleEnroll = (item) => {
         setSnackbarMsg(`Enrolled in "${item.title}" published by ${item.tutorName}! Added to your study profile.`);
@@ -322,7 +216,7 @@ export default function Marketplace() {
                                     Curated Library
                                 </Typography>
                                 <Typography variant="h4" fontWeight={900}>
-                                    {staticMarketplaceItems.length}+ Published
+                                    {courses.length}+ Published
                                 </Typography>
                                 <Typography variant="caption" sx={{ opacity: 0.85 }}>
                                     Pedagogically framed & verified
@@ -392,7 +286,14 @@ export default function Marketplace() {
                 </Box>
 
                 {/* ── Cards Grid ── */}
-                {filteredItems.length === 0 ? (
+                {loading ? (
+                    <Box textAlign="center" sx={{ py: 8 }}>
+                        <CircularProgress sx={{ color: T.primary, mb: 2 }} />
+                        <Typography variant="h6" color="text.secondary">
+                            Loading published courses...
+                        </Typography>
+                    </Box>
+                ) : filteredItems.length === 0 ? (
                     <Box textAlign="center" sx={{ py: 8 }}>
                         <Typography variant="h6" color="text.secondary">
                             No materials found matching your criteria.

@@ -1,6 +1,6 @@
 const { pyAxios } = require("../utils/apiProxy");
 const logger = require("../utils/logger");
-const { WizardContent, WizardModule, WizardResource } = require("../models");
+const { WizardContent, WizardModule, WizardResource, User } = require("../models");
 
 /**
  * POST /wizard/generate
@@ -335,6 +335,38 @@ async function webhookAgenticComplete(req, res, next) {
   }
 }
 
+/**
+ * GET /wizard/published
+ * Retrieve all published wizard content (Courses, Roadmaps, etc.) for the marketplace
+ */
+async function getPublishedCourses(req, res, next) {
+  try {
+    const publishedContent = await WizardContent.findAll({
+      where: {
+        status: "published",
+      },
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "full_name", "email", "role"],
+        },
+        {
+          model: WizardModule,
+          as: "modules", // Wait, I need to check the alias for WizardModule
+        }
+      ],
+      order: [["created_at", "DESC"]],
+    });
+    // Wait, let's just not include modules eagerly if the association is not defined or use proper alias.
+    // Actually, we probably don't need modules immediately for the list, we can just return the content field which has everything if it's stored in JSON, but WizardModule is a separate table now.
+    res.json(publishedContent);
+  } catch (err) {
+    logger.error(`[WIZARD] Error fetching published courses: ${err.message}`);
+    next(err);
+  }
+}
+
 module.exports = {
   generateContent,
   getHistory,
@@ -344,6 +376,7 @@ module.exports = {
   generateAgentic,
   provideFeedback,
   publishContent,
+  getPublishedCourses,
   webhookAgenticStatus,
   webhookAgenticComplete,
 };

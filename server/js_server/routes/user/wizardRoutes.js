@@ -32,6 +32,7 @@ const {
   generateAgentic,
   provideFeedback,
   publishContent,
+  getPublishedCourses,
 } = require("../../controllers/wizardController");
 
 const { getActiveQuestionSets } = require("../../controllers/wizardQuestionSetController");
@@ -57,6 +58,7 @@ router.get("/history", getHistory);
 router.get("/question-sets", getActiveQuestionSets);
 
 /** Retrieve a specific content item by ID */
+router.get("/published", getPublishedCourses);
 router.get("/:content_id", getContent);
 
 /** Delete a specific content item by ID */

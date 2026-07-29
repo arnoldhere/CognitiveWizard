@@ -54,7 +54,15 @@ export default function Navbar() {
         </button>
 
         <nav className={`nav-links${open ? " nav-open" : ""}`} aria-label="Main navigation">
-          {baseNavItems.map(item => (
+          {baseNavItems
+            .filter(item => {
+              // Hide Courses from tutor role navigation
+              if (item.label === "Courses" && isTutor) {
+                return false;
+              }
+              return true;
+            })
+            .map(item => (
             <NavLink
               key={item.to}
               to={item.to}

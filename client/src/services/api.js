@@ -184,3 +184,8 @@ export const deleteWizardContent = async (id) => {
   const res = await API.delete(`/wizard/${id}`);
   return res.data;
 };
+
+export const getPublishedCourses = async () => {
+  const res = await API.get("/wizard/published");
+  return res.data;
+};
