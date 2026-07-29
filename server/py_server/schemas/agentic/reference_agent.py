@@ -7,7 +7,7 @@ validated, and easy to evolve later.
 
 from __future__ import annotations
 from typing import Literal, Optional, Any
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
 class ReferenceQueryInput(BaseModel):
@@ -22,7 +22,7 @@ class ReferenceQueryInput(BaseModel):
         default=None,
         description="Preferred learning style",
     )
-    modules: list[str] = Field(
+    modules: list[str] | None = Field(
         default_factory=list, description="Roadmap module titles"
     )
     max_results_per_category: int = Field(default=3, ge=1, le=10)
@@ -32,7 +32,7 @@ class ResourceItem(BaseModel):
     """Single curated learning resource."""
 
     title: str = Field(..., description="Resource title")
-    url: HttpUrl = Field(..., description="Canonical resource URL")
+    url: str = Field(..., description="Canonical resource URL")
     description: Optional[str] = Field(
         default=None, description="Short summary/snippet"
     )

@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
-const WizardContent = require("./WizardContent")
+const WizardContent = require("./WizardContent");
+const WizardModule = require("./WizardModule");
 const WizardResource = sequelize.define('WizardResource', {
     id: {
         type: DataTypes.INTEGER,
@@ -18,6 +19,16 @@ const WizardResource = sequelize.define('WizardResource', {
         onDelete: 'CASCADE',
     },
 
+    module_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: WizardModule,
+            key: 'id',
+        },
+        onDelete: 'CASCADE',
+    },
+
     title: {
         type: DataTypes.STRING(500),
         allowNull: false,
@@ -26,7 +37,6 @@ const WizardResource = sequelize.define('WizardResource', {
     url: {
         type: DataTypes.TEXT,
         allowNull: false,
-        unique: true,
     },
 
     description: {
@@ -120,5 +130,8 @@ const WizardResource = sequelize.define('WizardResource', {
 
 WizardContent.hasMany(WizardResource, { foreignKey: 'content_id', as: 'wizard_resources' });
 WizardResource.belongsTo(WizardContent, { foreignKey: 'content_id', as: 'wizard_content' });
+
+WizardModule.hasMany(WizardResource, { foreignKey: 'module_id', as: 'resources' });
+WizardResource.belongsTo(WizardModule, { foreignKey: 'module_id', as: 'module' });
 
 module.exports = WizardResource;

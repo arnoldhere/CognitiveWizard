@@ -29,6 +29,9 @@ const {
   getContent,
   deleteContent,
   exportPdf,
+  generateAgentic,
+  provideFeedback,
+  publishContent,
 } = require("../../controllers/wizardController");
 
 const { getActiveQuestionSets } = require("../../controllers/wizardQuestionSetController");
@@ -40,6 +43,9 @@ router.use(authenticate);
 
 /** Generate AI-powered learning content (course/roadmap/schedule). AI rate-limited. */
 router.post("/generate", aiLimiter, generateContent);
+
+/** Generate course/syllabus with agentic workflow. AI rate-limited. */
+router.post("/generate-agentic", aiLimiter, generateAgentic);
 
 /** Export roadmap content as PDF */
 router.post("/export-pdf", exportPdf);
@@ -55,5 +61,11 @@ router.get("/:content_id", getContent);
 
 /** Delete a specific content item by ID */
 router.delete("/:content_id", deleteContent);
+
+/** Submit feedback for course generation draft */
+router.post("/:content_id/feedback", provideFeedback);
+
+/** Publish course/syllabus draft */
+router.post("/:content_id/publish", publishContent);
 
 module.exports = router;

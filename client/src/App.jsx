@@ -40,7 +40,7 @@ function AppRoutes() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/courses" element={<Marketplace />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
 

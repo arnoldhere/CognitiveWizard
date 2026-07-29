@@ -140,6 +140,27 @@ export const generateWizardContent = async (payload) => {
   }, "Failed to generate wizard content. Please try again.");
 };
 
+export const generateAgenticWizardContent = async (payload) => {
+  return requestWithFriendlyErrors(async () => {
+    const res = await API.post("/wizard/generate-agentic", payload);
+    return res.data;
+  }, "Failed to start agentic generation. Please try again.");
+};
+
+export const provideWizardFeedback = async (id, feedback) => {
+  return requestWithFriendlyErrors(async () => {
+    const res = await API.post(`/wizard/${id}/feedback`, { feedback });
+    return res.data;
+  }, "Failed to submit feedback. Please try again.");
+};
+
+export const publishWizardContent = async (id, modulesData) => {
+  return requestWithFriendlyErrors(async () => {
+    const res = await API.post(`/wizard/${id}/publish`, { modules: modulesData });
+    return res.data;
+  }, "Failed to publish content. Please try again.");
+};
+
 export const exportWizardPdf = async (payload) => {
   return requestWithFriendlyErrors(async () => {
     const res = await API.post("/wizard/export-pdf", payload, {

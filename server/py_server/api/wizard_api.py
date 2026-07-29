@@ -15,10 +15,12 @@ import asyncio
 import logging
 from collections import defaultdict
 from typing import Any, Dict, List
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 from fastapi.responses import Response
+import httpx
+from config.settings import settings
 from agents.graphs.refr_retr_graph import compiled_reference_graph
-from schemas.wizard import WizardRawRequest, WizardRawResponse, WizardPdfExportRequest
+from schemas.wizard import *
 from services.wizard_service import generate_wizard_content
 from services.roadmap_pdf_service import generate_roadmap_pdf
 
@@ -245,3 +247,75 @@ async def export_roadmap_pdf(request: WizardPdfExportRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate PDF document.",
         )
+
+
+async def run_agentic_workflow_bg(agent_state: dict):
+    from agents.graphs.course_generation_graph import compiled_course_graph
+    
+    content_id = agent_state.get("content_id")
+    config = {"configurable": {"thread_id": str(content_id)}} if content_id else {}
+    
+    try:
+        final_state = await compiled_course_graph.ainvoke(agent_state, config=config)
+        
+        if content_id:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{settings.JS_SERVER_URL}/internal/wizard-webhook/complete",
+                    json={"content_id": content_id, "data": final_state.get("course_draft", {})}
+                )
+    except Exception as e:
+        logger.exception("Background agentic generation failed: %s", e)
+        if content_id:
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        f"{settings.JS_SERVER_URL}/internal/wizard-webhook/complete",
+                        json={"content_id": content_id, "error": str(e)}
+                    )
+            except Exception as inner_e:
+                logger.error(f"Failed to send error webhook: {inner_e}")
+
+@router.post("/generate-agentic", response_model=WizardRawResponse)
+async def generate_agentic_content(request: WizardAgenticRequest, background_tasks: BackgroundTasks):
+    """
+    Start the agentic workflow for course/syllabus generation in the background.
+    """
+    agent_state = {
+        "content_id": getattr(request, "content_id", None),
+        "topic": request.topic,
+        "content_type": request.content_type,
+        "details": request.details or "",
+        "skill_level": request.skill_level or "",
+        "goal": request.goal or "",
+        "learning_style": request.learning_style or "",
+        "user_role": request.user_role or "user",
+        "feedback": None,
+        "course_draft": {},
+        "warnings": [],
+    }
+
+    background_tasks.add_task(run_agentic_workflow_bg, agent_state)
+    return WizardRawResponse(content={"status": "generating_planning"}, warnings=[])
+
+@router.post("/regenerate-agentic", response_model=WizardRawResponse)
+async def regenerate_agentic_content(request: WizardAgenticRegenerateRequest, background_tasks: BackgroundTasks):
+    """
+    Regenerate course draft based on tutor feedback in the background.
+    """
+    agent_state = {
+        "content_id": getattr(request, "content_id", None),
+        "topic": request.topic,
+        "content_type": "Course/Syllabus",
+        "details": "",
+        "skill_level": "",
+        "goal": "",
+        "learning_style": "",
+        "user_role": "tutor",
+        "feedback": request.feedback,
+        "course_draft": request.content,
+        "warnings": [],
+    }
+
+    background_tasks.add_task(run_agentic_workflow_bg, agent_state)
+    return WizardRawResponse(content={"status": "generating_planning"}, warnings=[])

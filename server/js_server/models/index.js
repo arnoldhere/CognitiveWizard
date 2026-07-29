@@ -9,6 +9,8 @@ const RAGDocument = require('./RAGDocument');
 const RAGQueryLog = require('./RAGLog');
 const LLMConfig = require('./LLMConfig');
 const WizardQuestionSet = require('./WizardQuestionSet');
+const WizardModule = require('./WizardModule');
+const WizardResource = require('./WizardResource');
 
 // Define relationships
 User.hasMany(Grade, { foreignKey: 'user_id', as: 'grades' });
@@ -108,4 +110,6 @@ module.exports = {
   RAGQueryLog,
   LLMConfig,
   WizardQuestionSet,
+  WizardModule,
+  WizardResource,
 };

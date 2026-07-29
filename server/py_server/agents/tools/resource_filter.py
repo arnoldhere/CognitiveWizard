@@ -30,9 +30,12 @@ PREFERRED_DOMAINS = {
 
 
 def is_allowed_resource(url: str) -> bool:
-    """Return False for blocked domains."""
+    """Return False for blocked domains and invalid/relative URLs."""
     try:
-        domain = urlparse(url).netloc.lower()
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return False
+        domain = parsed.netloc.lower()
         domain = domain.replace("www.", "")
     except Exception:
         return False

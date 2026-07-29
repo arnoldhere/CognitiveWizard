@@ -4,7 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 
 const baseNavItems = [
   { to: "/", label: "Home", end: true },
-  { to: "/marketplace", label: "Marketplace" },
+  { to: "/courses", label: "Courses" },
   { to: "/wizard", label: "AI Wizard" },
   { to: "/quiz", label: "Quiz" },
   { to: "/quick-study", label: "Quick Study" },

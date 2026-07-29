@@ -28,7 +28,7 @@ const WizardContent = sequelize.define('WizardContent', {
   status: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    defaultValue: 'generated',
+    defaultValue: 'generating', // generating, pending_approval, published, generated (legacy)
   },
   content: {
     type: DataTypes.JSON,

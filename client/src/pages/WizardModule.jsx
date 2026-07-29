@@ -16,9 +16,11 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import DeleteIcon from "@mui/icons-material/Delete";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import { useGsapReveal } from "../hooks/useGsapReveal";
-import { generateWizardContent, getWizardHistory, deleteWizardContent, API } from "../services/api";
+import { generateWizardContent, generateAgenticWizardContent, getWizardContentDetail, provideWizardFeedback, publishWizardContent, getWizardHistory, deleteWizardContent, API } from "../services/api";
 import { CircularProgress } from "@mui/material";
+import { useAuth } from "../hooks/useAuth";
 import RoadmapDisplay from "../components/wizard/RoadmapDisplay";
+import DraftReviewUI from "../components/wizard/DraftReviewUI";
 
 // Icon mapping for dynamic icon names from admin config
 const ICON_MAP = {
@@ -99,6 +101,7 @@ const ModuleItem = ({ mod, type }) => {
 };
 
 export default function WizardModule() {
+  const { isTutor } = useAuth();
   const [activeTab, setActiveTab] = useState("generate"); // 'generate' or 'history'
 
   // Dynamic question sets loaded from admin API
@@ -112,6 +115,10 @@ export default function WizardModule() {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedData, setGeneratedData] = useState(null);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  // Polling ref
+  const pollIntervalRef = useRef(null);
 
   // History State
   const [historyItems, setHistoryItems] = useState([]);
@@ -138,6 +145,33 @@ export default function WizardModule() {
       fetchHistory();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
+
+  const startPolling = (id) => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const data = await getWizardContentDetail(id);
+        if (data.status === "pending_approval" || data.status === "published" || data.status === "error") {
+          clearInterval(pollIntervalRef.current);
+          setIsLoading(false);
+          setGeneratedData(data);
+          if (data.status === "error") {
+            setError("Generation failed. Please try again.");
+          }
+        } else {
+          setGeneratedData(data);
+        }
+      } catch (err) {
+        console.error("Polling error", err);
+      }
+    }, 3000);
+  };
 
   const fetchHistory = async () => {
     setIsHistoryLoading(true);
@@ -194,21 +228,34 @@ export default function WizardModule() {
     });
 
     try {
-      const response = await generateWizardContent({
+      const payload = {
         topic: answers.topic,
         content_type: answers.contentType,
         details: details.trim(),
         skill_level: answers.skillLevel || answers.skill_level || answers["Skill Level"],
         goal: answers.goal || answers.learningGoal || answers["Learning Goal"],
         learning_style: answers.learningStyle || answers.learning_style || answers["Learning Style"],
-      });
+      };
 
-      setGeneratedData(response);
-      setMessage(`Successfully generated your ${answers.contentType.toLowerCase()}!`);
+      if (isTutor && answers.contentType === "Course/Syllabus") {
+        const response = await generateAgenticWizardContent(payload);
+        setGeneratedData(response);
+        if (response.status === "generating") {
+          startPolling(response.id);
+          // Leave isLoading true
+        } else {
+          setIsLoading(false);
+          setMessage(`Successfully generated!`);
+        }
+      } else {
+        const response = await generateWizardContent(payload);
+        setGeneratedData(response);
+        setMessage(`Successfully generated your ${answers.contentType.toLowerCase()}!`);
+        setIsLoading(false);
+      }
     } catch (err) {
       setError(err.message || "An error occurred while generating.");
       setStep(targetStep - 1);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -235,6 +282,66 @@ export default function WizardModule() {
             onRegenerate={startOver}
           />
         </div>
+      );
+    }
+
+    if (data?.status === "error") {
+      return (
+        <div style={{ textAlign: "center", padding: "40px 0", animation: "fadeIn 0.5s ease" }}>
+          <div style={{ color: "#ef4444", marginBottom: "16px" }}>
+            <svg style={{ width: "64px", height: "64px", margin: "0 auto" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>Generation Failed</h2>
+          <p style={{ color: "var(--text-light)", fontSize: "1.1rem", marginBottom: "32px" }}>
+            {data.content?.error || error || "An error occurred while generating the content. Would you like to try again?"}
+          </p>
+          <div style={{ display: "flex", justifyContent: "center", gap: "16px" }}>
+            <button onClick={startOver} className="hover-bg-surface" style={{ background: "transparent", border: "1px solid var(--border)", padding: "12px 24px", borderRadius: "30px", color: "var(--text)", cursor: "pointer", fontWeight: 600 }}>
+              Start Over
+            </button>
+            <button onClick={handleGenerate} className="btn-primary" style={{ padding: "12px 24px", fontSize: "1rem", borderRadius: "30px", background: "linear-gradient(135deg, #1ED9F2, #0BAABD)", cursor: "pointer", border: "none", color: "#111", fontWeight: 600 }}>
+              Retry Generation
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (data?.status === "pending_approval") {
+      return (
+        <DraftReviewUI
+          data={data}
+          isSubmitting={isSubmittingFeedback}
+          onFeedback={async (fb) => {
+            setIsSubmittingFeedback(true);
+            try {
+              const res = await provideWizardFeedback(data.id, fb);
+              setGeneratedData(res);
+              if (res.status === "generating") {
+                setIsLoading(true);
+                startPolling(res.id);
+              }
+            } catch (err) {
+              console.error(err);
+              setError("Failed to submit feedback.");
+            } finally {
+              setIsSubmittingFeedback(false);
+            }
+          }}
+          onApprove={async (editedModules) => {
+            setIsSubmittingFeedback(true);
+            try {
+              const res = await publishWizardContent(data.id, editedModules);
+              setGeneratedData(res);
+              setMessage("Content published successfully!");
+            } catch (err) {
+              console.error(err);
+              setError("Failed to publish content.");
+            } finally {
+              setIsSubmittingFeedback(false);
+            }
+          }}
+        />
       );
     }
 
@@ -279,7 +386,7 @@ export default function WizardModule() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {questionSets.map(type => (
+              {questionSets.filter(type => isTutor || type.content_type !== "Course/Syllabus").map(type => (
                 <div
                   key={type.content_type}
                   onClick={() => {
@@ -536,7 +643,13 @@ export default function WizardModule() {
                   <div style={{ textAlign: "center", padding: "100px 0" }}>
                     <CircularProgress size={60} thickness={4} sx={{ color: "#1ED9F2", marginBottom: "32px" }} />
                     <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>Generating {answers.contentType}...</h2>
-                    <p style={{ color: "var(--text-light)", fontSize: "1.1rem" }}>This usually takes a few seconds.</p>
+                    <p style={{ color: "var(--text-light)", fontSize: "1.1rem" }}>
+                      {isTutor && answers.contentType === "Course/Syllabus"
+                        ? (generatedData?.status === "generating_planning" ? "Agent is planning your course architecture..." :
+                           generatedData?.status === "generating_resources" ? "Agent is integrating resources and YouTube videos..." :
+                           "AI Agents are currently structuring your course and fetching relevant resources. This may take a few minutes...")
+                        : "This usually takes a few seconds."}
+                    </p>
                   </div>
                 ) : generatedData ? (
                   <div>

@@ -284,7 +284,7 @@ export default function Marketplace() {
                         <Grid item xs={12} md={8}>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
                                 <Chip
-                                    label="TUTOR PUBLISHED MARKETPLACE"
+                                    label="TUTOR PUBLISHED COURSES"
                                     icon={<WorkspacePremium sx={{ color: `${T.amber} !important` }} />}
                                     sx={{
                                         background: "rgba(255, 255, 255, 0.15)",

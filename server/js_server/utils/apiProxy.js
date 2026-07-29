@@ -23,7 +23,7 @@ const PY_SERVER_URL = process.env.PY_SERVER_URL || "http://localhost:8000";
  */
 const pyAxios = axios.create({
   baseURL: PY_SERVER_URL,
-  timeout: 60_000,
+  timeout: 0, // No timeout for long-running agentic workflows
 });
 
 // ─── Request interceptor: log outbound proxy calls ─────────────────────────

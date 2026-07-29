@@ -177,6 +177,10 @@ app.get("/internal/llm-configs/:task_name", async (req, res) => {
   }
 });
 
+const { webhookAgenticStatus, webhookAgenticComplete } = require("./controllers/wizardController");
+app.post("/internal/wizard-webhook/status", webhookAgenticStatus);
+app.post("/internal/wizard-webhook/complete", webhookAgenticComplete);
+
 app.post("/internal/ensure-admin", async (req, res) => {
   try {
     logger.info("checking Admin user...")

@@ -54,3 +54,21 @@ class WizardPdfExportRequest(BaseModel):
     goal: Optional[str] = None
     learning_style: Optional[str] = None
     user_role: Optional[str] = "user"
+
+
+class WizardAgenticRequest(BaseModel):
+    content_id: int
+    topic: str
+    content_type: str
+    details: Optional[str] = None
+    skill_level: Optional[str] = None
+    goal: Optional[str] = None
+    learning_style: Optional[str] = None
+    user_role: Optional[str] = "user"
+
+
+class WizardAgenticRegenerateRequest(BaseModel):
+    content_id: int
+    topic: str
+    content: Dict[str, Any]
+    feedback: str
