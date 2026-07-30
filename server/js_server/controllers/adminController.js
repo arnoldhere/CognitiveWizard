@@ -251,10 +251,66 @@ async function updateLLMConfig(req, res, next) {
   }
 }
 
+async function getCourses(req, res, next) {
+  try {
+    const page = parseInt(req.query.page) || 0;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
+    const sortField = req.query.sortField || "created_at";
+    const sortOrder = req.query.sortOrder || "desc";
+    const contentType = req.query.contentType || "";
+    const userRole = req.query.userRole || "";
+    const offset = page * limit;
+
+    const where = {};
+    if (contentType && contentType !== "all") {
+      where.content_type = contentType;
+    }
+
+    if (search) {
+      where[Op.or] = [
+        { topic: { [Op.like]: `%${search}%` } },
+        { '$user.email$': { [Op.like]: `%${search}%` } },
+        { '$user.full_name$': { [Op.like]: `%${search}%` } },
+      ];
+    }
+    
+    // Add user role filter if provided
+    if (userRole) {
+        where['$user.role$'] = userRole;
+    }
+
+    const { count, rows } = await WizardContent.findAndCountAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "full_name", "email", "role"],
+        },
+      ],
+      order: [[sortField, sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC"]],
+      limit,
+      offset,
+    });
+
+    res.json({
+      data: rows,
+      total: count,
+      page,
+      totalPages: Math.ceil(count / limit),
+    });
+  } catch (err) {
+    logger.error("[ADMIN] getCourses error:", err);
+    next(err);
+  }
+}
+
 module.exports = {
   getStats,
   getUsers,
   toggleUserStatus,
   getLLMConfigs,
   updateLLMConfig,
+  getCourses,
 };

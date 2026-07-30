@@ -66,3 +66,11 @@ export const toggleWizardQuestionSet = async (id) => {
     const res = await API.patch(`/admin/wizard-questions/${id}/toggle`);
     return res.data;
 };
+
+// ─── Admin Courses ─────────────────────────────────────────────────────────────
+
+export const getAdminCourses = async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await API.get(`/admin/courses?${query}`);
+    return res.data;
+};

@@ -19,6 +19,7 @@ import {
     ThemeProvider,
     CssBaseline,
     Divider,
+    Collapse,
 } from "@mui/material";
 import {
     LayoutDashboard,
@@ -30,6 +31,9 @@ import {
     Sun,
     Moon,
     Bell,
+    BookOpen,
+    ChevronUp,
+    ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
@@ -51,6 +55,7 @@ export default function AdminLayout() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
     const [isDark, setIsDark] = useState(true);
+    const [openGenerated, setOpenGenerated] = useState(false);
 
     const theme = isDark ? darkAdminTheme : lightAdminTheme;
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -63,6 +68,14 @@ export default function AdminLayout() {
     const menuItems = [
         { text: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
         { text: "User Management", icon: Users, path: "/admin/users" },
+        { 
+            text: "Generated Content", 
+            icon: BookOpen, 
+            subItems: [
+                { text: "Published Courses", path: "/admin/courses" },
+                { text: "Learner Content", path: "/admin/learner-content" }
+            ] 
+        },
         { text: "Wizard Questions", icon: Sparkles, path: "/admin/wizard-questions" },
         { text: "LLM Config", icon: SlidersHorizontal, path: "/admin/llm-configs" },
     ];
@@ -97,6 +110,55 @@ export default function AdminLayout() {
                     Navigation
                 </Typography>
                 {menuItems.map((item) => {
+                    if (item.subItems) {
+                        return (
+                            <Box key={item.text}>
+                                <ListItem disablePadding sx={{ mb: 0.5 }}>
+                                    <ListItemButton
+                                        onClick={() => setOpenGenerated(!openGenerated)}
+                                        sx={{ py: 1.25, px: 2 }}
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 36 }}>
+                                            <LucideIcon icon={item.icon} />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={item.text}
+                                            primaryTypographyProps={{ fontSize: "0.88rem", fontWeight: 500 }}
+                                        />
+                                        {openGenerated ? <LucideIcon icon={ChevronUp} size={16} /> : <LucideIcon icon={ChevronDown} size={16} />}
+                                    </ListItemButton>
+                                </ListItem>
+                                <Collapse in={openGenerated} timeout="auto" unmountOnExit>
+                                    <List component="div" disablePadding>
+                                        {item.subItems.map((subItem) => {
+                                            const isSubActive = location.pathname === subItem.path;
+                                            return (
+                                                <ListItem key={subItem.text} disablePadding sx={{ mb: 0.5 }}>
+                                                    <ListItemButton
+                                                        selected={isSubActive}
+                                                        onClick={() => { navigate(subItem.path); if (isMobile) setMobileOpen(false); }}
+                                                        sx={{ py: 1, pl: 6, pr: 2 }}
+                                                    >
+                                                        <ListItemText 
+                                                            primary={subItem.text} 
+                                                            primaryTypographyProps={{ fontSize: "0.82rem", fontWeight: isSubActive ? 600 : 400 }}
+                                                        />
+                                                        {isSubActive && (
+                                                            <Box sx={{
+                                                                width: 3, height: 16, borderRadius: 2,
+                                                                background: "linear-gradient(180deg, #1ED9F2, #148CFF 52%, #7655F6)",
+                                                                ml: 1,
+                                                            }} />
+                                                        )}
+                                                    </ListItemButton>
+                                                </ListItem>
+                                            );
+                                        })}
+                                    </List>
+                                </Collapse>
+                            </Box>
+                        );
+                    }
                     const isActive = location.pathname === item.path;
                     return (
                         <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>

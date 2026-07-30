@@ -29,11 +29,11 @@ async def course_architect_node(state: CourseAgentState) -> Dict:
             async with httpx.AsyncClient() as client:
                 await client.post(
                     f"{settings.JS_SERVER_URL}/internal/wizard-webhook/status",
-                    json={"content_id": content_id, "status": "generating_planning"}
+                    json={"content_id": content_id, "status": "generating_planning"},
                 )
         except Exception as e:
             logger.error(f"Webhook error: {e}")
-            
+
     feedback = state.get("feedback")
     existing_draft = state.get("course_draft")
 
@@ -94,7 +94,7 @@ async def resource_integrator_node(state: CourseAgentState) -> Dict:
             async with httpx.AsyncClient() as client:
                 await client.post(
                     f"{settings.JS_SERVER_URL}/internal/wizard-webhook/status",
-                    json={"content_id": content_id, "status": "generating_resources"}
+                    json={"content_id": content_id, "status": "generating_resources"},
                 )
         except Exception as e:
             logger.error(f"Webhook error: {e}")
