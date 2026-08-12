@@ -1,10 +1,8 @@
 """Main service orchestration layer for the reference agent."""
 
 from __future__ import annotations
-
 import logging
 from typing import Optional
-
 from config.exceptions.agentic import *
 from agents.providers.base_search import BaseSearchProvider
 from agents.providers.tavily_search import TavilySearchProvider
@@ -137,12 +135,16 @@ class ReferenceRetriever:
                     raw.get("source", ""),
                 )
 
+                raw_desc = (raw.get("content") or "").strip()
+                if raw_desc and len(raw_desc) > 200:
+                    raw_desc = raw_desc[:197].rsplit(" ", 1)[0] + "..."
+
                 # Normalize into API response model
                 resource_items.append(
                     ResourceItem(
                         title=(raw.get("title") or "Untitled resource").strip(),
                         url=url,
-                        description=(raw.get("content") or None),
+                        description=(raw_desc or None),
                         source=(raw.get("source") or "web").strip(),
                         category=category,
                         content_type=content_type,
@@ -205,4 +207,6 @@ class ReferenceRetriever:
 
 
 # Initialize the reference retriever as a singleton for use in the node layer
-reference_retriever = ReferenceRetriever(TavilySearchProvider(api_key=AgenticSettings.TAVILY_API_KEY))
+reference_retriever = ReferenceRetriever(
+    TavilySearchProvider(api_key=AgenticSettings.TAVILY_API_KEY)
+)

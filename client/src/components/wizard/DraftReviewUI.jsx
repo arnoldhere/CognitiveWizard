@@ -115,6 +115,18 @@ export default function DraftReviewUI({ data, onApprove, onFeedback, isSubmittin
     setModules(updated);
   };
 
+  const handleTopicChange = (modIdx, topicIdx, field, value) => {
+    const updated = [...modules];
+    updated[modIdx].topics[topicIdx][field] = value;
+    setModules(updated);
+  };
+
+  const handleReferenceChange = (modIdx, refIdx, field, value) => {
+    const updated = [...modules];
+    updated[modIdx].references[refIdx][field] = value;
+    setModules(updated);
+  };
+
   const handleSubmitFeedback = () => {
     if (!feedbackText.trim()) return;
     onFeedback(feedbackText);
@@ -162,36 +174,105 @@ export default function DraftReviewUI({ data, onApprove, onFeedback, isSubmittin
                    content={mod.description} 
                    onChange={(val) => handleDescChange(idx, val)} 
                  />
+                 
+                 {mod.topics && mod.topics.length > 0 && (
+                    <div className="mt-6 border-t border-slate-100 pt-6">
+                       <h4 className="font-bold text-slate-900 mb-4">Edit Topics</h4>
+                       <div className="flex flex-col gap-4">
+                          {mod.topics.map((t, tIdx) => (
+                            <div key={tIdx} className="flex flex-col gap-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                              <input
+                                 value={t.name}
+                                 onChange={(e) => handleTopicChange(idx, tIdx, 'name', e.target.value)}
+                                 className="font-bold p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-full"
+                                 placeholder="Topic Name"
+                              />
+                              <textarea
+                                 value={t.details}
+                                 onChange={(e) => handleTopicChange(idx, tIdx, 'details', e.target.value)}
+                                 className="p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-y w-full"
+                                 placeholder="Topic Details"
+                              />
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                 )}
+
+                 {mod.references && mod.references.length > 0 && (
+                    <div className="mt-6 border-t border-slate-100 pt-6">
+                       <h4 className="font-bold text-slate-900 mb-4">Edit References</h4>
+                       <div className="flex flex-col gap-4">
+                          {mod.references.map((r, rIdx) => (
+                            <div key={rIdx} className="flex flex-col gap-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                              <input
+                                 value={r.title}
+                                 onChange={(e) => handleReferenceChange(idx, rIdx, 'title', e.target.value)}
+                                 className="font-bold p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-full"
+                                 placeholder="Reference Title"
+                              />
+                              <input
+                                 value={r.url}
+                                 onChange={(e) => handleReferenceChange(idx, rIdx, 'url', e.target.value)}
+                                 className="text-blue-500 p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-full"
+                                 placeholder="Reference URL"
+                              />
+                              <textarea
+                                 value={r.description || ""}
+                                 onChange={(e) => handleReferenceChange(idx, rIdx, 'description', e.target.value)}
+                                 className="p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-y w-full"
+                                 placeholder="Reference Description"
+                              />
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                 )}
               </div>
             ) : (
-              <div 
-                className="prose prose-slate max-w-none text-slate-600 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: mod.description }}
-              />
-            )}
-            
-            {mod.references && mod.references.length > 0 && (
-              <div className="mt-8 border-t border-slate-100 pt-6">
-                 <h4 className="font-bold text-slate-900 mb-4">Curated References</h4>
-                 <div className="grid gap-3">
-                   {mod.references.map((ref, rIdx) => (
-                     <a 
-                        key={rIdx} 
-                        href={ref.url} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="flex items-start gap-4 bg-slate-50 p-4 rounded-2xl hover:bg-slate-100 hover:-translate-y-0.5 transition-all group"
-                      >
-                       <div className="text-rose-500 mt-1 shrink-0 bg-rose-100 p-2 rounded-xl">
-                         <Video size={20} />
-                       </div>
-                       <div>
-                         <h5 className="font-bold text-slate-900 mb-1 group-hover:text-primary transition-colors">{ref.title}</h5>
-                         <p className="text-slate-500 text-sm leading-relaxed">{ref.description}</p>
-                       </div>
-                     </a>
-                   ))}
-                 </div>
+              <div>
+                <div 
+                  className="prose prose-slate max-w-none text-slate-600 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: mod.description }}
+                />
+
+                {mod.topics && mod.topics.length > 0 && (
+                  <div className="mt-8 border-t border-slate-100 pt-6">
+                     <h4 className="font-bold text-slate-900 mb-4">Topics</h4>
+                     <ul className="list-disc pl-5 text-slate-600 space-y-2">
+                        {mod.topics.map((t, tIdx) => (
+                          <li key={tIdx}>
+                            <strong className="text-slate-800">{t.name}</strong>: {t.details}
+                          </li>
+                        ))}
+                     </ul>
+                  </div>
+                )}
+                
+                {mod.references && mod.references.length > 0 && (
+                  <div className="mt-8 border-t border-slate-100 pt-6">
+                     <h4 className="font-bold text-slate-900 mb-4">Curated References</h4>
+                     <div className="grid gap-3">
+                       {mod.references.map((ref, rIdx) => (
+                         <a 
+                            key={rIdx} 
+                            href={ref.url} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="flex items-start gap-4 bg-slate-50 p-4 rounded-2xl hover:bg-slate-100 hover:-translate-y-0.5 transition-all group"
+                          >
+                           <div className="text-rose-500 mt-1 shrink-0 bg-rose-100 p-2 rounded-xl">
+                             <Video size={20} />
+                           </div>
+                           <div>
+                             <h5 className="font-bold text-slate-900 mb-1 group-hover:text-primary transition-colors">{ref.title}</h5>
+                             <p className="text-slate-500 text-sm leading-relaxed">{ref.description}</p>
+                           </div>
+                         </a>
+                       ))}
+                     </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
