@@ -138,7 +138,7 @@ export default function Home() {
   const displayName = user?.full_name || user?.email || "learner";
 
   return (
-    <div className="min-h-screen overflow-hidden bg-light text-dark">
+    <div className="min-h-screen overflow-x-hidden bg-light text-dark">
       {/* Ambient page background */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute left-[-10rem] top-[-8rem] h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
@@ -146,9 +146,9 @@ export default function Home() {
       </div>
 
       {/* ───────────────────────── HERO ───────────────────────── */}
-      <section className="relative px-4 pb-16 pt-10 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
+      <section className="relative px-4 pb-14 pt-8 sm:px-6 sm:pb-16 sm:pt-10 lg:px-8 lg:pb-24 lg:pt-16">
         <div className="mx-auto max-w-7xl">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:gap-16">
+          <div className="grid min-w-0 items-center gap-10 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-16">
             <motion.div
               initial="hidden"
               animate="visible"
@@ -164,7 +164,7 @@ export default function Home() {
 
               <motion.h1
                 variants={itemVariants}
-                className="max-w-3xl text-5xl font-black leading-[0.98] tracking-[-0.04em] text-dark sm:text-6xl lg:text-[4.5rem]"
+                className="max-w-3xl text-[clamp(2.75rem,10vw,4.5rem)] font-black leading-[0.98] tracking-[-0.04em] text-dark"
               >
                 Turn study time into{" "}
                 <span className="text-primary">forward progress.</span>
@@ -172,7 +172,7 @@ export default function Home() {
 
               <motion.p
                 variants={itemVariants}
-                className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg"
+                className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:mt-6 sm:text-lg sm:leading-8"
               >
                 CognitiveWizard brings tutoring, adaptive quizzes, curriculum
                 planning, summarization, and progress tracking into one calm
@@ -181,10 +181,10 @@ export default function Home() {
 
               <motion.div
                 variants={itemVariants}
-                className="mt-8 rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.3)]"
+                className="mt-7 rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.3)] sm:mt-8"
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.1rem] px-4 py-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.1rem] px-3 py-3 sm:px-4">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                       <Sparkles size={18} />
                     </div>
@@ -194,7 +194,7 @@ export default function Home() {
                         Your next study move
                       </p>
 
-                      <p className="mt-1 truncate text-sm font-semibold text-slate-700 sm:text-base">
+                      <p className="mt-1 break-words text-sm font-semibold text-slate-700 sm:text-base">
                         {isAuthenticated
                           ? `Welcome back, ${displayName}. Pick your next learning action.`
                           : "Start with a topic, upload material, or build a guided study plan."}
@@ -204,7 +204,7 @@ export default function Home() {
 
                   <Link
                     to={primaryPath}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-slate-900 transition-all hover:-translate-y-0.5 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/15 sm:min-w-[132px]"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-slate-900 transition-all hover:-translate-y-0.5 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/15 sm:w-auto sm:min-w-[132px]"
                   >
                     Generate
                     <ArrowRight size={16} />
@@ -218,7 +218,7 @@ export default function Home() {
               >
                 <Link
                   to={primaryPath}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-bold text-white shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 "
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-bold text-white shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 sm:w-auto"
                 >
                   {primaryLabel}
                   <ArrowRight size={17} />
@@ -226,7 +226,7 @@ export default function Home() {
 
                 <Link
                   to="/about"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-bold text-dark transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
+                  className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-bold text-dark transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 sm:w-auto"
                 >
                   Explore platform
                 </Link>
@@ -263,17 +263,17 @@ export default function Home() {
                 delay: 0.15,
                 ease: "easeOut",
               }}
-              className="relative mx-auto w-full max-w-xl"
+              className="relative mx-auto w-full min-w-0 max-w-xl"
             >
               <div className="absolute -inset-5 rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-transparent to-secondary/15 blur-2xl" />
 
-              <div className="relative rounded-[2rem] border border-slate-200 bg-white p-4 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.32)] sm:p-5">
-                <div className="flex items-center justify-between border-b border-slate-100 px-1 pb-4">
+              <div className="relative rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.32)] sm:rounded-[2rem] sm:p-5">
+                <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-1 pb-4">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400">
                       Today&apos;s workspace
                     </p>
-                    <h2 className="mt-1 text-lg font-extrabold text-dark">
+                    <h2 className="mt-1 text-base font-extrabold text-dark sm:text-lg">
                       Adaptive study plan
                     </h2>
                   </div>
@@ -290,8 +290,8 @@ export default function Home() {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-bold text-dark">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="break-words text-sm font-bold text-dark">
                           Machine Learning Foundations
                         </p>
 
@@ -347,7 +347,7 @@ export default function Home() {
                 </div>
 
                 <div className="mt-4 rounded-2xl bg-dark p-4 text-white">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-white/55">
                         Recommended next
@@ -373,7 +373,7 @@ export default function Home() {
                   <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                     Ready when you are
                   </p>
-                  <p className="text-sm font-bold text-dark">
+                  <p className="break-words text-sm font-bold text-dark">
                     Upload your next source
                   </p>
                 </div>
@@ -484,7 +484,7 @@ export default function Home() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-bold text-dark">
+                    <p className="break-words text-sm font-bold text-dark">
                       Designed for information overload
                     </p>
 
@@ -510,7 +510,7 @@ export default function Home() {
                     viewport={{ once: true, amount: 0.2 }}
                     variants={fadeUp}
                     transition={{ delay: index * 0.06 }}
-                    className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:ml-0 md:pl-20"
+                    className="relative min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:pl-20"
                   >
                     <div className="absolute left-4 top-5 hidden h-10 w-10 items-center justify-center rounded-xl bg-dark text-sm font-black text-white md:flex">
                       0{index + 1}
@@ -579,7 +579,7 @@ export default function Home() {
               >
                 <Link
                   to={module.to}
-                  className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-primary/25 hover:shadow-xl hover:shadow-slate-900/5"
+                  className="group flex h-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-primary/25 hover:shadow-xl hover:shadow-slate-900/5 sm:p-6"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-light text-primary transition-colors group-hover:bg-primary group-hover:text-white">
@@ -625,12 +625,12 @@ export default function Home() {
             whileInView="visible"
             viewport={{ once: true, amount: 0.3 }}
             variants={fadeUp}
-            className="relative overflow-hidden rounded-[2rem] bg-dark px-6 py-12 text-white shadow-2xl shadow-slate-900/10 sm:px-10 sm:py-16 lg:px-16"
+            className="relative overflow-hidden rounded-[1.5rem] bg-dark px-5 py-10 text-white shadow-2xl shadow-slate-900/10 sm:rounded-[2rem] sm:px-10 sm:py-16 lg:px-16"
           >
             <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
             <div className="absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-secondary/15 blur-3xl" />
 
-            <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-2xl">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">
                   Ready to study smarter?
@@ -646,10 +646,10 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+              <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row">
                 <Link
                   to={primaryPath}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate px-6 py-3.5 font-bold text-dark transition-all hover:-translate-y-0.5 hover:bg-slate-800"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate px-6 py-3.5 font-bold text-dark transition-all hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"
                 >
                   {isAuthenticated
                     ? "Open AI Wizard"
@@ -659,7 +659,7 @@ export default function Home() {
 
                 <Link
                   to="/quiz"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-6 py-3.5 font-bold text-white transition-all hover:bg-white/15"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-6 py-3.5 font-bold text-white transition-all hover:bg-white/15 sm:w-auto"
                 >
                   Try a quiz
                 </Link>
