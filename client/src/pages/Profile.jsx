@@ -1,5 +1,4 @@
-import { useCallback } from "react";
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -14,156 +13,27 @@ import {
     updateProfile,
 } from "../services/api";
 import QuizResultsHistory from "../components/quiz/QuizResultsHistory";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-    Container,
-    Paper,
-    Typography,
-    Box,
-    Grid,
-    Avatar,
-    Chip,
-    Divider,
-    Button,
-    Alert,
-    Tab,
-    Tabs,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    CircularProgress,
-    LinearProgress,
-    Tooltip,
-} from "@mui/material";
-import {
-    Person,
-    Email,
-    AdminPanelSettings,
-    History,
-    Delete,
-    WarningAmber,
-    SettingsEthernet,
-    CheckCircle,
-    Close,
-    AccessTime,
-    Cancel,
-    Face2Outlined,
-    School,
-} from "@mui/icons-material";
+    User, Mail, Shield, History, Trash2, AlertTriangle, 
+    Phone, CheckCircle, X, Clock, XCircle, Calendar, GraduationCap
+} from "lucide-react";
+import Modal from "../components/ui/Modal";
 
-/* ─── Teal Palette Constants ─────────────────────────────── */
-const T = {
-    bg:           "#F5F9FF",
-    surface:      "rgba(255,255,255,0.88)",
-    surfaceSolid: "#ffffff",
-    border:       "rgba(20, 140, 255,0.14)",
-    borderStrong: "rgba(20, 140, 255,0.28)",
-    borderWhite:  "rgba(255,255,255,0.88)",
-    text:         "#07152E",
-    textLight:    "#4D6486",
-    muted:        "#7187A9",
-    primary:      "#148CFF",
-    primaryDark:  "#0666D9",
-    primaryLight: "#1ED9F2",
-    accent:       "#7655F6",
-    cyan:         "#1ED9F2",
-    shadow:       "0 12px 40px rgba(20, 140, 255,0.09)",
-    shadowLg:     "0 20px 60px rgba(20, 140, 255,0.12)",
-};
-
-/* ─── Shared sx helpers ──────────────────────────────────── */
-const glassCard = {
-    background: T.surface,
-    backdropFilter: "blur(24px)",
-    border: `1px solid ${T.borderWhite}`,
-    outline: `1px solid ${T.border}`,
-    boxShadow: T.shadow,
-    backgroundImage: "none",
-};
-
-const tealGradientBtn = {
-    borderRadius: 2.5,
-    textTransform: "none",
-    fontWeight: 700,
-    fontFamily: '"Plus Jakarta Sans", sans-serif',
-    background: `linear-gradient(135deg, ${T.primary}, ${T.primaryDark})`,
-    color: "#fff",
-    boxShadow: "0 4px 14px rgba(20, 140, 255,0.28)",
-    position: "relative",
-    overflow: "hidden",
-    "&:hover": {
-        background: `linear-gradient(135deg, #148CFF, ${T.primaryDark})`,
-        boxShadow: "0 8px 24px rgba(20, 140, 255,0.40)",
-        transform: "translateY(-1px)",
-    },
-    "&:disabled": {
-        background: "rgba(20, 140, 255,0.18)",
-        color: "rgba(255,255,255,0.6)",
-        boxShadow: "none",
-    },
-};
-
-const outlinedBtn = {
-    borderRadius: 2.5,
-    textTransform: "none",
-    fontWeight: 700,
-    color: T.textLight,
-    borderColor: T.border,
-    "&:hover": {
-        borderColor: T.primary,
-        color: T.primary,
-        background: "rgba(20, 140, 255,0.05)",
-    },
-};
-
-/* ─── Tab panel ──────────────────────────────────────────── */
-function TabPanel({ children, value, index, ...other }) {
+function InfoRow({ icon, label, value }) {
     return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`tabpanel-${index}`}
-            aria-labelledby={`tab-${index}`}
-            {...other}
-        >
-            {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+        <div className="flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-200">
+            <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0">
+                {icon}
+            </div>
+            <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</span>
+                <span className="text-sm font-semibold text-slate-800 truncate">{value}</span>
+            </div>
         </div>
     );
 }
 
-/* ─── Info Row ───────────────────────────────────────────── */
-function InfoRow({ icon, label, value }) {
-    return (
-        <Grid item xs={12} sm={6}>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 1, gap: 1 }}>
-                <Box
-                    sx={{
-                        display: "inline-flex",
-                        p: 0.7,
-                        borderRadius: 1.5,
-                        background: "rgba(20, 140, 255,0.08)",
-                        border: "1px solid rgba(20, 140, 255,0.16)",
-                        color: T.primary,
-                        fontSize: 18,
-                    }}
-                >
-                    {icon}
-                </Box>
-                <Typography variant="subtitle2" fontWeight={700} sx={{ color: T.textLight }}>
-                    {label}
-                </Typography>
-            </Box>
-            <Typography variant="body1" sx={{ color: T.text, fontWeight: 600, pl: 0.5 }}>
-                {value}
-            </Typography>
-        </Grid>
-    );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   MAIN COMPONENT
-═══════════════════════════════════════════════════════════ */
 export default function Profile() {
     const navigate = useNavigate();
     const { user, logout, refreshUser } = useAuth();
@@ -205,7 +75,6 @@ export default function Profile() {
     const [cancelSuccess, setCancelSuccess] = useState(null);
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
-    /* ── helpers ── */
     const formatDuration = (seconds) => {
         if (seconds === null || seconds === undefined) return "N/A";
         const mins = Math.floor(seconds / 60);
@@ -213,7 +82,6 @@ export default function Profile() {
         return `${mins}m ${secs}s`;
     };
 
-    /* ── data fetchers ── */
     const handleFetchResults = useCallback(async (params) => {
         try {
             setLoading(true);
@@ -242,7 +110,6 @@ export default function Profile() {
             await refreshUser();
             setProfileSuccess("Your profile has been updated.");
         } catch (err) {
-            console.error("Error updating profile:", err);
             setProfileError(err.response?.data?.detail || "Unable to update profile.");
         } finally {
             setProfileLoading(false);
@@ -266,7 +133,6 @@ export default function Profile() {
                 state: { message: "Your profile has been successfully deleted" },
             });
         } catch (err) {
-            console.error("Error deleting profile:", err);
             setDeleteError("Failed to delete profile, Invalid password.");
         } finally {
             setDeleteLoading(false);
@@ -281,7 +147,6 @@ export default function Profile() {
             setSelectedQuizDetail(detail);
             setDetailOpen(true);
         } catch (err) {
-            console.error("Error fetching quiz detail:", err);
             setError(err.response?.data?.detail || "Failed to fetch quiz details");
         } finally {
             setDetailLoading(false);
@@ -299,7 +164,6 @@ export default function Profile() {
             setSubscriptionPlans(plans);
             setSubscriptionStatus(status);
         } catch (err) {
-            console.error("Error fetching subscription plans:", err);
             setSubscriptionError("Unable to load subscription plans.");
         } finally {
             setSubscriptionLoading(false);
@@ -318,7 +182,6 @@ export default function Profile() {
             setCancelSuccess("Your subscription has been cancelled. You are now on the free tier.");
             setCancelConfirmOpen(false);
         } catch (err) {
-            console.error("Error cancelling subscription:", err);
             setCancelError(err?.message || "Failed to cancel subscription. Please try again.");
         } finally {
             setCancelLoading(false);
@@ -360,12 +223,11 @@ export default function Profile() {
                         setPaymentModalOpen(false);
                         setSelectedPlan(null);
                     } catch (err) {
-                        console.error("Payment confirmation failed:", err);
                         setPaymentError("Payment confirmation failed. Please contact support.");
                     }
                 },
                 prefill: { name: user?.full_name || "", email: user?.email || "" },
-                theme: { color: "#148CFF" },
+                theme: { color: "#6A89A7" },
             };
             if (!window.Razorpay) {
                 throw new Error("Razorpay checkout script not loaded.");
@@ -373,14 +235,12 @@ export default function Profile() {
             const rzp = new window.Razorpay(options);
             rzp.open();
         } catch (err) {
-            console.error("Error creating subscription order:", err);
             setPaymentError(err.response?.data?.detail || "Failed to create payment order.");
         } finally {
             setPaymentLoading(false);
         }
     };
 
-    /* ── effects ── */
     useEffect(() => { if (user) loadSubscriptionPlans(); }, [user, loadSubscriptionPlans]);
 
     useEffect(() => {
@@ -399,1141 +259,421 @@ export default function Profile() {
         }
     }, [tabValue, handleFetchResults, results.data.length]);
 
-    /* ════════════════════════════════════ RENDER ══════════════════════════════ */
-    return (
-        <Container maxWidth="lg" sx={{ py: 6, position: "relative", zIndex: 1 }}>
+    const tabs = [
+        { id: 0, label: "Account Details", icon: User },
+        { id: 1, label: `Quiz History (${results.total || 0})`, icon: History },
+        { id: 2, label: "Subscriptions", icon: Shield },
+    ];
 
-            {/* ── Page Hero ── */}
-            <Box sx={{ mb: 4, display: "flex", alignItems: "center", gap: 3 }}>
-                <Avatar
-                    sx={{
-                        width: 64,
-                        height: 64,
-                        background: `linear-gradient(135deg, ${T.primary}, ${T.cyan})`,
-                        fontSize: "1.6rem",
-                        fontWeight: 800,
-                        border: `3px solid rgba(255,255,255,0.9)`,
-                        boxShadow: "0 4px 16px rgba(20, 140, 255,0.22)",
-                    }}
-                >
+    return (
+        <div className="max-w-6xl mx-auto px-4 py-8">
+            {/* Page Hero */}
+            <div className="flex items-center gap-6 mb-8">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center text-3xl font-black text-white shadow-xl border-4 border-white">
                     {user?.full_name
                         ? user.full_name.charAt(0).toUpperCase()
                         : user?.email?.charAt(0).toUpperCase()}
-                </Avatar>
-                <Box>
-                    <Typography
-                        variant="overline"
-                        sx={{
-                            color: T.primary,
-                            fontWeight: 700,
-                            letterSpacing: 2,
-                            display: "block",
-                        }}
-                    >
-                        My Account
-                    </Typography>
-                    <Typography
-                        variant="h4"
-                        sx={{
-                            fontWeight: 900,
-                            fontFamily: '"Plus Jakarta Sans", sans-serif',
-                            letterSpacing: "-0.02em",
-                            color: T.text,
-                        }}
-                    >
+                </div>
+                <div>
+                    <p className="text-xs font-bold text-primary tracking-widest uppercase mb-1">My Account</p>
+                    <h1 className="text-3xl font-extrabold text-slate-900">
                         {user?.full_name || user?.email?.split("@")[0] || "Profile"}
-                    </Typography>
-                </Box>
-            </Box>
+                    </h1>
+                </div>
+            </div>
 
-            {/* ── TABS HEADER ── */}
-            <Paper
-                elevation={0}
-                sx={{
-                    ...glassCard,
-                    borderRadius: 3,
-                    mb: 3,
-                }}
-            >
-                <Tabs
-                    value={tabValue}
-                    onChange={(_, v) => setTabValue(v)}
-                    sx={{
-                        px: 2,
-                        py: 0.5,
-                        "& .MuiTab-root": {
-                            textTransform: "none",
-                            fontWeight: 700,
-                            color: T.muted,
-                            minHeight: 52,
-                            fontFamily: '"Plus Jakarta Sans", sans-serif',
-                            "&.Mui-selected": { color: T.primary },
-                        },
-                        "& .MuiTabs-indicator": {
-                            backgroundColor: T.primary,
-                            height: 3,
-                            borderRadius: "3px 3px 0 0",
-                        },
-                    }}
-                >
-                    <Tab label="Account Details" icon={<Person />} iconPosition="start" />
-                    <Tab
-                        label={`Quiz History (${results.total || 0})`}
-                        icon={<History />}
-                        iconPosition="start"
-                    />
-                    <Tab label="Subscriptions" icon={<AdminPanelSettings />} iconPosition="start" />
-                </Tabs>
-            </Paper>
-
-            {/* ════════════ TAB 0 — Account Details ════════════ */}
-            <TabPanel value={tabValue} index={0}>
-                <Paper elevation={0} sx={{ ...glassCard, borderRadius: 4, p: { xs: 3, md: 5 } }}>
-
-                    {/* Profile Header Row */}
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}>
-                        <Avatar
-                            sx={{
-                                width: 80,
-                                height: 80,
-                                background: `linear-gradient(135deg, ${T.primary}, ${T.cyan})`,
-                                mr: 2,
-                                fontSize: "2rem",
-                                fontWeight: 800,
-                                border: `3px solid rgba(255,255,255,0.9)`,
-                                boxShadow: "0 6px 20px rgba(20, 140, 255,0.20)",
-                            }}
+            {/* Tabs Header */}
+            <div className="flex border-b border-slate-200 mb-8 overflow-x-auto">
+                {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = tabValue === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => setTabValue(tab.id)}
+                            className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all relative whitespace-nowrap ${isActive ? 'text-primary' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
                         >
-                            {user?.full_name
-                                ? user.full_name.charAt(0).toUpperCase()
-                                : user?.email?.charAt(0).toUpperCase()}
-                        </Avatar>
-                        <Box>
-                            <Typography
-                                variant="overline"
-                                sx={{ color: T.primary, fontWeight: 700, letterSpacing: 2 }}
-                            >
-                                Profile
-                            </Typography>
-                            <Typography
-                                variant="h4"
-                                sx={{
-                                    fontWeight: 800,
-                                    mb: 1,
-                                    color: T.text,
-                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
-                                }}
-                            >
-                                Account Details
-                            </Typography>
-                            <Chip
-                                label={user?.role === "tutor" ? "TUTOR / INSTRUCTOR" : user?.role === "admin" ? "ADMINISTRATOR" : "STUDENT / LEARNER"}
-                                icon={user?.role === "tutor" ? <School /> : <AdminPanelSettings />}
-                                variant="outlined"
-                                sx={{
-                                    fontWeight: 800,
-                                    color: user?.role === "tutor" ? "#D97706" : user?.role === "admin" ? T.cyan : T.primary,
-                                    borderColor:
-                                        user?.role === "tutor"
-                                            ? "rgba(245, 158, 11, 0.4)"
-                                            : user?.role === "admin"
-                                            ? "rgba(30, 217, 242, 0.35)"
-                                            : "rgba(20, 140, 255, 0.35)",
-                                    backgroundColor:
-                                        user?.role === "tutor"
-                                            ? "rgba(245, 158, 11, 0.1)"
-                                            : user?.role === "admin"
-                                            ? "rgba(30, 217, 242, 0.08)"
-                                            : "rgba(20, 140, 255, 0.08)",
-                                }}
-                            />
-                        </Box>
-                    </Box>
+                            <Icon size={18} />
+                            {tab.label}
+                            {isActive && (
+                                <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
 
-                    {user?.role === "tutor" && (
-                        <Alert
-                            icon={<School fontSize="inherit" />}
-                            severity="warning"
-                            sx={{
-                                mb: 3.5,
-                                borderRadius: 3,
-                                background: "linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.14))",
-                                border: "1px solid rgba(245, 158, 11, 0.3)",
-                                color: "#78350F",
-                                "& .MuiAlert-icon": { color: "#D97706" },
-                            }}
-                        >
-                            <Typography variant="subtitle2" fontWeight={800}>
-                                Educator & Tutor Publishing Mode Active
-                            </Typography>
-                            <Typography variant="body2">
-                                Your account is configured as a Tutor/Faculty. Materials and AI Wizard roadmaps generated by you are framed with instructional pedagogy, enabling students to access high-quality tutor content via Courses.
-                            </Typography>
-                        </Alert>
-                    )}
+            {/* TAB 0: Account Details */}
+            {tabValue === 0 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-8">
+                    <div className="bg-white/80 backdrop-blur-xl border border-slate-200 rounded-3xl p-8 shadow-sm">
+                        <div className="flex items-center gap-6 mb-8 flex-wrap">
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center text-4xl font-black text-white shadow-xl border-4 border-white">
+                                {user?.full_name
+                                    ? user.full_name.charAt(0).toUpperCase()
+                                    : user?.email?.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-primary tracking-widest uppercase mb-1">Profile</p>
+                                <h2 className="text-3xl font-extrabold text-slate-900 mb-3">Account Details</h2>
+                                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border ${
+                                    user?.role === "tutor" ? "bg-amber-50 text-amber-600 border-amber-200" :
+                                    user?.role === "admin" ? "bg-cyan-50 text-cyan-600 border-cyan-200" :
+                                    "bg-blue-50 text-blue-600 border-blue-200"
+                                }`}>
+                                    {user?.role === "tutor" ? <GraduationCap size={14} /> : <Shield size={14} />}
+                                    {user?.role === "tutor" ? "TUTOR / INSTRUCTOR" : user?.role === "admin" ? "ADMINISTRATOR" : "STUDENT / LEARNER"}
+                                </span>
+                            </div>
+                        </div>
 
-                    <Divider sx={{ my: 3.5, borderColor: T.border }} />
+                        {user?.role === "tutor" && (
+                            <div className="mb-8 p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-4">
+                                <GraduationCap className="text-amber-500 shrink-0 mt-0.5" size={24} />
+                                <div>
+                                    <h4 className="text-amber-900 font-bold mb-1">Educator & Tutor Publishing Mode Active</h4>
+                                    <p className="text-amber-700 text-sm">Your account is configured as a Tutor/Faculty. Materials and AI Wizard roadmaps generated by you are framed with instructional pedagogy, enabling students to access high-quality tutor content via Courses.</p>
+                                </div>
+                            </div>
+                        )}
 
-                    {/* Info Grid */}
-                    <Grid container spacing={3}>
-                        <InfoRow
-                            icon={<Email fontSize="inherit" />}
-                            label="Email Address"
-                            value={user?.email}
-                        />
-                        <InfoRow
-                            icon={<Person fontSize="inherit" />}
-                            label="Full Name"
-                            value={user?.full_name || "Not provided"}
-                        />
-                        <InfoRow
-                            icon={<AdminPanelSettings fontSize="inherit" />}
-                            label="User Role"
-                            value={user?.role}
-                        />
-                        <InfoRow
-                            icon={<SettingsEthernet fontSize="inherit" />}
-                            label="Phone Number"
-                            value={user?.phone || "Not provided"}
-                        />
-                        <InfoRow
-                            icon={<Face2Outlined fontSize="inherit" />}
-                            label="Date of Birth"
-                            value={user?.dob || "Not provided"}
-                        />
-                    </Grid>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <InfoRow icon={<Mail />} label="Email Address" value={user?.email} />
+                            <InfoRow icon={<User />} label="Full Name" value={user?.full_name || "Not provided"} />
+                            <InfoRow icon={<Shield />} label="User Role" value={user?.role} />
+                            <InfoRow icon={<Phone />} label="Phone Number" value={user?.phone || "Not provided"} />
+                            <InfoRow icon={<Calendar />} label="Date of Birth" value={user?.dob || "Not provided"} />
+                        </div>
+                    </div>
 
-                    <Divider sx={{ my: 4.5, borderColor: T.border }} />
-
-                    {/* ── Edit Profile ── */}
-                    <Box sx={{ mb: 5 }}>
-                        <Typography
-                            variant="h6"
-                            sx={{
-                                fontWeight: 800,
-                                mb: 3,
-                                color: T.text,
-                                fontFamily: '"Plus Jakarta Sans", sans-serif',
-                            }}
-                        >
-                            Edit Profile Details
-                        </Typography>
-
+                    <div className="bg-slate-50 border border-slate-200 rounded-3xl p-8 shadow-sm">
+                        <h3 className="text-xl font-bold text-slate-900 mb-6">Edit Profile Details</h3>
+                        
                         {profileSuccess && (
-                            <Alert
-                                severity="success"
-                                sx={{
-                                    mb: 3,
-                                    bgcolor: "rgba(20, 140, 255,0.08)",
-                                    border: "1px solid rgba(20, 140, 255,0.24)",
-                                    color: T.primary,
-                                    "& .MuiAlert-icon": { color: T.primary },
-                                    borderRadius: 2,
-                                }}
-                            >
+                            <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl text-sm font-medium">
                                 {profileSuccess}
-                            </Alert>
+                            </div>
                         )}
                         {profileError && (
-                            <Alert
-                                severity="error"
-                                sx={{
-                                    mb: 3,
-                                    bgcolor: "rgba(239,68,68,0.07)",
-                                    border: "1px solid rgba(239,68,68,0.22)",
-                                    borderRadius: 2,
-                                }}
-                            >
+                            <div className="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl text-sm font-medium">
                                 {profileError}
-                            </Alert>
+                            </div>
                         )}
 
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: { xs: 3, md: 4 },
-                                borderRadius: 3,
-                                background: "rgba(245,249,255,0.76)",
-                                border: `1px solid ${T.border}`,
-                            }}
-                        >
-                            <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6}>
-                                    <TextField
-                                        fullWidth
-                                        label="Email"
-                                        type="email"
-                                        value={user?.email || ""}
-                                        disabled
-                                        variant="outlined"
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <TextField
-                                        fullWidth
-                                        label="Full Name"
-                                        type="text"
-                                        value={profileForm.full_name}
-                                        onChange={(e) =>
-                                            setProfileForm({ ...profileForm, full_name: e.target.value })
-                                        }
-                                        variant="outlined"
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <TextField
-                                        fullWidth
-                                        label="Phone"
-                                        type="tel"
-                                        value={profileForm.phone}
-                                        onChange={(e) =>
-                                            setProfileForm({ ...profileForm, phone: e.target.value })
-                                        }
-                                        variant="outlined"
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <TextField
-                                        fullWidth
-                                        label="Date of Birth"
-                                        type="date"
-                                        value={profileForm.dob || ""}
-                                        onChange={(e) =>
-                                            setProfileForm({ ...profileForm, dob: e.target.value })
-                                        }
-                                        InputLabelProps={{ shrink: true }}
-                                        variant="outlined"
-                                    />
-                                </Grid>
-                            </Grid>
-                            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 4 }}>
-                                <Button
-                                    variant="contained"
-                                    onClick={handleSaveProfile}
-                                    disabled={profileLoading}
-                                    sx={{ ...tealGradientBtn, px: 4.5, py: 1.25 }}
-                                >
-                                    {profileLoading ? "Saving…" : "Save Changes"}
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => {
-                                        setProfileSuccess(null);
-                                        setProfileError(null);
-                                        if (user) {
-                                            setProfileForm({
-                                                full_name: user.full_name || "",
-                                                phone: user.phone || "",
-                                                dob: user.dob || "",
-                                            });
-                                        }
-                                    }}
-                                    disabled={profileLoading}
-                                    sx={{ ...outlinedBtn, px: 4.5, py: 1.25 }}
-                                >
-                                    Cancel
-                                </Button>
-                            </Box>
-                        </Paper>
-                    </Box>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Email</label>
+                                <input type="email" value={user?.email || ""} disabled className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Full Name</label>
+                                <input type="text" value={profileForm.full_name} onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Phone Number</label>
+                                <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Date of Birth</label>
+                                <input type="date" value={profileForm.dob || ""} onChange={(e) => setProfileForm({ ...profileForm, dob: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                            </div>
+                        </div>
 
-                    {/* ── Danger Zone ── */}
-                    <Box>
-                        <Typography
-                            variant="h6"
-                            sx={{ fontWeight: 800, mb: 3, color: "#dc2626", fontFamily: '"Plus Jakarta Sans", sans-serif' }}
-                        >
-                            Danger Zone
-                        </Typography>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: { xs: 3, md: 4 },
-                                borderRadius: 3,
-                                display: "flex",
-                                flexDirection: { xs: "column", md: "row" },
-                                alignItems: { xs: "flex-start", md: "center" },
-                                justifyContent: "space-between",
-                                gap: 3,
-                                background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(220,38,38,0.02) 100%)",
-                                border: "1px solid rgba(239,68,68,0.22)",
-                            }}
-                        >
-                            <Box>
-                                <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#b91c1c" }}>
-                                    Delete Account Permanently
-                                </Typography>
-                                <Typography variant="body2" sx={{ color: T.textLight, mt: 0.5 }}>
-                                    This will delete your credentials, quiz milestones, and document index databases permanently.
-                                </Typography>
-                            </Box>
-                            <Button
-                                variant="contained"
-                                color="error"
-                                startIcon={<Delete />}
-                                onClick={() => setDeleteModalOpen(true)}
-                                sx={{
-                                    borderRadius: 2.5,
-                                    textTransform: "none",
-                                    fontWeight: 700,
-                                    px: 3.5,
-                                    py: 1.25,
-                                    backgroundColor: "#ef4444",
-                                    "&:hover": { backgroundColor: "#dc2626" },
-                                }}
-                            >
-                                Delete Profile
-                            </Button>
-                        </Paper>
-                    </Box>
-                </Paper>
-            </TabPanel>
+                        <div className="flex items-center gap-4">
+                            <button onClick={handleSaveProfile} disabled={profileLoading} className="px-6 py-3 bg-primary hover:bg-opacity-90 text-white font-bold rounded-xl shadow-lg shadow-primary/30 transition-all disabled:opacity-50">
+                                {profileLoading ? "Saving..." : "Save Changes"}
+                            </button>
+                            <button onClick={() => {
+                                setProfileSuccess(null);
+                                setProfileError(null);
+                                if (user) setProfileForm({ full_name: user.full_name || "", phone: user.phone || "", dob: user.dob || "" });
+                            }} disabled={profileLoading} className="px-6 py-3 border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold rounded-xl transition-all disabled:opacity-50">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
 
-            {/* ════════════ TAB 1 — Quiz History ════════════ */}
-            <TabPanel value={tabValue} index={1}>
-                {error && (
-                    <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-                        {error}
-                    </Alert>
-                )}
-                <QuizResultsHistory
-                    results={results}
-                    loading={loading}
-                    onFetchResults={handleFetchResults}
-                    onViewDetails={handleViewQuizDetails}
-                />
-            </TabPanel>
+                    <div>
+                        <h3 className="text-xl font-bold text-rose-600 mb-4 px-2">Danger Zone</h3>
+                        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div>
+                                <h4 className="text-lg font-bold text-rose-800 mb-1">Delete Account Permanently</h4>
+                                <p className="text-sm text-rose-600">This will delete your credentials, quiz milestones, and document index databases permanently.</p>
+                            </div>
+                            <button onClick={() => setDeleteModalOpen(true)} className="shrink-0 flex items-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-600/30 transition-all">
+                                <Trash2 size={18} /> Delete Profile
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
 
-            {/* ════════════ TAB 2 — Subscriptions ════════════ */}
-            <TabPanel value={tabValue} index={2}>
-                <Typography
-                    variant="h6"
-                    sx={{
-                        fontWeight: 800,
-                        mb: 1,
-                        color: T.text,
-                        fontFamily: '"Plus Jakarta Sans", sans-serif',
-                    }}
-                >
-                    Subscription Plans
-                </Typography>
-                <Typography variant="body2" sx={{ color: T.textLight, mb: 3.5 }}>
-                    Upgrade your plan to increase your daily chat limit.
-                </Typography>
+            {/* TAB 1: Quiz History */}
+            {tabValue === 1 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    {error && (
+                        <div className="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl text-sm font-medium">
+                            {error}
+                        </div>
+                    )}
+                    <QuizResultsHistory
+                        results={results}
+                        loading={loading}
+                        onFetchResults={handleFetchResults}
+                        onViewDetails={handleViewQuizDetails}
+                    />
+                </motion.div>
+            )}
 
-                {subscriptionError && (
-                    <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-                        {subscriptionError}
-                    </Alert>
-                )}
-                {cancelSuccess && (
-                    <Alert
-                        severity="success"
-                        sx={{
-                            mb: 3,
-                            borderRadius: 2,
-                            bgcolor: "rgba(20, 140, 255,0.08)",
-                            border: "1px solid rgba(20, 140, 255,0.22)",
-                            color: T.primary,
-                        }}
-                        onClose={() => setCancelSuccess(null)}
-                    >
-                        {cancelSuccess}
-                    </Alert>
-                )}
-                {cancelError && (
-                    <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setCancelError(null)}>
-                        {cancelError}
-                    </Alert>
-                )}
+            {/* TAB 2: Subscriptions */}
+            {tabValue === 2 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="mb-8 px-2">
+                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Subscription Plans</h2>
+                        <p className="text-slate-500">Upgrade your plan to increase your daily chat limit.</p>
+                    </div>
 
-                {subscriptionLoading ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                        <CircularProgress sx={{ color: T.primary }} />
-                    </Box>
-                ) : (
-                    <>
-                        {/* ── Active Subscription Card ── */}
-                        {user?.subscribed && subscriptionStatus && (
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    p: 3,
-                                    mb: 4,
-                                    borderRadius: 4,
-                                    background: "rgba(20, 140, 255,0.05)",
-                                    border: `1.5px solid ${T.borderStrong}`,
-                                    boxShadow: "0 0 24px rgba(20, 140, 255,0.10)",
-                                }}
-                            >
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        flexWrap: "wrap",
-                                        gap: 2,
-                                    }}
-                                >
-                                    {/* Left: plan name + dates */}
-                                    <Box>
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                                            <CheckCircle sx={{ color: T.primary, fontSize: 20 }} />
-                                            <Typography
-                                                variant="subtitle1"
-                                                sx={{
-                                                    fontWeight: 800,
-                                                    color: T.text,
-                                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
-                                                }}
-                                            >
-                                                Active Plan:{" "}
-                                                {user.subscription_plan?.charAt(0).toUpperCase() +
-                                                    user.subscription_plan?.slice(1)}
-                                            </Typography>
-                                        </Box>
-                                        <Typography variant="body2" sx={{ color: T.textLight }}>
-                                            Purchased:{" "}
-                                            <strong style={{ color: T.text }}>
-                                                {subscriptionStatus.subscription_started_at
-                                                    ? new Date(
-                                                          subscriptionStatus.subscription_started_at
-                                                      ).toLocaleDateString("en-IN", {
-                                                          day: "numeric",
-                                                          month: "long",
-                                                          year: "numeric",
-                                                      })
-                                                    : "—"}
-                                            </strong>
-                                        </Typography>
-                                        <Typography variant="body2" sx={{ color: T.textLight, mt: 0.4 }}>
-                                            Expires:{" "}
-                                            <strong style={{ color: T.text }}>
-                                                {subscriptionStatus.subscription_expires_at
-                                                    ? new Date(
-                                                          subscriptionStatus.subscription_expires_at
-                                                      ).toLocaleDateString("en-IN", {
-                                                          day: "numeric",
-                                                          month: "long",
-                                                          year: "numeric",
-                                                      })
-                                                    : "—"}
-                                            </strong>
-                                        </Typography>
-                                    </Box>
+                    {subscriptionError && (
+                        <div className="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl text-sm font-medium">
+                            {subscriptionError}
+                        </div>
+                    )}
+                    {cancelSuccess && (
+                        <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl text-sm font-medium flex justify-between items-center">
+                            <span>{cancelSuccess}</span>
+                            <button onClick={() => setCancelSuccess(null)} className="text-emerald-700 hover:text-emerald-900"><X size={18} /></button>
+                        </div>
+                    )}
+                    {cancelError && (
+                        <div className="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl text-sm font-medium flex justify-between items-center">
+                            <span>{cancelError}</span>
+                            <button onClick={() => setCancelError(null)} className="text-rose-700 hover:text-rose-900"><X size={18} /></button>
+                        </div>
+                    )}
 
-                                    {/* Right: days remaining */}
-                                    <Box sx={{ textAlign: "center", minWidth: 120 }}>
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 0.5,
-                                                justifyContent: "center",
-                                                mb: 0.5,
-                                            }}
-                                        >
-                                            <AccessTime
-                                                sx={{
-                                                    fontSize: 16,
-                                                    color:
-                                                        subscriptionStatus.days_left <= 5
-                                                            ? subscriptionStatus.days_left <= 1
-                                                                ? "#ef4444"
-                                                                : "#7655F6"
-                                                            : T.primary,
-                                                }}
-                                            />
-                                            <Typography
-                                                variant="h5"
-                                                sx={{
-                                                    fontWeight: 900,
-                                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
-                                                    color:
-                                                        subscriptionStatus.days_left <= 5
-                                                            ? subscriptionStatus.days_left <= 1
-                                                                ? "#ef4444"
-                                                                : "#7655F6"
-                                                            : T.primary,
-                                                }}
-                                            >
-                                                {subscriptionStatus.days_left ?? 0}
-                                            </Typography>
-                                        </Box>
-                                        <Typography variant="caption" sx={{ color: T.muted }}>
-                                            day{subscriptionStatus.days_left !== 1 ? "s" : ""} left
-                                        </Typography>
-                                        <Tooltip
-                                            title={`${subscriptionStatus.days_left} of 30 days remaining`}
-                                        >
-                                            <LinearProgress
-                                                variant="determinate"
-                                                value={Math.min(
-                                                    100,
-                                                    ((subscriptionStatus.days_left ?? 0) / 30) * 100
-                                                )}
-                                                sx={{
-                                                    mt: 1,
-                                                    height: 6,
-                                                    borderRadius: 3,
-                                                    backgroundColor: "rgba(20, 140, 255,0.10)",
-                                                    "& .MuiLinearProgress-bar": {
-                                                        borderRadius: 3,
-                                                        backgroundColor:
-                                                            subscriptionStatus.days_left <= 5
-                                                                ? subscriptionStatus.days_left <= 1
-                                                                    ? "#ef4444"
-                                                                    : "#7655F6"
-                                                                : T.primary,
-                                                    },
-                                                }}
-                                            />
-                                        </Tooltip>
-                                    </Box>
-                                </Box>
+                    {subscriptionLoading ? (
+                        <div className="flex justify-center py-12">
+                            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-8">
+                            {user?.subscribed && subscriptionStatus && (
+                                <div className="bg-primary/5 border border-primary/20 rounded-3xl p-8 shadow-sm">
+                                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <CheckCircle className="text-primary" size={24} />
+                                                <h3 className="text-xl font-bold text-slate-900">Active Plan: {user.subscription_plan?.charAt(0).toUpperCase() + user.subscription_plan?.slice(1)}</h3>
+                                            </div>
+                                            <div className="text-slate-600 text-sm space-y-1">
+                                                <p>Purchased: <strong className="text-slate-900">{subscriptionStatus.subscription_started_at ? new Date(subscriptionStatus.subscription_started_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"}</strong></p>
+                                                <p>Expires: <strong className="text-slate-900">{subscriptionStatus.subscription_expires_at ? new Date(subscriptionStatus.subscription_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"}</strong></p>
+                                            </div>
+                                        </div>
 
-                                {/* Expiry warning */}
-                                {subscriptionStatus.days_left !== null &&
-                                    subscriptionStatus.days_left <= 5 && (
-                                        <Alert
-                                            severity={
-                                                subscriptionStatus.days_left <= 1 ? "error" : "warning"
-                                            }
-                                            icon={<AccessTime />}
-                                            sx={{ mt: 2, borderRadius: 2 }}
-                                        >
-                                            {subscriptionStatus.days_left <= 1
-                                                ? "Your subscription expires today! Renew now to avoid losing access."
-                                                : `Your subscription expires in ${subscriptionStatus.days_left} days. Renew before it lapses.`}
-                                        </Alert>
+                                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center min-w-[160px]">
+                                            <div className="flex items-center justify-center gap-2 mb-1">
+                                                <Clock className={subscriptionStatus.days_left <= 5 ? (subscriptionStatus.days_left <= 1 ? "text-rose-500" : "text-amber-500") : "text-primary"} size={20} />
+                                                <span className={`text-3xl font-black ${subscriptionStatus.days_left <= 5 ? (subscriptionStatus.days_left <= 1 ? "text-rose-500" : "text-amber-500") : "text-primary"}`}>
+                                                    {subscriptionStatus.days_left ?? 0}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-3">Days Left</p>
+                                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={`h-full rounded-full transition-all ${subscriptionStatus.days_left <= 5 ? (subscriptionStatus.days_left <= 1 ? "bg-rose-500" : "bg-amber-500") : "bg-primary"}`}
+                                                    style={{ width: `${Math.min(100, ((subscriptionStatus.days_left ?? 0) / 30) * 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {subscriptionStatus.days_left !== null && subscriptionStatus.days_left <= 5 && (
+                                        <div className={`mt-6 p-4 rounded-2xl flex items-center gap-3 ${subscriptionStatus.days_left <= 1 ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                            <AlertTriangle size={20} />
+                                            <span className="font-medium text-sm">
+                                                {subscriptionStatus.days_left <= 1 ? "Your subscription expires today! Renew now to avoid losing access." : `Your subscription expires in ${subscriptionStatus.days_left} days. Renew before it lapses.`}
+                                            </span>
+                                        </div>
                                     )}
 
-                                {/* Cancel button */}
-                                <Box sx={{ mt: 2.5, display: "flex", justifyContent: "flex-end" }}>
-                                    <Button
-                                        variant="outlined"
-                                        size="small"
-                                        startIcon={<Cancel />}
-                                        onClick={() => setCancelConfirmOpen(true)}
-                                        sx={{
-                                            color: "#ef4444",
-                                            borderColor: "rgba(239,68,68,0.35)",
-                                            fontWeight: 700,
-                                            textTransform: "none",
-                                            borderRadius: 2,
-                                            "&:hover": {
-                                                borderColor: "#ef4444",
-                                                background: "rgba(239,68,68,0.06)",
-                                            },
-                                        }}
-                                    >
-                                        Cancel Subscription
-                                    </Button>
-                                </Box>
-                            </Paper>
-                        )}
+                                    <div className="mt-6 flex justify-end">
+                                        <button onClick={() => setCancelConfirmOpen(true)} className="flex items-center gap-2 px-4 py-2 text-rose-600 font-bold border border-rose-200 hover:bg-rose-50 rounded-xl transition-all text-sm">
+                                            <XCircle size={16} /> Cancel Subscription
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
-                        {/* ── Plan Cards ── */}
-                        <Grid container spacing={3}>
-                            {subscriptionPlans.map((plan) => {
-                                const isCurrent = user?.subscription_plan === plan.id;
-                                const isSubscribed = !!user?.subscribed;
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {subscriptionPlans.map((plan) => {
+                                    const isCurrent = user?.subscription_plan === plan.id;
+                                    const isSubscribed = !!user?.subscribed;
 
-                                return (
-                                    <Grid item xs={12} md={4} key={plan.id}>
-                                        <Paper
-                                            elevation={0}
-                                            sx={{
-                                                p: 4,
-                                                textAlign: "center",
-                                                borderRadius: 4,
-                                                height: "100%",
-                                                background: isCurrent
-                                                    ? "rgba(20, 140, 255,0.06)"
-                                                    : T.surface,
-                                                border: isCurrent
-                                                    ? `2px solid ${T.primary}`
-                                                    : `1px solid ${T.borderWhite}`,
-                                                outline: isCurrent
-                                                    ? `1px solid ${T.borderStrong}`
-                                                    : `1px solid ${T.border}`,
-                                                boxShadow: isCurrent
-                                                    ? `0 0 28px rgba(20, 140, 255,0.16), ${T.shadow}`
-                                                    : T.shadow,
-                                                opacity: isSubscribed && !isCurrent ? 0.65 : 1,
-                                                position: "relative",
-                                                transition: "all 0.25s ease",
-                                                "&:hover": !isSubscribed
-                                                    ? {
-                                                          transform: "translateY(-4px)",
-                                                          boxShadow: T.shadowLg,
-                                                          border: `1.5px solid ${T.primary}`,
-                                                      }
-                                                    : {},
-                                            }}
-                                        >
+                                    return (
+                                        <div key={plan.id} className={`relative flex flex-col p-8 rounded-3xl transition-all ${isCurrent ? 'bg-primary/5 border-2 border-primary shadow-lg shadow-primary/10' : 'bg-white border border-slate-200 shadow-sm hover:-translate-y-1 hover:shadow-lg hover:border-primary/50'} ${isSubscribed && !isCurrent ? 'opacity-65' : ''}`}>
                                             {isCurrent && (
-                                                <Chip
-                                                    label="Current"
-                                                    size="small"
-                                                    sx={{
-                                                        position: "absolute",
-                                                        top: 16,
-                                                        right: 16,
-                                                        fontWeight: 700,
-                                                        background: T.primary,
-                                                        color: "#fff",
-                                                        fontSize: "0.7rem",
-                                                    }}
-                                                />
+                                                <span className="absolute top-4 right-4 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">Current</span>
                                             )}
-                                            <Typography
-                                                variant="h5"
-                                                sx={{
-                                                    fontWeight: 800,
-                                                    mb: 1,
-                                                    color: T.text,
-                                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
-                                                }}
-                                            >
-                                                {plan.name}
-                                            </Typography>
-                                            <Typography
-                                                variant="body2"
-                                                sx={{ color: T.textLight, mb: 3, minHeight: 40 }}
-                                            >
-                                                {plan.description}
-                                            </Typography>
-                                            <Typography
-                                                variant="h3"
-                                                sx={{
-                                                    fontWeight: 900,
-                                                    color: T.primary,
-                                                    mb: 0.5,
-                                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
-                                                }}
-                                            >
-                                                ₹ {plan.amount_inr}
-                                            </Typography>
-                                            <Typography
-                                                variant="body2"
-                                                sx={{ color: T.muted, mb: 3.5 }}
-                                            >
-                                                per month
-                                            </Typography>
+                                            <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
+                                            <p className="text-sm text-slate-500 mb-6 min-h-[40px]">{plan.description}</p>
+                                            
+                                            <div className="mb-2">
+                                                <span className="text-4xl font-black text-primary">₹{plan.amount_inr}</span>
+                                            </div>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">per month</p>
 
-                                            <Divider sx={{ my: 2.5, borderColor: T.border }} />
+                                            <hr className="border-slate-100 mb-6" />
 
-                                            <Typography
-                                                variant="body2"
-                                                sx={{ mb: 3.5, color: T.textLight, fontWeight: 600 }}
-                                            >
-                                                Daily Limit:{" "}
-                                                <strong style={{ color: T.text }}>
-                                                    {plan.daily_chat_limit}
-                                                </strong>{" "}
-                                                chat sessions
-                                            </Typography>
+                                            <div className="mb-8 flex-1">
+                                                <p className="text-sm font-semibold text-slate-600">
+                                                    Daily Limit: <strong className="text-slate-900">{plan.daily_chat_limit}</strong> chat sessions
+                                                </p>
+                                            </div>
 
                                             {isCurrent ? (
-                                                <Chip
-                                                    label="Active Plan"
-                                                    icon={
-                                                        <CheckCircle style={{ color: "#ffffff", fontSize: 16 }} />
-                                                    }
-                                                    sx={{
-                                                        fontWeight: 700,
-                                                        backgroundColor: T.primary,
-                                                        color: "#fff",
-                                                        px: 1.5,
-                                                    }}
-                                                />
+                                                <div className="flex items-center justify-center gap-2 w-full py-3 bg-primary text-white rounded-xl font-bold">
+                                                    <CheckCircle size={18} /> Active Plan
+                                                </div>
                                             ) : (
-                                                <Tooltip
-                                                    title={
-                                                        isSubscribed
-                                                            ? "Cancel your current plan first to switch plans"
-                                                            : ""
-                                                    }
+                                                <button
+                                                    disabled={isSubscribed}
+                                                    onClick={() => handlePurchaseSubscription(plan)}
+                                                    className="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all"
                                                 >
-                                                    <span style={{ display: "block" }}>
-                                                        <Button
-                                                            variant="contained"
-                                                            fullWidth
-                                                            disabled={isSubscribed}
-                                                            onClick={() => handlePurchaseSubscription(plan)}
-                                                            sx={{
-                                                                ...tealGradientBtn,
-                                                                mt: 1,
-                                                                py: 1.25,
-                                                                "&.Mui-disabled": {
-                                                                    background: "rgba(20, 140, 255,0.12)",
-                                                                    color: "rgba(20, 140, 255,0.4)",
-                                                                },
-                                                            }}
-                                                        >
-                                                            Subscribe Now
-                                                        </Button>
-                                                    </span>
-                                                </Tooltip>
+                                                    Subscribe Now
+                                                </button>
                                             )}
-                                        </Paper>
-                                    </Grid>
-                                );
-                            })}
-                        </Grid>
-                    </>
-                )}
-            </TabPanel>
-
-            {/* ════════ DIALOG: Cancel Subscription ════════ */}
-            <Dialog
-                open={cancelConfirmOpen}
-                onClose={() => !cancelLoading && setCancelConfirmOpen(false)}
-                maxWidth="xs"
-                fullWidth
-                PaperProps={{ sx: { ...glassCard, borderRadius: 3 } }}
-            >
-                <DialogTitle
-                    sx={{
-                        fontWeight: 800,
-                        color: T.text,
-                        fontFamily: '"Plus Jakarta Sans", sans-serif',
-                    }}
-                >
-                    Cancel Subscription?
-                </DialogTitle>
-                <DialogContent>
-                    <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
-                        Cancelling will immediately remove your premium access and revert you to the
-                        free tier (5 chats/day). This action cannot be undone.
-                    </Alert>
-                    {cancelError && (
-                        <Alert severity="error" sx={{ borderRadius: 2 }}>
-                            {cancelError}
-                        </Alert>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     )}
-                </DialogContent>
-                <DialogActions sx={{ p: 3, pt: 0, gap: 1 }}>
-                    <Button
-                        onClick={() => setCancelConfirmOpen(false)}
-                        disabled={cancelLoading}
-                        sx={{ color: T.muted, fontWeight: 600, textTransform: "none" }}
-                    >
-                        Keep Plan
-                    </Button>
-                    <Button
-                        variant="contained"
-                        onClick={handleCancelSubscription}
-                        disabled={cancelLoading}
-                        startIcon={
-                            cancelLoading ? <CircularProgress size={16} color="inherit" /> : <Cancel />
-                        }
-                        sx={{
-                            fontWeight: 700,
-                            textTransform: "none",
-                            borderRadius: 2,
-                            backgroundColor: "#ef4444",
-                            "&:hover": { backgroundColor: "#dc2626" },
-                            "&.Mui-disabled": { backgroundColor: "rgba(239,68,68,0.35)" },
-                        }}
-                    >
-                        {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                </motion.div>
+            )}
 
-            {/* ════════ DIALOG: Quiz Detail ════════ */}
-            <Dialog
-                open={detailOpen}
-                onClose={() => { setDetailOpen(false); setSelectedQuizDetail(null); }}
-                maxWidth="md"
-                fullWidth
-                PaperProps={{ sx: { ...glassCard, borderRadius: 3 } }}
-            >
-                <DialogTitle
-                    sx={{
-                        fontWeight: 800,
-                        color: T.text,
-                        fontFamily: '"Plus Jakarta Sans", sans-serif',
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                    }}
-                >
-                    Quiz Attempt Details
-                    <Close
-                        sx={{ cursor: "pointer", color: T.muted, "&:hover": { color: T.text } }}
-                        onClick={() => { setDetailOpen(false); setSelectedQuizDetail(null); }}
-                    />
-                </DialogTitle>
-                <DialogContent>
-                    {detailLoading ? (
-                        <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-                            <CircularProgress sx={{ color: T.primary }} />
-                        </Box>
-                    ) : selectedQuizDetail ? (
-                        <Box sx={{ pt: 1 }}>
-                            <Typography
-                                variant="h6"
-                                sx={{
-                                    fontWeight: 800,
-                                    color: T.text,
-                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
-                                }}
-                            >
-                                {selectedQuizDetail.quiz_topic}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 3, color: T.textLight, fontWeight: 500 }}>
-                                Score: {selectedQuizDetail.score_percentage}% (
-                                {selectedQuizDetail.correct_answers}/
-                                {selectedQuizDetail.total_questions}) | Time Taken:{" "}
-                                {formatDuration(selectedQuizDetail.time_taken)} /{" "}
-                                {formatDuration(selectedQuizDetail.time_limit_seconds)}
-                            </Typography>
-                            <Divider sx={{ mb: 3, borderColor: T.border }} />
-                            {selectedQuizDetail.feedback?.map((item, index) => (
-                                <Paper
-                                    key={`${item.question_id}-${index}`}
-                                    elevation={0}
-                                    sx={{
-                                        p: 2.5,
-                                        mb: 2,
-                                        borderRadius: 2.5,
-                                        border: "1px solid",
-                                        borderColor: item.is_correct
-                                            ? "rgba(20, 140, 255,0.25)"
-                                            : "rgba(118, 85, 246,0.25)",
-                                        background: item.is_correct
-                                            ? "rgba(20, 140, 255,0.05)"
-                                            : "rgba(118, 85, 246,0.05)",
-                                    }}
-                                >
-                                    <Typography
-                                        variant="subtitle2"
-                                        sx={{ fontWeight: 700, mb: 1.5, color: T.text }}
-                                    >
-                                        Q{index + 1}. {item.question}
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            color: item.is_correct ? T.primary : "#5736C8",
-                                            mb: 0.5,
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        Your answer: {item.selected_option || "Not answered"}
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{ color: T.primary, fontWeight: 600 }}
-                                    >
-                                        Correct answer: {item.correct_answer}
-                                    </Typography>
-                                </Paper>
-                            ))}
-                        </Box>
-                    ) : (
-                        <Alert severity="info" sx={{ mt: 1, borderRadius: 2 }}>
-                            No details found for this quiz.
-                        </Alert>
-                    )}
-                </DialogContent>
-                <DialogActions sx={{ p: 2.5 }}>
-                    <Button
-                        onClick={() => { setDetailOpen(false); setSelectedQuizDetail(null); }}
-                        variant="outlined"
-                        sx={{ ...outlinedBtn, borderRadius: 2 }}
-                    >
-                        Close
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* ════════ DIALOG: Delete Profile ════════ */}
-            <Dialog
-                open={deleteModalOpen}
-                onClose={() => {
-                    setDeleteModalOpen(false);
-                    setDeletePassword("");
-                    setDeleteError(null);
-                }}
-                maxWidth="sm"
-                fullWidth
-                PaperProps={{ sx: { ...glassCard, borderRadius: 3 } }}
-            >
-                <DialogTitle
-                    sx={{
-                        fontWeight: 800,
-                        pb: 1,
-                        color: "#b91c1c",
-                        fontFamily: '"Plus Jakarta Sans", sans-serif',
-                    }}
-                >
-                    Confirm Delete Profile
-                </DialogTitle>
-                <DialogContent sx={{ pt: 2 }}>
-                    <Alert
-                        severity="error"
-                        sx={{
-                            mb: 3,
-                            bgcolor: "rgba(239,68,68,0.07)",
-                            border: "1px solid rgba(239,68,68,0.22)",
-                            borderRadius: 2,
-                        }}
-                    >
-                        <Typography variant="body2" fontWeight={700}>
-                            <WarningAmber
-                                fontSize="small"
-                                sx={{ verticalAlign: "middle", mr: 0.5 }}
-                            />
-                            This action is permanent and irreversible!
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 1.5, fontWeight: 500 }}>
-                            Deleting your profile will:
-                        </Typography>
-                        <Typography variant="body2" component="ul" sx={{ mt: 1, pl: 2, fontWeight: 500 }}>
-                            <li>Remove your login account permanently</li>
-                            <li>Delete facial bio template metadata</li>
-                            <li>Wipe quiz result archives</li>
-                            <li>Delete all uploaded files & embeddings</li>
-                        </Typography>
-                    </Alert>
-
-                    <Typography variant="body2" sx={{ mb: 2, color: T.textLight, fontWeight: 600 }}>
-                        Enter your password to verify your identity:
-                    </Typography>
-
-                    <TextField
-                        fullWidth
+            {/* Modal: Delete Profile */}
+            <Modal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setDeletePassword(""); setDeleteError(null); }} title="Confirm Delete Profile" maxWidth="sm">
+                <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="text-rose-600 shrink-0 mt-0.5" size={20} />
+                        <div>
+                            <h4 className="text-rose-800 font-bold mb-2">This action is permanent and irreversible!</h4>
+                            <p className="text-rose-700 text-sm font-medium mb-1">Deleting your profile will:</p>
+                            <ul className="list-disc list-inside text-rose-700 text-sm font-medium ml-2 space-y-1">
+                                <li>Remove your login account permanently</li>
+                                <li>Delete facial bio template metadata</li>
+                                <li>Wipe quiz result archives</li>
+                                <li>Delete all uploaded files & embeddings</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div className="mb-6">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Enter your password to verify your identity:</label>
+                    <input 
                         type="password"
-                        label="Confirm Password"
                         placeholder="Enter password to confirm"
                         value={deletePassword}
-                        onChange={(e) => {
-                            setDeletePassword(e.target.value);
-                            if (deleteError) setDeleteError(null);
-                        }}
-                        error={!!deleteError}
-                        helperText={deleteError}
+                        onChange={(e) => { setDeletePassword(e.target.value); if(deleteError) setDeleteError(null); }}
                         disabled={deleteLoading}
-                        sx={{ mb: 1 }}
+                        className={`w-full px-4 py-3 rounded-xl border ${deleteError ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200 focus:border-primary focus:ring-primary/20'} outline-none focus:ring-2 transition-all`}
                     />
-                </DialogContent>
-                <DialogActions sx={{ p: 2.5, pt: 0 }}>
-                    <Button
-                        onClick={() => {
-                            setDeleteModalOpen(false);
-                            setDeletePassword("");
-                            setDeleteError(null);
-                        }}
-                        disabled={deleteLoading}
-                        variant="outlined"
-                        sx={{ ...outlinedBtn, borderRadius: 2 }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleDeleteProfile}
-                        color="error"
-                        variant="contained"
-                        disabled={deleteLoading || !deletePassword.trim()}
-                        sx={{
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 700,
-                            px: 3,
-                            backgroundColor: "#ef4444",
-                            "&:hover": { backgroundColor: "#dc2626" },
-                        }}
-                    >
-                        {deleteLoading && (
-                            <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
-                        )}
-                        {deleteLoading ? "Deleting…" : "Permanently Delete"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                    {deleteError && <p className="text-rose-600 text-xs font-semibold mt-2">{deleteError}</p>}
+                </div>
+                <div className="flex items-center justify-end gap-3">
+                    <button onClick={() => { setDeleteModalOpen(false); setDeletePassword(""); setDeleteError(null); }} disabled={deleteLoading} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                    <button onClick={handleDeleteProfile} disabled={deleteLoading || !deletePassword.trim()} className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all">
+                        {deleteLoading ? "Deleting..." : "Permanently Delete"}
+                    </button>
+                </div>
+            </Modal>
 
-            {/* ════════ DIALOG: Subscription Payment ════════ */}
-            <Dialog
-                open={paymentModalOpen}
-                onClose={() => {
-                    setPaymentModalOpen(false);
-                    setSelectedPlan(null);
-                    setPaymentError(null);
-                }}
-                maxWidth="sm"
-                fullWidth
-                PaperProps={{ sx: { ...glassCard, borderRadius: 3 } }}
-            >
-                <DialogTitle
-                    sx={{
-                        fontWeight: 800,
-                        color: T.text,
-                        fontFamily: '"Plus Jakarta Sans", sans-serif',
-                    }}
-                >
-                    Confirm Subscription Order
-                </DialogTitle>
-                <DialogContent>
-                    {selectedPlan && (
-                        <Box sx={{ pt: 1 }}>
-                            <Typography
-                                variant="h6"
-                                sx={{
-                                    color: T.text,
-                                    fontWeight: 800,
-                                    fontFamily: '"Plus Jakarta Sans", sans-serif',
-                                }}
-                                gutterBottom
-                            >
-                                {selectedPlan.name} Plan
-                            </Typography>
-                            <Typography variant="body1" sx={{ mb: 1, color: T.textLight, fontWeight: 600 }}>
-                                Amount: ₹ {selectedPlan.amount_inr}
-                            </Typography>
-                            <Typography variant="body1" sx={{ mb: 2, color: T.textLight, fontWeight: 600 }}>
-                                Daily Limit: {selectedPlan.daily_chat_limit} chat sessions
-                            </Typography>
-                            {paymentError && (
-                                <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
-                                    {paymentError}
-                                </Alert>
-                            )}
-                            <Typography variant="body2" sx={{ color: T.muted }}>
-                                You will be redirected to Razorpay checkout to finish payment processing.
-                            </Typography>
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions sx={{ p: 2.5 }}>
-                    <Button
-                        onClick={() => {
-                            setPaymentModalOpen(false);
-                            setSelectedPlan(null);
-                            setPaymentError(null);
-                        }}
-                        disabled={paymentLoading}
-                        variant="outlined"
-                        sx={{ ...outlinedBtn, borderRadius: 2 }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleConfirmPayment}
-                        variant="contained"
-                        disabled={paymentLoading}
-                        sx={{ ...tealGradientBtn, px: 3.5, py: 1.25 }}
-                    >
-                        {paymentLoading && (
-                            <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
+            {/* Modal: Cancel Subscription */}
+            <Modal isOpen={cancelConfirmOpen} onClose={() => !cancelLoading && setCancelConfirmOpen(false)} title="Cancel Subscription?" maxWidth="sm">
+                <div className="mb-6 p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-2xl text-sm font-medium leading-relaxed">
+                    Cancelling will immediately remove your premium access and revert you to the free tier (5 chats/day). This action cannot be undone.
+                </div>
+                {cancelError && (
+                    <div className="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl text-sm font-medium">
+                        {cancelError}
+                    </div>
+                )}
+                <div className="flex items-center justify-end gap-3">
+                    <button onClick={() => setCancelConfirmOpen(false)} disabled={cancelLoading} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Keep Plan</button>
+                    <button onClick={handleCancelSubscription} disabled={cancelLoading} className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all">
+                        {cancelLoading ? "Cancelling..." : "Yes, Cancel"}
+                    </button>
+                </div>
+            </Modal>
+
+            {/* Modal: Subscription Payment */}
+            <Modal isOpen={paymentModalOpen} onClose={() => { setPaymentModalOpen(false); setSelectedPlan(null); setPaymentError(null); }} title="Confirm Subscription Order" maxWidth="sm">
+                {selectedPlan && (
+                    <div className="mb-6">
+                        <h4 className="text-xl font-bold text-slate-900 mb-4">{selectedPlan.name} Plan</h4>
+                        <div className="space-y-2 mb-6">
+                            <p className="text-slate-600 font-semibold flex justify-between"><span className="text-slate-500">Amount:</span> <span>₹ {selectedPlan.amount_inr}</span></p>
+                            <p className="text-slate-600 font-semibold flex justify-between"><span className="text-slate-500">Daily Limit:</span> <span>{selectedPlan.daily_chat_limit} chat sessions</span></p>
+                        </div>
+                        {paymentError && (
+                            <div className="mb-6 p-4 bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl text-sm font-medium">
+                                {paymentError}
+                            </div>
                         )}
-                        {paymentLoading ? "Processing…" : "Pay Now"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-        </Container>
+                        <p className="text-sm text-slate-500 italic">You will be redirected to Razorpay checkout to finish payment processing.</p>
+                    </div>
+                )}
+                <div className="flex items-center justify-end gap-3">
+                    <button onClick={() => { setPaymentModalOpen(false); setSelectedPlan(null); setPaymentError(null); }} disabled={paymentLoading} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                    <button onClick={handleConfirmPayment} disabled={paymentLoading} className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-opacity-90 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/30">
+                        {paymentLoading ? "Processing..." : "Pay Now"}
+                    </button>
+                </div>
+            </Modal>
+
+            {/* Modal: Quiz Detail */}
+            <Modal isOpen={detailOpen} onClose={() => { setDetailOpen(false); setSelectedQuizDetail(null); }} title="Quiz Attempt Details" maxWidth="3xl">
+                {detailLoading ? (
+                    <div className="flex justify-center py-12">
+                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                ) : selectedQuizDetail ? (
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedQuizDetail.quiz_topic}</h3>
+                            <p className="text-sm font-semibold text-slate-500">
+                                Score: {selectedQuizDetail.score_percentage}% ({selectedQuizDetail.correct_answers}/{selectedQuizDetail.total_questions}) • 
+                                Time Taken: {formatDuration(selectedQuizDetail.time_taken)} / {formatDuration(selectedQuizDetail.time_limit_seconds)}
+                            </p>
+                        </div>
+                        <hr className="border-slate-200" />
+                        <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-2">
+                            {selectedQuizDetail.feedback?.map((item, index) => (
+                                <div key={`${item.question_id}-${index}`} className={`p-5 rounded-2xl border ${item.is_correct ? 'bg-cyan-50 border-cyan-200' : 'bg-indigo-50 border-indigo-200'}`}>
+                                    <h4 className="text-slate-900 font-bold mb-4 leading-relaxed">Q{index + 1}. {item.question}</h4>
+                                    <div className="flex flex-col gap-2 text-sm font-semibold">
+                                        <p className={`${item.is_correct ? 'text-cyan-700' : 'text-indigo-700'}`}>
+                                            Your answer: {item.selected_option || "Not answered"}
+                                        </p>
+                                        <p className="text-emerald-700">
+                                            Correct answer: {item.correct_answer}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-4 bg-slate-50 text-slate-600 border border-slate-200 rounded-2xl text-sm font-medium">
+                        No details found for this quiz.
+                    </div>
+                )}
+                <div className="flex items-center justify-end gap-3 mt-6">
+                    <button onClick={() => { setDetailOpen(false); setSelectedQuizDetail(null); }} className="px-6 py-2.5 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Close</button>
+                </div>
+            </Modal>
+        </div>
     );
 }

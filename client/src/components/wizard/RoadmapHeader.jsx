@@ -1,12 +1,5 @@
-import React, { useState } from "react";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
-import BookmarkIcon from "@mui/icons-material/Bookmark";
-import ShareIcon from "@mui/icons-material/Share";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import CheckIcon from "@mui/icons-material/Check";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import React from "react";
+import { ArrowLeft, FileText, RefreshCw, Sparkles } from "lucide-react";
 
 export default function RoadmapHeader({
   title,
@@ -14,47 +7,46 @@ export default function RoadmapHeader({
   onRegenerate,
   onExportPdf,
 }) {
-
-
   return (
-    <header className="roadmap-header-root">
-      <div className="roadmap-header-left">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 w-full shadow-sm">
+      <div className="flex items-center gap-4 w-full md:w-auto">
         {onBack && (
           <button
             onClick={onBack}
-            className="roadmap-btn-icon"
+            className="p-2.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors shrink-0"
             title="Back to generator"
           >
-            <ArrowBackIcon fontSize="small" />
-            <span className="btn-text">Back</span>
+            <ArrowLeft size={20} />
           </button>
         )}
-        <div className="roadmap-header-title-group">
-          <div className="agent-badge">
-            <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary mb-0.5">
+            <Sparkles size={12} />
             <span>Agent Enriched</span>
           </div>
-          <h1 className="roadmap-header-title">{title || "AI Learning Roadmap"}</h1>
+          <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 truncate max-w-lg">
+            {title || "AI Learning Roadmap"}
+          </h1>
         </div>
       </div>
 
-      <div className="roadmap-header-actions">
+      <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 shrink-0">
         <button
           onClick={onExportPdf}
-          className="roadmap-btn-secondary"
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-sm whitespace-nowrap"
           title="Export as PDF / Print"
         >
-          <PictureAsPdfIcon fontSize="small" />
+          <FileText size={16} />
           <span>Export PDF</span>
         </button>
 
         {onRegenerate && (
           <button
             onClick={onRegenerate}
-            className="roadmap-btn-primary"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors shadow-md text-sm whitespace-nowrap"
             title="Regenerate with AI"
           >
-            <RefreshIcon fontSize="small" />
+            <RefreshCw size={16} />
             <span>Regenerate</span>
           </button>
         )}

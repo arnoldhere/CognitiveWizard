@@ -1,55 +1,6 @@
 import { useState, useEffect } from "react";
-import {
-    Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    TablePagination,
-    TextField,
-    Box,
-    Stack,
-    Typography,
-    Chip,
-    CircularProgress,
-    MenuItem,
-    Button,
-    Tooltip,
-} from "@mui/material";
-import { TrendingUp, Visibility, Search } from "@mui/icons-material";
-
-/* ─── Teal palette ──────────────────────────────────── */
-const T = {
-    surface:     "rgba(255,255,255,0.88)",
-    border:      "rgba(20, 140, 255,0.14)",
-    borderWhite: "rgba(255,255,255,0.88)",
-    text:        "#07152E",
-    textLight:   "#4D6486",
-    muted:       "#7187A9",
-    primary:     "#148CFF",
-    cyan:        "#1ED9F2",
-    shadow:      "0 8px 30px rgba(20, 140, 255,0.08)",
-};
-
-/* ─── Shared header cell sx ─────────────────────────── */
-const headCell = {
-    fontWeight: 700,
-    color: T.textLight,
-    fontSize: "0.82rem",
-    textTransform: "uppercase",
-    letterSpacing: "0.06em",
-    borderBottom: `2px solid ${T.border}`,
-    background: "rgba(20, 140, 255,0.04)",
-    whiteSpace: "nowrap",
-};
-
-/* ─── Shared body cell sx ───────────────────────────── */
-const bodyCell = {
-    borderColor: T.border,
-    py: 1.5,
-};
+import { TrendingUp, Eye, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function QuizResultsHistory({
     results,
@@ -78,7 +29,11 @@ export default function QuizResultsHistory({
         return () => window.clearTimeout(handler);
     }, [page, rowsPerPage, sortBy, sortOrder, statusFilter, topicSearch, onFetchResults]);
 
-    const handleChangePage = (_, newPage) => setPage(newPage);
+    const handleChangePage = (newPage) => {
+        if (newPage >= 0 && newPage < Math.ceil((results.total || 0) / rowsPerPage)) {
+            setPage(newPage);
+        }
+    };
     const handleChangeRowsPerPage = (e) => {
         setRowsPerPage(parseInt(e.target.value, 10));
         setPage(0);
@@ -100,316 +55,178 @@ export default function QuizResultsHistory({
         return `${mins}m ${secs}s`;
     };
 
-    /* score colour helper */
-    const scoreColor = (pct) => (pct >= 60 ? T.primary : "#5736C8");
-
     if (loading) {
         return (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                <CircularProgress
-                    size={56}
-                    thickness={4}
-                    sx={{ color: T.primary }}
-                />
-            </Box>
+            <div className="flex justify-center items-center py-20">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
         );
     }
 
+    const totalPages = Math.ceil((results.total || 0) / rowsPerPage);
+
     return (
-        <Stack spacing={3}>
-            {/* ── Filter Bar ── */}
-            <Paper
-                elevation={0}
-                sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    background: T.surface,
-                    backdropFilter: "blur(20px)",
-                    border: `1px solid ${T.borderWhite}`,
-                    outline: `1px solid ${T.border}`,
-                    boxShadow: T.shadow,
-                }}
-            >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
-                    <Search sx={{ color: T.primary, fontSize: 20 }} />
-                    <Typography
-                        variant="subtitle1"
-                        sx={{
-                            fontWeight: 700,
-                            color: T.text,
-                            fontFamily: '"Plus Jakarta Sans", sans-serif',
-                        }}
-                    >
-                        Filters & Search
-                    </Typography>
-                </Box>
-                <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+        <div className="flex flex-col gap-6 w-full">
+            {/* Filter Bar */}
+            <div className="bg-white/80 backdrop-blur-xl border border-slate-200 rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center gap-2 mb-6">
+                    <Search className="text-primary" size={20} />
+                    <h3 className="font-bold text-slate-800">Filters & Search</h3>
+                </div>
+                <div className="flex flex-col md:flex-row gap-4">
                     {/* Topic search */}
-                    <TextField
-                        placeholder="Search by topic…"
-                        value={topicSearch}
-                        onChange={(e) => { setTopicSearch(e.target.value); setPage(0); }}
-                        size="small"
-                        sx={{ flex: 2 }}
-                        InputProps={{
-                            startAdornment: (
-                                <Search sx={{ mr: 0.5, fontSize: 18, color: T.muted }} />
-                            ),
-                        }}
-                    />
+                    <div className="relative flex-2 md:flex-[2]">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="text-slate-400" size={18} />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search by topic…"
+                            value={topicSearch}
+                            onChange={(e) => { setTopicSearch(e.target.value); setPage(0); }}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
+                        />
+                    </div>
                     {/* Status */}
-                    <TextField
-                        select
-                        label="Status"
+                    <select
                         value={statusFilter}
                         onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-                        size="small"
-                        sx={{ flex: 1, minWidth: 140 }}
+                        className="flex-1 md:min-w-[140px] px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm bg-white"
                     >
-                        <MenuItem value="">All Results</MenuItem>
-                        <MenuItem value="pass">Passed</MenuItem>
-                        <MenuItem value="fail">Failed</MenuItem>
-                    </TextField>
+                        <option value="">All Statuses</option>
+                        <option value="pass">Passed</option>
+                        <option value="fail">Failed</option>
+                    </select>
                     {/* Sort By */}
-                    <TextField
-                        select
-                        label="Sort By"
+                    <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        size="small"
-                        sx={{ flex: 1, minWidth: 140 }}
+                        className="flex-1 md:min-w-[140px] px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm bg-white"
                     >
-                        <MenuItem value="submitted_at">Date</MenuItem>
-                        <MenuItem value="score_percentage">Score</MenuItem>
-                        <MenuItem value="result">Status</MenuItem>
-                    </TextField>
+                        <option value="submitted_at">Date</option>
+                        <option value="score_percentage">Score</option>
+                        <option value="result">Status</option>
+                    </select>
                     {/* Order */}
-                    <TextField
-                        select
-                        label="Order"
+                    <select
                         value={sortOrder}
                         onChange={(e) => setSortOrder(e.target.value)}
-                        size="small"
-                        sx={{ flex: 1, minWidth: 120 }}
+                        className="flex-1 md:min-w-[120px] px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm bg-white"
                     >
-                        <MenuItem value="asc">Ascending</MenuItem>
-                        <MenuItem value="desc">Descending</MenuItem>
-                    </TextField>
-                </Stack>
-            </Paper>
+                        <option value="desc">Descending</option>
+                        <option value="asc">Ascending</option>
+                    </select>
+                </div>
+            </div>
 
-            {/* ── Results Table ── */}
-            <TableContainer
-                component={Paper}
-                elevation={0}
-                sx={{
-                    borderRadius: 3,
-                    background: T.surface,
-                    backdropFilter: "blur(20px)",
-                    border: `1px solid ${T.borderWhite}`,
-                    outline: `1px solid ${T.border}`,
-                    boxShadow: T.shadow,
-                    overflow: "hidden",
-                }}
-            >
-                <Table sx={{ minWidth: 750 }}>
-                    {/* ── Head ── */}
-                    <TableHead>
-                        <TableRow>
-                            <TableCell sx={headCell}>Topic</TableCell>
-                            <TableCell align="center" sx={headCell}>Difficulty</TableCell>
-                            <TableCell align="center" sx={headCell}>Status</TableCell>
-                            <TableCell align="center" sx={headCell}>Score</TableCell>
-                            <TableCell align="center" sx={headCell}>Answers</TableCell>
-                            <TableCell align="right" sx={headCell}>Time Taken</TableCell>
-                            <TableCell align="right" sx={headCell}>Date</TableCell>
-                            <TableCell align="center" sx={headCell}>Details</TableCell>
-                        </TableRow>
-                    </TableHead>
-
-                    {/* ── Body ── */}
-                    <TableBody>
-                        {results.data && results.data.length > 0 ? (
-                            results.data.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    sx={{
-                                        "&:last-child td, &:last-child th": { border: 0 },
-                                        "&:hover": {
-                                            bgcolor: "rgba(20, 140, 255,0.035)",
-                                        },
-                                        transition: "background 0.18s ease",
-                                    }}
-                                >
-                                    {/* Topic */}
-                                    <TableCell sx={{ ...bodyCell, fontWeight: 600, color: T.text }}>
-                                        {row.quiz_topic}
-                                    </TableCell>
-
-                                    {/* Difficulty */}
-                                    <TableCell align="center" sx={bodyCell}>
-                                        <Chip
-                                            label={row.difficulty}
-                                            size="small"
-                                            variant="outlined"
-                                            sx={{
-                                                textTransform: "capitalize",
-                                                fontWeight: 700,
-                                                color: T.primary,
-                                                borderColor: "rgba(20, 140, 255,0.30)",
-                                                backgroundColor: "rgba(20, 140, 255,0.07)",
-                                                fontSize: "0.75rem",
-                                            }}
-                                        />
-                                    </TableCell>
-
-                                    {/* Status */}
-                                    <TableCell align="center" sx={bodyCell}>
-                                        <Chip
-                                            label={row.result.toUpperCase()}
-                                            size="small"
-                                            icon={<TrendingUp />}
-                                            variant="outlined"
-                                            sx={{
-                                                fontWeight: 700,
-                                                fontSize: "0.75rem",
-                                                color:
-                                                    row.result === "pass"
-                                                        ? "#0BAABD"
-                                                        : "#5736C8",
-                                                borderColor:
-                                                    row.result === "pass"
-                                                        ? "rgba(11, 170, 189,0.30)"
-                                                        : "rgba(118, 85, 246,0.30)",
-                                                backgroundColor:
-                                                    row.result === "pass"
-                                                        ? "rgba(11, 170, 189,0.07)"
-                                                        : "rgba(118, 85, 246,0.07)",
-                                                "& .MuiChip-icon": { color: "inherit" },
-                                            }}
-                                        />
-                                    </TableCell>
-
-                                    {/* Score */}
-                                    <TableCell align="center" sx={bodyCell}>
-                                        <Typography
-                                            sx={{
-                                                fontWeight: 900,
-                                                fontSize: "1.05rem",
-                                                color: scoreColor(row.score_percentage),
-                                                fontFamily: '"Plus Jakarta Sans", sans-serif',
-                                            }}
-                                        >
+            {/* Results Table */}
+            <div className="bg-white/80 backdrop-blur-xl border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[800px] text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
+                                <th className="px-6 py-4">Topic</th>
+                                <th className="px-6 py-4 text-center">Difficulty</th>
+                                <th className="px-6 py-4 text-center">Status</th>
+                                <th className="px-6 py-4 text-center">Score</th>
+                                <th className="px-6 py-4 text-center">Answers</th>
+                                <th className="px-6 py-4 text-right">Time Taken</th>
+                                <th className="px-6 py-4 text-right">Date</th>
+                                <th className="px-6 py-4 text-center">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {results.data && results.data.length > 0 ? (
+                                results.data.map((row) => (
+                                    <tr key={row.id} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">
+                                            {row.quiz_topic}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <span className="px-3 py-1 text-xs font-bold rounded-full bg-primary/10 text-primary border border-primary/20 capitalize">
+                                                {row.difficulty}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full border ${row.result === 'pass' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-rose-100 text-rose-700 border-rose-200'}`}>
+                                                <TrendingUp size={12} /> {row.result.toUpperCase()}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-center font-black text-lg" style={{ color: row.score_percentage >= 60 ? '#6A89A7' : '#384959' }}>
                                             {row.score_percentage}%
-                                        </Typography>
-                                    </TableCell>
-
-                                    {/* Answers */}
-                                    <TableCell align="center" sx={bodyCell}>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{ fontWeight: 600, color: T.textLight }}
-                                        >
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-center text-slate-500 font-semibold text-sm">
                                             {row.correct_answers}/{row.total_questions}
-                                        </Typography>
-                                    </TableCell>
-
-                                    {/* Time */}
-                                    <TableCell align="right" sx={bodyCell}>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{ color: T.muted, fontWeight: 500 }}
-                                        >
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-slate-500 font-medium text-sm">
                                             {formatDuration(row.time_taken)}
-                                        </Typography>
-                                    </TableCell>
-
-                                    {/* Date */}
-                                    <TableCell align="right" sx={bodyCell}>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{ color: T.muted, fontWeight: 500, whiteSpace: "nowrap" }}
-                                        >
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-slate-500 font-medium text-sm">
                                             {formatDate(row.submitted_at)}
-                                        </Typography>
-                                    </TableCell>
-
-                                    {/* Details button */}
-                                    <TableCell align="center" sx={bodyCell}>
-                                        <Tooltip title="View quiz details">
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                startIcon={<Visibility />}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <button
                                                 onClick={() => onViewDetails(row.id)}
-                                                sx={{
-                                                    textTransform: "none",
-                                                    fontWeight: 700,
-                                                    borderRadius: 99,
-                                                    color: T.primary,
-                                                    borderColor: "rgba(20, 140, 255,0.35)",
-                                                    "&:hover": {
-                                                        borderColor: T.primary,
-                                                        backgroundColor: "rgba(20, 140, 255,0.07)",
-                                                    },
-                                                    transition: "all 0.18s ease",
-                                                }}
+                                                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 text-primary font-bold text-xs hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                             >
-                                                View
-                                            </Button>
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexDirection: "column",
-                                            alignItems: "center",
-                                            gap: 1,
-                                            color: T.muted,
-                                        }}
-                                    >
-                                        <TrendingUp sx={{ fontSize: 40, opacity: 0.35 }} />
-                                        <Typography
-                                            variant="body1"
-                                            sx={{ fontStyle: "italic", color: T.muted }}
-                                        >
-                                            No quiz results found
-                                        </Typography>
-                                        <Typography variant="caption" sx={{ color: T.muted }}>
-                                            Complete a quiz to see your history here
-                                        </Typography>
-                                    </Box>
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-
-                {/* ── Pagination ── */}
-                <TablePagination
-                    rowsPerPageOptions={[5, 10, 25, 50]}
-                    component="div"
-                    count={results.total || 0}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    sx={{
-                        borderTop: `1px solid ${T.border}`,
-                        color: T.textLight,
-                        "& .MuiTablePagination-selectIcon": { color: T.primary },
-                        "& .MuiTablePagination-actions .MuiIconButton-root": {
-                            color: T.primary,
-                            "&.Mui-disabled": { color: T.muted },
-                        },
-                    }}
-                />
-            </TableContainer>
-        </Stack>
+                                                <Eye size={14} /> View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={8} className="px-6 py-12 text-center">
+                                        <div className="flex flex-col items-center gap-2 text-slate-400">
+                                            <TrendingUp size={48} className="opacity-30 mb-2" />
+                                            <p className="font-medium italic">No quiz results found</p>
+                                            <p className="text-sm">Complete a quiz to see your history here</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+                    <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
+                        <span>Rows per page:</span>
+                        <select 
+                            value={rowsPerPage} 
+                            onChange={handleChangeRowsPerPage}
+                            className="bg-transparent font-semibold text-slate-700 outline-none cursor-pointer"
+                        >
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-slate-600 font-medium">
+                        <span>
+                            {results.total === 0 ? 0 : page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, results.total || 0)} of {results.total || 0}
+                        </span>
+                        <div className="flex items-center gap-1">
+                            <button 
+                                onClick={() => handleChangePage(page - 1)}
+                                disabled={page === 0}
+                                className="p-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-600"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <button 
+                                onClick={() => handleChangePage(page + 1)}
+                                disabled={page >= totalPages - 1 || totalPages === 0}
+                                className="p-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-600"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }

@@ -1,15 +1,15 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { CircularProgress, Box } from "@mui/material";
+import { Loader2 } from "lucide-react";
 
 export default function AdminRoute({ children }) {
     const { user, isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-                <CircularProgress />
-            </Box>
+            <div className="flex justify-center items-center min-h-screen">
+                <Loader2 size={40} className="animate-spin text-primary" />
+            </div>
         );
     }
 

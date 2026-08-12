@@ -1,21 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  FormControl,
-  FormControlLabel,
-  LinearProgress,
-  Paper,
-  Radio,
-  RadioGroup,
-  Stack,
-  Typography,
-} from "@mui/material";
-import { ArrowBack, ArrowForward, CheckCircle, Fullscreen } from "@mui/icons-material";
+import { ArrowLeft, ArrowRight, CheckCircle, Maximize } from "lucide-react";
+import Button from "../ui/Button";
 
 function preventClipboardAction(event) {
   event.preventDefault();
@@ -24,7 +9,7 @@ function preventClipboardAction(event) {
 export default function QuizCard({ quiz, onSubmit, submitting }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenNotice, setFullscreenNotice] = useState("");
   const [timeLeft, setTimeLeft] = useState(quiz?.time_limit_seconds || 0);
   const examRef = useRef(null);
@@ -83,9 +68,11 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     window.addEventListener("keydown", handleShortcutBlock);
+    
+    // Using a tiny timeout often helps with browser user-gesture requirements for fullscreen, but it may still block
     const fullscreenTimer = window.setTimeout(() => {
-      void enterFullscreen();
-    }, 0);
+      // enterFullscreen();
+    }, 100);
 
     return () => {
       window.clearTimeout(fullscreenTimer);
@@ -105,7 +92,6 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
 
     const timer = window.setInterval(() => {
       setTimeLeft((previous) => {
-        // Stop timer at 0, don't go negative
         if (previous <= 1) {
           window.clearInterval(timer);
           return 0;
@@ -119,20 +105,14 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
     };
   }, [quiz?.time_limit_seconds, submitting]);
 
-  // Handle automatic submission when time expires
   useEffect(() => {
-    // Only auto-submit when time hits exactly 0, not during pending or already submitted
     if (timeLeft !== 0 || autoSubmitTriggered.current || submitting) {
       return;
     }
-
-    // Prevent duplicate submission attempts
     autoSubmitTriggered.current = true;
-
     const formattedAnswers = buildFormattedAnswers();
     void onSubmit({ answers: formattedAnswers, isAutoSubmitted: true }).catch((err) => {
       console.error("Auto submission failed:", err);
-      // Reset flag on error to allow manual recovery
       autoSubmitTriggered.current = false;
     });
   }, [timeLeft, submitting, onSubmit, buildFormattedAnswers]);
@@ -158,7 +138,6 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
 
   const handleSubmit = async () => {
     const formattedAnswers = buildFormattedAnswers();
-
     try {
       await onSubmit({ answers: formattedAnswers, isAutoSubmitted: false });
     } catch (err) {
@@ -171,321 +150,153 @@ export default function QuizCard({ quiz, onSubmit, submitting }) {
   }
 
   return (
-    <Box
+    <div
       ref={examRef}
       onCopy={preventClipboardAction}
       onCut={preventClipboardAction}
       onPaste={preventClipboardAction}
       onContextMenu={preventClipboardAction}
-      sx={{
-        minHeight: "100vh",
-        px: { xs: 2, md: 4 },
-        py: { xs: 3, md: 5 },
-        background:
-          "radial-gradient(circle at top, rgba(14,165,233,0.18), transparent 36%), linear-gradient(180deg, #0f172a 0%, #111827 100%)",
+      className="min-h-screen w-full bg-slate-950 p-4 sm:p-6 lg:p-8 flex items-center justify-center select-none"
+      style={{
+        background: "radial-gradient(circle at top, rgba(14,165,233,0.18), transparent 36%), linear-gradient(180deg, #0f172a 0%, #020617 100%)"
       }}
     >
-      <Box sx={{ maxWidth: 920, mx: "auto" }}>
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 2.5, md: 4 },
-            borderRadius: 5,
-            background: "rgba(15, 23, 42, 0.86)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            backdropFilter: "blur(16px)",
-            color: "white",
-            userSelect: "none",
-          }}
-        >
-          <Stack spacing={3}>
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              justifyContent="space-between"
-              alignItems={{ xs: "flex-start", md: "center" }}
-            >
-              <Box>
-                <Typography variant="overline" sx={{ letterSpacing: 2, color: "#1ED9F2" }}>
-                  Secure Quiz Mode
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-                  {quiz.topic}
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Chip label={quiz.difficulty} sx={{ bgcolor: "rgba(56,189,248,0.18)", color: "#bae6fd" }} />
-                  <Chip
-                    label={`${answeredCount}/${totalQuestions} answered`}
-                    sx={{ bgcolor: "rgba(129,140,248,0.18)", color: "#c7d2fe" }}
-                  />
-                  <Chip
-                    label={`Timer ${formatSeconds(timeLeft)}`}
-                    sx={{
-                      bgcolor: isLastTwoMinutes ? "rgba(239,68,68,0.24)" : "rgba(30, 217, 242,0.22)",
-                      color: isLastTwoMinutes ? "#fecaca" : "#DDF9FF",
-                      fontWeight: 700,
-                    }}
-                  />
-                  <Chip
-                    label={isFullscreen ? "Fullscreen active" : "Fullscreen recommended"}
-                    sx={{ bgcolor: "rgba(34,197,94,0.16)", color: "#DDF9FF" }}
-                  />
-                </Stack>
-              </Box>
+      <div className="max-w-4xl w-full mx-auto">
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-[2rem] p-6 sm:p-8 md:p-10 text-white shadow-2xl">
+          
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-8">
+            <div>
+              <p className="text-cyan-400 text-xs font-bold uppercase tracking-[0.2em] mb-2">Secure Quiz Mode</p>
+              <h1 className="text-2xl md:text-3xl font-extrabold mb-3">{quiz.topic}</h1>
+              <div className="flex flex-wrap gap-2 text-sm font-semibold">
+                <span className="bg-sky-400/10 text-sky-200 px-3 py-1 rounded-full border border-sky-400/20">{quiz.difficulty}</span>
+                <span className="bg-indigo-400/10 text-indigo-200 px-3 py-1 rounded-full border border-indigo-400/20">{answeredCount}/{totalQuestions} answered</span>
+                <span className={`px-3 py-1 rounded-full border ${isLastTwoMinutes ? 'bg-red-500/20 text-red-200 border-red-500/30' : 'bg-cyan-400/10 text-cyan-100 border-cyan-400/30'}`}>
+                  Timer: {formatSeconds(timeLeft)}
+                </span>
+                <span className="bg-green-400/10 text-green-200 px-3 py-1 rounded-full border border-green-400/20">
+                  {isFullscreen ? "Fullscreen active" : "Fullscreen recommended"}
+                </span>
+              </div>
+            </div>
 
-              {!isFullscreen && (
-                <Button
-                  variant="outlined"
-                  startIcon={<Fullscreen />}
-                  onClick={enterFullscreen}
-                  sx={{
-                    color: "white",
-                    borderColor: "rgba(148, 163, 184, 0.32)",
-                    borderRadius: 999,
-                  }}
-                >
-                  Enter Fullscreen
-                </Button>
-              )}
-            </Stack>
-
-            {fullscreenNotice && (
-              <Alert
-                severity="warning"
-                sx={{
-                  borderRadius: 3,
-                  bgcolor: "rgba(251, 191, 36, 0.14)",
-                  color: "#fde68a",
-                  "& .MuiAlert-icon": { color: "#A38CFF" },
-                }}
+            {!isFullscreen && (
+              <button
+                onClick={enterFullscreen}
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-600 hover:bg-slate-800 transition-colors text-sm font-semibold shrink-0"
               >
-                {fullscreenNotice}
-              </Alert>
+                <Maximize size={16} /> Enter Fullscreen
+              </button>
             )}
+          </div>
 
-            {isLastTwoMinutes && (
-              <Alert
-                severity="warning"
-                sx={{
-                  borderRadius: 3,
-                  bgcolor: "rgba(239,68,68,0.14)",
-                  color: "#fecaca",
-                  "& .MuiAlert-icon": { color: "#f87171" },
-                }}
-              >
-                Quick reminder: only {formatSeconds(timeLeft)} left. Please complete and submit.
-              </Alert>
-            )}
+          {fullscreenNotice && (
+            <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-sm flex items-center gap-3">
+              {fullscreenNotice}
+            </div>
+          )}
 
-            {timeLeft === 0 && (
-              <Alert
-                severity="info"
-                sx={{
-                  borderRadius: 3,
-                  bgcolor: "rgba(56,189,248,0.12)",
-                  color: "#bae6fd",
-                  "& .MuiAlert-icon": { color: "#1ED9F2" },
-                }}
-              >
-                Time is up. Your quiz is being submitted automatically.
-              </Alert>
-            )}
+          {isLastTwoMinutes && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-sm font-medium">
+              Quick reminder: only {formatSeconds(timeLeft)} left. Please complete and submit.
+            </div>
+          )}
 
-            <Box>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                justifyContent="space-between"
-                sx={{ mb: 1 }}
-              >
-                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.82)" }}>
-                  Question {currentIndex + 1} of {totalQuestions}
-                </Typography>
-                <hr />
-                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.82)", marginX: 5 }}>
-                  Progress {Math.round(progress)}%
-                </Typography>
-              </Stack>
-              <LinearProgress
-                variant="determinate"
-                value={progress}
-                sx={{
-                  height: 10,
-                  borderRadius: 999,
-                  bgcolor: "rgba(148,163,184,0.16)",
-                  "& .MuiLinearProgress-bar": {
-                    borderRadius: 999,
-                    background: "linear-gradient(90deg, #1ED9F2, #A38CFF)",
-                  },
-                }}
+          {timeLeft === 0 && (
+            <div className="mb-6 p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-200 text-sm font-medium">
+              Time is up. Your quiz is being submitted automatically.
+            </div>
+          )}
+
+          <div className="mb-8">
+            <div className="flex justify-between text-sm text-slate-300 font-medium mb-3">
+              <span>Question {currentIndex + 1} of {totalQuestions}</span>
+              <span>Progress {Math.round(progress)}%</span>
+            </div>
+            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all duration-300 ease-out rounded-full"
+                style={{ width: `${progress}%` }}
               />
-            </Box>
+            </div>
+          </div>
 
-            <Card
-              sx={{
-                borderRadius: 4,
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(241,245,249,0.98) 100%)",
-                boxShadow: "0 24px 60px rgba(15, 23, 42, 0.22)",
-              }}
-            >
-              <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    lineHeight: 1.5,
-                    mb: 3,
-                  }}
-                >
-                  {currentQuestion.question}
-                </Typography>
+          <div className="bg-white rounded-3xl p-6 sm:p-8 md:p-10 text-slate-900 shadow-xl mb-8">
+            <h2 className="text-xl md:text-2xl font-bold leading-relaxed mb-8">
+              {currentQuestion.question}
+            </h2>
 
-                <FormControl fullWidth>
-                  <RadioGroup
-                    value={answers[currentQuestion.question_id] || ""}
-                    onChange={(event) =>
-                      handleSelect(currentQuestion.question_id, event.target.value)
-                    }
+            <div className="flex flex-col gap-3">
+              {currentQuestion.options.map((option, index) => {
+                const isSelected = answers[currentQuestion.question_id] === option;
+                const optionLabel = String.fromCharCode(65 + index); // A, B, C, D
+
+                return (
+                  <label 
+                    key={option}
+                    className={`
+                      flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200
+                      ${isSelected 
+                        ? 'border-indigo-500 bg-indigo-50 hover:bg-indigo-100' 
+                        : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                      }
+                    `}
                   >
-                    <Stack spacing={1.5}>
-                      {currentQuestion.options.map((option, index) => {
-                        const isSelected = answers[currentQuestion.question_id] === option;
-                        const optionLabel = String.fromCharCode(65 + index); // A, B, C, D
+                    <div className="pt-0.5">
+                      <input 
+                        type="radio" 
+                        name={`question-${currentQuestion.question_id}`}
+                        value={option}
+                        checked={isSelected}
+                        onChange={() => handleSelect(currentQuestion.question_id, option)}
+                        className="sr-only"
+                      />
+                      <div className={`
+                        w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors
+                        ${isSelected ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-600'}
+                      `}>
+                        {optionLabel}
+                      </div>
+                    </div>
+                    <div className={`text-base leading-relaxed ${isSelected ? 'font-semibold text-indigo-950' : 'font-medium text-slate-700'}`}>
+                      {option}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
 
-                        return (
-                          <Paper
-                            key={option}
-                            elevation={0}
-                            sx={{
-                              px: 2.5,
-                              py: 2,
-                              borderRadius: 3,
-                              border: "2px solid",
-                              borderColor: isSelected ? "#7655F6" : "#cbd5e1",
-                              background: isSelected ? "rgba(79,70,229,0.12)" : "#fff",
-                              transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
-                              cursor: "pointer",
-                              "&:hover": {
-                                borderColor: "#7655F6",
-                                background: isSelected ? "rgba(79,70,229,0.15)" : "rgba(79,70,229,0.08)",
-                                transform: "translateY(-2px)",
-                                boxShadow: "0 4px 12px rgba(79,70,229,0.15)",
-                              },
-                            }}
-                          >
-                            <FormControlLabel
-                              value={option}
-                              control={
-                                <Radio
-                                  sx={{
-                                    color: isSelected ? "#7655F6" : "#cbd5e1",
-                                    "&.Mui-checked": {
-                                      color: "#7655F6",
-                                    },
-                                  }}
-                                />
-                              }
-                              label={
-                                <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start", flex: 1 }}>
-                                  <Box
-                                    sx={{
-                                      minWidth: 36,
-                                      height: 36,
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      borderRadius: "50%",
-                                      background: isSelected ? "#7655F6" : "rgba(79,70,229,0.1)",
-                                      color: isSelected ? "white" : "#7655F6",
-                                      fontWeight: 700,
-                                      fontSize: "0.9rem",
-                                    }}
-                                  >
-                                    {optionLabel}
-                                  </Box>
-                                  <Box sx={{ flex: 1 }}>
-                                    <Typography
-                                      sx={{
-                                        fontWeight: isSelected ? 600 : 500,
-                                        color: "#0f172a",
-                                        lineHeight: 1.6,
-                                        wordBreak: "break-word",
-                                      }}
-                                    >
-                                      {option}
-                                    </Typography>
-                                  </Box>
-                                </Stack>
-                              }
-                              sx={{
-                                width: "100%",
-                                alignItems: "flex-start",
-                                m: 0,
-                                "& .MuiFormControlLabel-label": {
-                                  flex: 1,
-                                },
-                              }}
-                            />
-                          </Paper>
-                        );
-                      })}
-                    </Stack>
-                  </RadioGroup>
-                </FormControl>
-              </CardContent>
-            </Card>
-
-            <Stack
-              direction={{ xs: "column-reverse", sm: "row" }}
-              spacing={1.5}
-              justifyContent="space-between"
+          <div className="flex flex-col-reverse sm:flex-row justify-between gap-4">
+            <button
+              onClick={handleBack}
+              disabled={currentIndex === 0 || submitting}
+              className="flex items-center justify-center gap-2 px-6 py-3 rounded-full border border-slate-600 hover:bg-slate-800 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-semibold text-sm"
             >
-              <Button
-                variant="outlined"
-                startIcon={<ArrowBack />}
-                onClick={handleBack}
-                disabled={currentIndex === 0 || submitting}
-                sx={{ borderRadius: 999, px: 3 }}
-              >
-                Previous
-              </Button>
+              <ArrowLeft size={18} /> Previous
+            </button>
 
-              {currentIndex < totalQuestions - 1 ? (
-                <Button
-                  variant="contained"
-                  endIcon={<ArrowForward />}
-                  onClick={handleNext}
-                  disabled={!answers[currentQuestion.question_id] || submitting}
-                  sx={{
-                    borderRadius: 999,
-                    px: 3.5,
-                    py: 1.25,
-                    background: "linear-gradient(90deg, #148CFF, #7655F6)",
-                  }}
-                >
-                  Next Question
-                </Button>
-              ) : (
-                <Button
-                  variant="contained"
-                  endIcon={<CheckCircle />}
-                  onClick={handleSubmit}
-                  disabled={answeredCount !== totalQuestions || submitting}
-                  sx={{
-                    borderRadius: 999,
-                    px: 3.5,
-                    py: 1.25,
-                    background: "linear-gradient(90deg, #1ED9F2, #148CFF)",
-                  }}
-                >
-                  {submitting ? "Submitting..." : "Submit Quiz"}
-                </Button>
-              )}
-            </Stack>
-          </Stack>
-        </Paper>
-      </Box>
-    </Box>
+            {currentIndex < totalQuestions - 1 ? (
+              <button
+                onClick={handleNext}
+                disabled={!answers[currentQuestion.question_id] || submitting}
+                className="flex items-center justify-center gap-2 px-8 py-3 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 transition-colors font-bold text-sm shadow-lg shadow-indigo-500/25"
+              >
+                Next Question <ArrowRight size={18} />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={answeredCount !== totalQuestions || submitting}
+                className="flex items-center justify-center gap-2 px-8 py-3 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 disabled:opacity-50 transition-colors font-bold text-sm text-slate-900 shadow-lg shadow-cyan-500/25"
+              >
+                {submitting ? "Submitting..." : "Submit Quiz"} <CheckCircle size={18} />
+              </button>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
   );
 }

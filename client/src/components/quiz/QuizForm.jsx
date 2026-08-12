@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  Box,
-  TextField,
-  MenuItem,
-  Button,
-  Grid,
-  Typography
-} from "@mui/material";
+import Button from "../ui/Button";
 
 export default function QuizForm({ onSubmit, disabled = false }) {
   const [topic, setTopic] = useState("");
@@ -16,87 +9,68 @@ export default function QuizForm({ onSubmit, disabled = false }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    // default mode inference api
-    setMode("api")
+    setMode("api");
     onSubmit({
       topic,
       difficulty,
       num_questions: Number(numQuestions),
-      mode,
+      mode: "api",
     });
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit}>
-      <Grid container spacing={3}>
-        {/* Topic */}
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Topic"
-            placeholder="e.g. NLP, Machine Learning"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            disabled={disabled}
-            required
-          />
-        </Grid>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full">
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-slate-700">Topic</label>
+        <input
+          type="text"
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+          placeholder="e.g. NLP, Machine Learning"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          disabled={disabled}
+          required
+        />
+      </div>
 
-        {/* Difficulty */}
-        <Grid item xs={12} md={6}>
-          <TextField
-            select
-            fullWidth
-            label="Difficulty"
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-slate-700">Difficulty</label>
+          <select
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none bg-white"
             value={difficulty}
             onChange={(e) => setDifficulty(e.target.value)}
             disabled={disabled}
           >
-            <MenuItem value="easy">Easy</MenuItem>
-            <MenuItem value="medium">Medium</MenuItem>
-            <MenuItem value="hard">Hard</MenuItem>
-          </TextField>
-        </Grid>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
 
-
-        {/* Questions */}
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-slate-700">Questions (1-20)</label>
+          <input
             type="number"
-            label="Questions"
-            inputProps={{ min: 1, max: 20 }}
+            min="1"
+            max="20"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
             value={numQuestions}
             onChange={(e) => setNumQuestions(e.target.value)}
             disabled={disabled}
             required
           />
-        </Grid>
+        </div>
+      </div>
 
-        {/* Submit */}
-        <Grid item xs={12}>
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            size="large"
-            disabled={disabled}
-            sx={{
-              py: 1.5,
-              fontWeight: 700,
-              fontSize: "1rem",
-              borderRadius: 2,
-              background: "linear-gradient(90deg, #7655F6, #5736C8)",
-              boxShadow: "0 6px 20px rgba(79,70,229,0.4)",
-              "&:hover": {
-                background: "linear-gradient(90deg, #5736C8, #5736C8)",
-              },
-            }}
-          >
-            {disabled ? "Preparing Quiz..." : "Generate Quiz"}
-          </Button>
-        </Grid>
-      </Grid>
-    </Box>
+      <Button
+        type="submit"
+        variant="primary"
+        className="w-full mt-4"
+        disabled={disabled}
+      >
+        {disabled ? "Preparing Quiz..." : "Generate Quiz"}
+      </Button>
+    </form>
   );
 }

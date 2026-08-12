@@ -1,26 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import {
-    Box,
-    Drawer,
-    List,
-    ListItem,
-    ListItemButton,
-    ListItemIcon,
-    ListItemText,
-    Typography,
-    IconButton,
-    Avatar,
-    Menu,
-    MenuItem,
-    Tooltip,
-    Chip,
-    useMediaQuery,
-    ThemeProvider,
-    CssBaseline,
-    Divider,
-    Collapse,
-} from "@mui/material";
 import {
     LayoutDashboard,
     Users,
@@ -37,32 +16,43 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
-import { darkAdminTheme, lightAdminTheme } from "../../theme/adminTheme";
 import logoSrc from "../../assets/logo.png";
 
 const drawerWidth = 264;
-const MotionBox = motion(Box);
-
-// Lucide icon wrapper for consistent MUI sizing
-function LucideIcon({ icon: Icon, size = 18, ...rest }) {
-    return <Icon size={size} strokeWidth={2} {...rest} />;
-}
 
 export default function AdminLayout() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [anchorEl, setAnchorEl] = useState(null);
     const [isDark, setIsDark] = useState(true);
     const [openGenerated, setOpenGenerated] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    
+    const menuRef = useRef(null);
+    const avatarRef = useRef(null);
 
-    const theme = isDark ? darkAdminTheme : lightAdminTheme;
-    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+    // Close mobile menu on route change
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [location.pathname]);
 
-    const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-    const handleMenu = (e) => setAnchorEl(e.currentTarget);
-    const handleClose = () => setAnchorEl(null);
+    // Close user dropdown menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (
+                menuRef.current && 
+                !menuRef.current.contains(event.target) &&
+                avatarRef.current &&
+                !avatarRef.current.contains(event.target)
+            ) {
+                setMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     const handleLogout = () => { logout(); navigate("/login"); };
 
     const menuItems = [
@@ -82,264 +72,214 @@ export default function AdminLayout() {
 
     const avatarLetter = user?.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || "A";
 
-    const drawer = (
-        <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            {/* Brand with logo */}
-            <Box sx={{ px: 2.5, py: 2.5, display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Box
-                    component="img"
-                    src={logoSrc}
-                    alt="CognitiveWizard"
-                    sx={{ width: 38, height: 38, borderRadius: 2, objectFit: "contain" }}
-                />
-                <Box>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-                        CognitiveWizard
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: "text.secondary", lineHeight: 1 }}>
-                        Admin Portal
-                    </Typography>
-                </Box>
-            </Box>
+    const sidebarClasses = `fixed inset-y-0 left-0 z-50 flex flex-col w-[264px] transition-transform duration-300 ease-in-out ${isDark ? 'bg-slate-900 border-r border-slate-800 text-slate-300' : 'bg-white border-r border-slate-200 text-slate-600'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`;
 
-            <Divider sx={{ mx: 2, opacity: 0.5 }} />
+    const drawer = (
+        <div className="flex flex-col h-full overflow-y-auto">
+            {/* Brand */}
+            <div className="flex items-center gap-3 px-6 py-5 shrink-0">
+                <img src={logoSrc} alt="CognitiveWizard" className="w-9 h-9 rounded-lg object-contain" />
+                <div>
+                    <div className={`text-base font-bold leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>CognitiveWizard</div>
+                    <div className={`text-[10px] uppercase tracking-widest font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Admin Portal</div>
+                </div>
+            </div>
+
+            <div className={`h-px w-full ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
 
             {/* Nav Links */}
-            <List sx={{ px: 1, py: 2, flex: 1 }}>
-                <Typography variant="overline" sx={{ px: 2, color: "text.secondary", fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em" }}>
-                    Navigation
-                </Typography>
-                {menuItems.map((item) => {
-                    if (item.subItems) {
-                        return (
-                            <Box key={item.text}>
-                                <ListItem disablePadding sx={{ mb: 0.5 }}>
-                                    <ListItemButton
+            <nav className="flex-1 px-3 py-4 overflow-y-auto">
+                <div className={`px-4 mb-2 text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Navigation</div>
+                <ul className="space-y-1">
+                    {menuItems.map((item) => {
+                        if (item.subItems) {
+                            return (
+                                <li key={item.text}>
+                                    <button
                                         onClick={() => setOpenGenerated(!openGenerated)}
-                                        sx={{ py: 1.25, px: 2 }}
+                                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}
                                     >
-                                        <ListItemIcon sx={{ minWidth: 36 }}>
-                                            <LucideIcon icon={item.icon} />
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primary={item.text}
-                                            primaryTypographyProps={{ fontSize: "0.88rem", fontWeight: 500 }}
-                                        />
-                                        {openGenerated ? <LucideIcon icon={ChevronUp} size={16} /> : <LucideIcon icon={ChevronDown} size={16} />}
-                                    </ListItemButton>
-                                </ListItem>
-                                <Collapse in={openGenerated} timeout="auto" unmountOnExit>
-                                    <List component="div" disablePadding>
-                                        {item.subItems.map((subItem) => {
-                                            const isSubActive = location.pathname === subItem.path;
-                                            return (
-                                                <ListItem key={subItem.text} disablePadding sx={{ mb: 0.5 }}>
-                                                    <ListItemButton
-                                                        selected={isSubActive}
-                                                        onClick={() => { navigate(subItem.path); if (isMobile) setMobileOpen(false); }}
-                                                        sx={{ py: 1, pl: 6, pr: 2 }}
-                                                    >
-                                                        <ListItemText 
-                                                            primary={subItem.text} 
-                                                            primaryTypographyProps={{ fontSize: "0.82rem", fontWeight: isSubActive ? 600 : 400 }}
-                                                        />
-                                                        {isSubActive && (
-                                                            <Box sx={{
-                                                                width: 3, height: 16, borderRadius: 2,
-                                                                background: "linear-gradient(180deg, #1ED9F2, #148CFF 52%, #7655F6)",
-                                                                ml: 1,
-                                                            }} />
-                                                        )}
-                                                    </ListItemButton>
-                                                </ListItem>
-                                            );
-                                        })}
-                                    </List>
-                                </Collapse>
-                            </Box>
+                                        <div className="flex items-center gap-3">
+                                            <item.icon size={18} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
+                                            <span>{item.text}</span>
+                                        </div>
+                                        {openGenerated ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                    </button>
+                                    <AnimatePresence>
+                                        {openGenerated && (
+                                            <motion.ul
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="overflow-hidden pl-11 pr-2 mt-1 space-y-1"
+                                            >
+                                                {item.subItems.map((subItem) => {
+                                                    const isSubActive = location.pathname === subItem.path;
+                                                    return (
+                                                        <li key={subItem.text}>
+                                                            <button
+                                                                onClick={() => navigate(subItem.path)}
+                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${isSubActive ? (isDark ? 'text-white font-bold' : 'text-slate-900 font-bold bg-slate-100') : (isDark ? 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50')}`}
+                                                            >
+                                                                <span>{subItem.text}</span>
+                                                                {isSubActive && <div className="w-1 h-4 rounded-full bg-gradient-to-b from-cyan-400 via-primary to-indigo-500" />}
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </motion.ul>
+                                        )}
+                                    </AnimatePresence>
+                                </li>
+                            );
+                        }
+                        const isActive = location.pathname === item.path;
+                        return (
+                            <li key={item.text}>
+                                <button
+                                    onClick={() => navigate(item.path)}
+                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors ${isActive ? (isDark ? 'bg-slate-800 text-white font-bold' : 'bg-primary/10 text-primary font-bold') : (isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600 font-medium')}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <item.icon size={18} className={isActive ? (isDark ? 'text-cyan-400' : 'text-primary') : (isDark ? 'text-slate-400' : 'text-slate-500')} />
+                                        <span>{item.text}</span>
+                                    </div>
+                                    {isActive && <div className="w-1 h-5 rounded-full bg-gradient-to-b from-cyan-400 via-primary to-indigo-500" />}
+                                </button>
+                            </li>
                         );
-                    }
-                    const isActive = location.pathname === item.path;
-                    return (
-                        <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-                            <ListItemButton
-                                selected={isActive}
-                                onClick={() => { navigate(item.path); if (isMobile) setMobileOpen(false); }}
-                                sx={{ py: 1.25, px: 2 }}
-                            >
-                                <ListItemIcon sx={{ minWidth: 36 }}>
-                                    <LucideIcon icon={item.icon} />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={item.text}
-                                    primaryTypographyProps={{ fontSize: "0.88rem", fontWeight: isActive ? 700 : 500 }}
-                                />
-                                {isActive && (
-                                    <Box sx={{
-                                        width: 3, height: 20, borderRadius: 2,
-                                        background: "linear-gradient(180deg, #1ED9F2, #148CFF 52%, #7655F6)",
-                                        ml: 1,
-                                    }} />
-                                )}
-                            </ListItemButton>
-                        </ListItem>
-                    );
-                })}
-            </List>
+                    })}
+                </ul>
+            </nav>
 
-            <Divider sx={{ mx: 2, opacity: 0.5 }} />
+            <div className={`h-px w-full ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
 
-            {/* Bottom: user info */}
-            <Box sx={{ p: 2 }}>
-                <Box sx={{
-                    display: "flex", alignItems: "center", gap: 1.5, p: 1.5,
-                    borderRadius: 2.5, bgcolor: isDark ? "rgba(20,140,255,0.08)" : "rgba(20,140,255,0.05)",
-                    border: "1px solid", borderColor: isDark ? "rgba(30,217,242,0.16)" : "rgba(20,140,255,0.13)",
-                }}>
-                    <Avatar sx={{
-                        width: 34, height: 34, fontSize: "0.85rem", fontWeight: 700,
-                        background: "linear-gradient(135deg, #1ED9F2, #148CFF 55%, #7655F6)",
-                    }}>{avatarLetter}</Avatar>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={600} noWrap>
-                            {user?.full_name || "Admin"}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
-                            {user?.email}
-                        </Typography>
-                    </Box>
-                    <Tooltip title="Logout">
-                        <IconButton size="small" onClick={handleLogout} sx={{ color: "text.secondary" }}>
-                            <LucideIcon icon={LogOut} size={16} />
-                        </IconButton>
-                    </Tooltip>
-                </Box>
-            </Box>
-        </Box>
+            {/* Bottom user info */}
+            <div className="p-4 shrink-0">
+                <div className={`flex items-center gap-3 p-3 rounded-2xl border ${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 via-primary to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-inner shrink-0">
+                        {avatarLetter}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{user?.full_name || "Admin"}</div>
+                        <div className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{user?.email}</div>
+                    </div>
+                    <button onClick={handleLogout} className={`p-1.5 rounded-lg transition-colors shrink-0 ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50'}`} title="Logout">
+                        <LogOut size={16} />
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 
     return (
-        <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+        <div className={`min-h-screen font-sans flex ${isDark ? 'bg-[#0b0f19]' : 'bg-slate-50'}`}>
+            
+            {/* Mobile backdrop */}
+            <AnimatePresence>
+                {mobileOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setMobileOpen(false)}
+                        className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden"
+                    />
+                )}
+            </AnimatePresence>
 
-                {/* Top bar */}
-                <Box
-                    component="header"
-                    sx={{
-                        position: "fixed", top: 0, right: 0, zIndex: 1200,
-                        width: { md: `calc(100% - ${drawerWidth}px)` },
-                        left: { md: drawerWidth },
-                        px: { xs: 2, md: 3 }, py: 1,
-                        display: "flex", alignItems: "center", gap: 2,
-                        bgcolor: isDark ? "rgba(2,7,22,0.84)" : "rgba(255,255,255,0.88)",
-                        backdropFilter: "blur(12px)",
-                        borderBottom: "1px solid",
-                        borderColor: isDark ? "rgba(176,176,200,0.08)" : "rgba(220,220,230,0.8)",
-                        height: 64,
-                    }}
-                >
-                    <IconButton
-                        color="inherit"
-                        edge="start"
-                        onClick={handleDrawerToggle}
-                        sx={{ display: { md: "none" } }}
-                    >
-                        <LucideIcon icon={MenuIcon} />
-                    </IconButton>
+            {/* Sidebar */}
+            <aside className={sidebarClasses}>
+                {drawer}
+            </aside>
 
-                    <Typography variant="h6" fontWeight={700} sx={{ display: { xs: "none", sm: "block" }, color: "text.primary" }}>
-                        {menuItems.find(m => m.path === location.pathname)?.text || "Dashboard"}
-                    </Typography>
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col min-w-0 md:ml-[264px]">
+                
+                {/* Top Header */}
+                <header className={`sticky top-0 z-30 flex items-center justify-between px-4 md:px-8 h-16 border-b backdrop-blur-md ${isDark ? 'bg-[#0b0f19]/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}>
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={() => setMobileOpen(true)}
+                            className={`md:hidden p-2 -ml-2 rounded-lg ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'}`}
+                        >
+                            <MenuIcon size={20} />
+                        </button>
+                        <h1 className={`hidden sm:block text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {menuItems.find(m => m.path === location.pathname)?.text || "Dashboard"}
+                        </h1>
+                    </div>
 
-                    <Box sx={{ flex: 1 }} />
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <button 
+                            onClick={() => setIsDark(!isDark)}
+                            className={`p-2 rounded-xl transition-colors border ${isDark ? 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                        >
+                            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+                        </button>
+                        
+                        <button 
+                            className={`p-2 rounded-xl transition-colors border ${isDark ? 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                            title="Notifications"
+                        >
+                            <Bell size={18} />
+                        </button>
 
-                    {/* Theme toggle */}
-                    <Tooltip title={isDark ? "Switch to Light" : "Switch to Dark"}>
-                        <IconButton onClick={() => setIsDark(!isDark)} size="small" sx={{
-                            bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-                            border: "1px solid", borderColor: "divider",
-                            "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)" },
-                        }}>
-                            {isDark ? <LucideIcon icon={Sun} size={16} /> : <LucideIcon icon={Moon} size={16} />}
-                        </IconButton>
-                    </Tooltip>
+                        <div className="relative">
+                            <button 
+                                ref={avatarRef}
+                                onClick={() => setMenuOpen(!menuOpen)}
+                                className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 via-primary to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-primary/20 hover:ring-2 ring-primary/50 ring-offset-2 ring-offset-transparent transition-all"
+                            >
+                                {avatarLetter}
+                            </button>
 
-                    <Tooltip title="Notifications">
-                        <IconButton size="small" sx={{
-                            bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-                            border: "1px solid", borderColor: "divider",
-                        }}>
-                            <LucideIcon icon={Bell} size={16} />
-                        </IconButton>
-                    </Tooltip>
+                            <AnimatePresence>
+                                {menuOpen && (
+                                    <motion.div
+                                        ref={menuRef}
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        transition={{ duration: 0.2 }}
+                                        className={`absolute right-0 mt-2 w-56 rounded-2xl border shadow-xl overflow-hidden origin-top-right ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
+                                    >
+                                        <div className={`p-4 border-b ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+                                            <div className={`font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{user?.full_name || "Admin"}</div>
+                                            <div className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{user?.email}</div>
+                                        </div>
+                                        <div className="p-2">
+                                            <button 
+                                                onClick={handleLogout}
+                                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-colors"
+                                            >
+                                                <LogOut size={16} />
+                                                Logout
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
+                </header>
 
-                    {/* Avatar */}
-                    <Tooltip title="Account">
-                        <IconButton onClick={handleMenu} sx={{ p: 0 }}>
-                            <Avatar sx={{
-                                width: 34, height: 34, fontSize: "0.85rem", fontWeight: 700,
-                                background: "linear-gradient(135deg, #1ED9F2, #148CFF 55%, #7655F6)",
-                                boxShadow: "0 2px 12px rgba(20,140,255,0.4)",
-                            }}>{avatarLetter}</Avatar>
-                        </IconButton>
-                    </Tooltip>
-                    <Menu
-                        anchorEl={anchorEl}
-                        open={Boolean(anchorEl)}
-                        onClose={handleClose}
-                        transformOrigin={{ horizontal: "right", vertical: "top" }}
-                        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-                        PaperProps={{ sx: { mt: 1, minWidth: 180, borderRadius: 2.5 } }}
-                    >
-                        <Box sx={{ px: 2, py: 1.5 }}>
-                            <Typography variant="body2" fontWeight={600}>{user?.full_name || "Admin"}</Typography>
-                            <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
-                        </Box>
-                        <Divider />
-                        <MenuItem onClick={handleLogout} sx={{ gap: 1.5, color: "error.main", mt: 0.5 }}>
-                            <LucideIcon icon={LogOut} size={16} />
-                            <Typography variant="body2" fontWeight={600}>Logout</Typography>
-                        </MenuItem>
-                    </Menu>
-                </Box>
-
-                {/* Sidebar */}
-                <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: 0 }}>
-                    <Drawer
-                        variant={isMobile ? "temporary" : "permanent"}
-                        open={isMobile ? mobileOpen : true}
-                        onClose={handleDrawerToggle}
-                        ModalProps={{ keepMounted: true }}
-                        sx={{
-                            "& .MuiDrawer-paper": {
-                                boxSizing: "border-box",
-                                width: drawerWidth,
-                            },
-                        }}
-                    >
-                        {drawer}
-                    </Drawer>
-                </Box>
-
-                {/* Main content */}
-                <Box
-                    component="main"
-                    sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, mt: "64px", width: { md: `calc(100% - ${drawerWidth}px)` }, minHeight: "calc(100vh - 64px)" }}
-                >
+                {/* Page Content */}
+                <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
                     <AnimatePresence mode="wait">
-                        <MotionBox
+                        <motion.div
                             key={location.pathname}
-                            initial={{ opacity: 0, y: 12 }}
+                            initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -12 }}
+                            exit={{ opacity: 0, y: -20 }}
                             transition={{ duration: 0.2, ease: "easeOut" }}
                         >
-                            <Outlet />
-                        </MotionBox>
+                            <Outlet context={{ isDark }} />
+                        </motion.div>
                     </AnimatePresence>
-                </Box>
-            </Box>
-        </ThemeProvider>
+                </main>
+            </div>
+        </div>
     );
 }

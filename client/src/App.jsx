@@ -13,7 +13,6 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
-import "./App.css";
 import ErrorBoundary from "./components/utils/ErrorBoundary";
 import SummarizerPage from "./pages/Summarize";
 import WizardModule from "./pages/WizardModule";
@@ -36,9 +35,9 @@ function AppRoutes() {
   const isAdminRoute = location.pathname.startsWith("/admin");
 
   return (
-    <div className="app-shell">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900">
       {!isAdminRoute && <Navbar />}
-      <main className="main-content">
+      <main className={`flex-1 ${!isAdminRoute ? 'pt-24 pb-12' : ''}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/courses" element={<Marketplace />} />

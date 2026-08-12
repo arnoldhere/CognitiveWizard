@@ -10,7 +10,7 @@ import {
   renameChatSession,
   fetchRagStatus,
 } from "../services/rag";
-import "../styles/ChatbotPage.css";
+import { motion } from "framer-motion";
 
 export default function ChatbotPage() {
   const [status, setStatus] = useState(null);
@@ -101,19 +101,24 @@ export default function ChatbotPage() {
   }, []);
 
   return (
-    <div className="chatbot-page">
-      <div className="chatbot-page-overlay" />
-      <section className="chatbot-hero">
-        <p className="eyebrow">Private Retrieval Workspace</p>
-        <h1>Console RAG Chat</h1>
-        <p>
-          Each uploaded document is isolated to your account, visible in your own
-          workspace history, and available only to your retrieval flow.
-        </p>
+    <div className="min-h-screen bg-light flex flex-col pt-16">
+      <section className="bg-white border-b border-slate-200 py-10 px-4 sm:px-6 lg:px-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-7xl mx-auto"
+        >
+          <p className="text-primary font-bold uppercase tracking-wider text-sm mb-2">Private Retrieval Workspace</p>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-dark mb-4">Console RAG Chat</h1>
+          <p className="text-slate-600 max-w-2xl">
+            Each uploaded document is isolated to your account, visible in your own
+            workspace history, and available only to your retrieval flow.
+          </p>
+        </motion.div>
       </section>
 
-      <section className="chatbot-layout">
-        <aside className="chatbot-sidebar">
+      <section className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6 h-full">
+        <aside className="w-full lg:w-80 flex flex-col gap-6 shrink-0 h-full overflow-y-auto">
           <SessionManager
             sessions={sessions}
             selectedSession={selectedSession}
@@ -133,7 +138,7 @@ export default function ChatbotPage() {
           />
         </aside>
 
-        <div className="chatbot-main">
+        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[600px] h-[calc(100vh-250px)]">
           <ChatWindow
             ragReady={Boolean(status?.ready_for_rag)}
             status={status}

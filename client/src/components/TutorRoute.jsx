@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { Box, CircularProgress } from "@mui/material";
+import { Loader2 } from "lucide-react";
 
 export default function TutorRoute({ children }) {
     const { isAuthenticated, isLoading, user } = useAuth();
@@ -8,16 +8,9 @@ export default function TutorRoute({ children }) {
 
     if (isLoading) {
         return (
-            <Box
-                sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    minHeight: '50vh',
-                }}
-            >
-                <CircularProgress size={60} />
-            </Box>
+            <div className="flex justify-center items-center min-h-[50vh]">
+                <Loader2 size={40} className="animate-spin text-primary" />
+            </div>
         );
     }
 

@@ -1,92 +1,7 @@
 import React from "react";
-import {
-  Box,
-  Button,
-  Chip,
-  Grid,
-  Paper,
-  Stack,
-  Typography,
-  Card,
-  Divider,
-  Alert,
-  Container,
-  LinearProgress,
-  ThemeProvider,
-  createTheme,
-} from "@mui/material";
-import {
-  CheckCircle,
-  Replay,
-  TrendingUp,
-  Close,
-  Info,
-} from "@mui/icons-material";
-
-// Create a premium custom theme for the component
-const theme = createTheme({
-  palette: {
-    mode: "dark",
-    primary: {
-      main: "#7655F6", // Indigo
-      light: "#A38CFF",
-      dark: "#7655F6",
-    },
-    success: {
-      main: "#1ED9F2", // Emerald
-      light: "#71EEFF",
-      dark: "#0BAABD",
-    },
-    error: {
-      main: "#f43f5e", // Rose
-      light: "#fb7185",
-      dark: "#e11d48",
-    },
-    warning: {
-      main: "#A38CFF", // Amber
-      light: "#A38CFF",
-    },
-    background: {
-      default: "#0f172a", // Slate 900
-      paper: "rgba(30, 41, 59, 0.7)", // Slate 800 with transparency
-    },
-    text: {
-      primary: "#f8fafc",
-      secondary: "#94a3b8",
-    },
-  },
-  typography: {
-    fontFamily: '"Plus Jakarta Sans", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h2: { fontWeight: 800, letterSpacing: "-0.02em" },
-    h3: { fontWeight: 800, letterSpacing: "-0.02em" },
-    h4: { fontWeight: 700, letterSpacing: "-0.01em" },
-    h5: { fontWeight: 700, letterSpacing: "-0.01em" },
-    h6: { fontWeight: 600 },
-    overline: { letterSpacing: "0.1em", fontWeight: 700 },
-    button: { textTransform: "none", fontWeight: 600 },
-  },
-  shape: {
-    borderRadius: 16,
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backdropFilter: "blur(12px)",
-          backgroundImage: "none",
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backdropFilter: "blur(12px)",
-          backgroundImage: "none",
-        },
-      },
-    },
-  },
-});
+import { CheckCircle, RotateCcw, TrendingUp, X, Info } from "lucide-react";
+import { motion } from "framer-motion";
+import Button from "../ui/Button";
 
 export default function QuizResults({ result, onStartAgain }) {
   const passPercentage = result.result === "pass" ? 100 : (result.score_percentage / 100) * 100;
@@ -100,402 +15,196 @@ export default function QuizResults({ result, onStartAgain }) {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      {/* 
-        Optional: If you want to use the web font, include this snippet in your public/index.html or root component:
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-      */}
-      <Box sx={{ minHeight: "100vh", bgcolor: "background.default", py: 6 }}>
-        <Container maxWidth="lg">
-          <Stack spacing={5}>
-            {/* Results Summary Card */}
-            <Paper
-              elevation={0}
-              sx={{
-                p: { xs: 4, md: 5 },
-                borderRadius: 4,
-                background: isPass
-                  ? "linear-gradient(135deg, rgba(30, 217, 242, 0.08) 0%, rgba(11, 170, 189, 0.02) 100%)"
-                  : "linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(225, 29, 72, 0.02) 100%)",
-                border: `1px solid ${isPass ? "rgba(30, 217, 242, 0.2)" : "rgba(244, 63, 94, 0.2)"
-                  }`,
-                position: "relative",
-                overflow: "hidden",
-                boxShadow: isPass
-                  ? "0 20px 40px -10px rgba(30, 217, 242, 0.15)"
-                  : "0 20px 40px -10px rgba(244, 63, 94, 0.15)",
-              }}
-            >
-              <Stack spacing={4}>
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  justifyContent="space-between"
-                  alignItems={{ xs: "flex-start", md: "center" }}
-                  spacing={3}
-                >
-                  <Box>
-                    <Typography
-                      variant="overline"
-                      sx={{ color: isPass ? "success.light" : "error.light" }}
-                    >
-                      Quiz Completed
-                    </Typography>
-                    <Typography variant="h3" sx={{ mt: 0.5, mb: 1.5, color: "text.primary" }}>
-                      {result.topic}
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: "text.secondary", fontSize: "1.1rem" }}>
-                      {result.summary}
-                    </Typography>
+    <div className="w-full bg-slate-900 rounded-3xl p-6 sm:p-8 md:p-10 text-white shadow-2xl my-8">
+      <div className="max-w-5xl mx-auto flex flex-col gap-8">
+        
+        {/* Results Summary Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`
+            p-6 sm:p-8 md:p-10 rounded-[2rem] border relative overflow-hidden
+            ${isPass 
+              ? 'bg-gradient-to-br from-cyan-900/40 to-slate-900 border-cyan-500/20 shadow-[0_20px_40px_-10px_rgba(6,182,212,0.15)]' 
+              : 'bg-gradient-to-br from-rose-900/40 to-slate-900 border-rose-500/20 shadow-[0_20px_40px_-10px_rgba(225,29,72,0.15)]'
+            }
+          `}
+        >
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div>
+                <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${isPass ? 'text-cyan-400' : 'text-rose-400'}`}>
+                  Quiz Completed
+                </p>
+                <h3 className="text-3xl font-extrabold mb-3 text-white">{result.topic}</h3>
+                <p className="text-lg text-slate-300">{result.summary}</p>
 
-                    {result.is_auto_submitted && (
-                      <Alert
-                        severity="warning"
-                        variant="outlined"
-                        sx={{
-                          mt: 3,
-                          borderRadius: 3,
-                          borderColor: "warning.dark",
-                          bgcolor: "rgba(245, 158, 11, 0.05)",
-                          "& .MuiAlert-icon": { color: "warning.main" },
-                        }}
-                      >
-                        Time limit reached. This quiz was submitted automatically.
-                      </Alert>
-                    )}
-                  </Box>
-
-                  <Chip
-                    label={result.result.toUpperCase()}
-                    icon={isPass ? <CheckCircle /> : <Close />}
-                    sx={{
-                      fontWeight: 800,
-                      fontSize: "1.25rem",
-                      py: 3.5,
-                      px: 2.5,
-                      borderRadius: 4,
-                      color: isPass ? "success.main" : "error.main",
-                      borderColor: isPass ? "rgba(30, 217, 242, 0.3)" : "rgba(244, 63, 94, 0.3)",
-                      backgroundColor: isPass ? "rgba(30, 217, 242, 0.1)" : "rgba(244, 63, 94, 0.1)",
-                      border: "1px solid",
-                    }}
-                  />
-                </Stack>
-
-                <Divider sx={{ borderColor: "rgba(255,255,255,0.05)" }} />
-
-                <Grid container spacing={3}>
-                  {/* Score card */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Card
-                      sx={{
-                        p: 3,
-                        background: "rgba(255, 255, 255, 0.02)",
-                        border: "1px solid rgba(255, 255, 255, 0.05)",
-                        transition: "transform 0.2s ease-in-out",
-                        "&:hover": { transform: "translateY(-4px)" },
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5, color: "text.secondary" }}>
-                        Final Score
-                      </Typography>
-                      <Typography
-                        variant="h2"
-                        sx={{
-                          background: `linear-gradient(135deg, ${result.score_percentage >= 60 ? "#1ED9F2, #71EEFF" : "#A38CFF, #A38CFF"
-                            })`,
-                          WebkitBackgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                        }}
-                      >
-                        {result.score_percentage}%
-                      </Typography>
-                    </Card>
-                  </Grid>
-
-                  {/* Time taken card */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Card
-                      sx={{
-                        p: 3,
-                        background: "rgba(255, 255, 255, 0.02)",
-                        border: "1px solid rgba(255, 255, 255, 0.05)",
-                        transition: "transform 0.2s ease-in-out",
-                        "&:hover": { transform: "translateY(-4px)" },
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5, color: "text.secondary" }}>
-                        Time Taken
-                      </Typography>
-                      <Typography variant="h4" sx={{ color: "text.primary", mb: 0.5 }}>
-                        {formatDuration(result.time_taken)}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500 }}>
-                        Limit: {formatDuration(result.time_limit_seconds)}
-                      </Typography>
-                    </Card>
-                  </Grid>
-
-                  {/* Correct answers card */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Card
-                      sx={{
-                        p: 3,
-                        background: "rgba(255, 255, 255, 0.02)",
-                        border: "1px solid rgba(255, 255, 255, 0.05)",
-                        transition: "transform 0.2s ease-in-out",
-                        "&:hover": { transform: "translateY(-4px)" },
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5, color: "text.secondary" }}>
-                        Correct Answers
-                      </Typography>
-                      <Typography variant="h3" sx={{ color: "text.primary" }}>
-                        <Box component="span" sx={{ color: "success.light" }}>
-                          {result.correct_answers}
-                        </Box>
-                        <Box component="span" sx={{ color: "text.secondary", fontSize: "1.5rem", ml: 0.5 }}>
-                          / {result.total_questions}
-                        </Box>
-                      </Typography>
-                    </Card>
-                  </Grid>
-
-                  {/* Difficulty card */}
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Card
-                      sx={{
-                        p: 3,
-                        background: "rgba(255, 255, 255, 0.02)",
-                        border: "1px solid rgba(255, 255, 255, 0.05)",
-                        transition: "transform 0.2s ease-in-out",
-                        "&:hover": { transform: "translateY(-4px)" },
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-                        <TrendingUp sx={{ color: "primary.light", fontSize: 20 }} />
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: "text.secondary" }}>
-                          Difficulty
-                        </Typography>
-                      </Stack>
-                      <Typography
-                        variant="h4"
-                        sx={{
-                          textTransform: "capitalize",
-                          color: "primary.light",
-                        }}
-                      >
-                        {result.difficulty}
-                      </Typography>
-                    </Card>
-                  </Grid>
-                </Grid>
-
-                <Box sx={{ mt: 2 }}>
-                  <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "text.secondary" }}>
-                      Passing Accuracy Target
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: "text.primary" }}>
-                      {Math.round(passPercentage)}% Achieved
-                    </Typography>
-                  </Stack>
-                  <LinearProgress
-                    variant="determinate"
-                    value={passPercentage}
-                    sx={{
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: "rgba(255,255,255,0.05)",
-                      "& .MuiLinearProgress-bar": {
-                        background: `linear-gradient(90deg, ${result.score_percentage >= 60 ? "#1ED9F2, #71EEFF" : "#A38CFF, #A38CFF"
-                          })`,
-                        borderRadius: 4,
-                      },
-                    }}
-                  />
-                </Box>
-
-                <Box pt={2}>
-                  <Button
-                    variant="contained"
-                    startIcon={<Replay />}
-                    onClick={onStartAgain}
-                    sx={{
-                      borderRadius: 8,
-                      px: 5,
-                      py: 1.8,
-                      fontSize: "1.05rem",
-                      background: "linear-gradient(135deg, #7655F6 0%, #7655F6 100%)",
-                      boxShadow: "0 8px 25px -8px rgba(99, 102, 241, 0.6)",
-                      "&:hover": {
-                        background: "linear-gradient(135deg, #7655F6 0%, #5736C8 100%)",
-                        boxShadow: "0 12px 30px -8px rgba(99, 102, 241, 0.8)",
-                        transform: "translateY(-2px)",
-                      },
-                      transition: "all 0.2s ease",
-                    }}
-                  >
-                    Start Another Quiz
-                  </Button>
-                </Box>
-              </Stack>
-            </Paper>
-
-            {/* Detailed Feedback Section */}
-            <Box>
-              <Typography
-                variant="h4"
-                sx={{
-                  mb: 4,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.5,
-                  color: "text.primary",
-                }}
-              >
-                <Info sx={{ color: "primary.main", fontSize: 32 }} />
-                Question Analysis
-              </Typography>
-
-              <Stack spacing={3}>
-                {result.feedback && result.feedback.length > 0 ? (
-                  result.feedback.map((item, index) => (
-                    <Paper
-                      key={item.question_id}
-                      elevation={0}
-                      sx={{
-                        p: { xs: 3, md: 4 },
-                        borderRadius: 4,
-                        border: `1px solid ${item.is_correct ? "rgba(30, 217, 242, 0.15)" : "rgba(244, 63, 94, 0.15)"
-                          }`,
-                        background: item.is_correct
-                          ? "linear-gradient(135deg, rgba(30, 217, 242, 0.03) 0%, rgba(11, 170, 189, 0.01) 100%)"
-                          : "linear-gradient(135deg, rgba(244, 63, 94, 0.03) 0%, rgba(225, 29, 72, 0.01) 100%)",
-                        transition: "all 0.2s ease-in-out",
-                        "&:hover": {
-                          borderColor: item.is_correct ? "rgba(30, 217, 242, 0.3)" : "rgba(244, 63, 94, 0.3)",
-                          backgroundColor: "rgba(255,255,255,0.02)",
-                        },
-                      }}
-                    >
-                      <Stack spacing={3}>
-                        <Stack
-                          direction={{ xs: "column", sm: "row" }}
-                          justifyContent="space-between"
-                          alignItems={{ xs: "flex-start", sm: "center" }}
-                          spacing={2}
-                        >
-                          <Typography variant="h6" sx={{ color: "text.primary", lineHeight: 1.5 }}>
-                            <Box component="span" sx={{ color: "text.secondary", mr: 1 }}>
-                              {index + 1}.
-                            </Box>
-                            {item.question}
-                          </Typography>
-                          <Chip
-                            icon={item.is_correct ? <CheckCircle /> : <Close />}
-                            label={item.is_correct ? "Correct" : "Incorrect"}
-                            sx={{
-                              color: item.is_correct ? "success.light" : "error.light",
-                              borderColor: item.is_correct ? "rgba(30, 217, 242, 0.3)" : "rgba(244, 63, 94, 0.3)",
-                              backgroundColor: item.is_correct ? "rgba(30, 217, 242, 0.1)" : "rgba(244, 63, 94, 0.1)",
-                              fontWeight: 700,
-                              px: 1,
-                              border: "1px solid",
-                            }}
-                          />
-                        </Stack>
-
-                        <Grid container spacing={3}>
-                          <Grid item xs={12} sm={6}>
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: "text.secondary", mb: 1.5 }}>
-                                Your Answer
-                              </Typography>
-                              <Paper
-                                elevation={0}
-                                sx={{
-                                  p: 2.5,
-                                  borderRadius: 3,
-                                  background: item.is_correct ? "rgba(30, 217, 242, 0.05)" : "rgba(244, 63, 94, 0.05)",
-                                  border: "1px solid",
-                                  borderColor: item.is_correct ? "rgba(30, 217, 242, 0.2)" : "rgba(244, 63, 94, 0.2)",
-                                }}
-                              >
-                                <Typography
-                                  variant="body1"
-                                  sx={{
-                                    color: item.is_correct ? "success.light" : "error.light",
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  {item.selected_option || "Not answered"}
-                                </Typography>
-                              </Paper>
-                            </Box>
-                          </Grid>
-
-                          <Grid item xs={12} sm={6}>
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: "text.secondary", mb: 1.5 }}>
-                                Correct Answer
-                              </Typography>
-                              <Paper
-                                elevation={0}
-                                sx={{
-                                  p: 2.5,
-                                  borderRadius: 3,
-                                  background: "rgba(30, 217, 242, 0.05)",
-                                  border: "1px solid rgba(30, 217, 242, 0.2)",
-                                }}
-                              >
-                                <Typography variant="body1" sx={{ color: "success.light", fontWeight: 700 }}>
-                                  {item.correct_answer}
-                                </Typography>
-                              </Paper>
-                            </Box>
-                          </Grid>
-                        </Grid>
-
-                        <Alert
-                          severity={item.is_correct ? "success" : "info"}
-                          icon={item.is_correct ? <CheckCircle /> : <Info />}
-                          sx={{
-                            borderRadius: 3,
-                            bgcolor: item.is_correct ? "rgba(30, 217, 242, 0.05)" : "rgba(99, 102, 241, 0.05)",
-                            color: item.is_correct ? "success.light" : "primary.light",
-                            border: `1px solid ${item.is_correct ? "rgba(30, 217, 242, 0.15)" : "rgba(99, 102, 241, 0.15)"
-                              }`,
-                            alignItems: "center",
-                            "& .MuiAlert-message": {
-                              fontWeight: 500,
-                              fontSize: "0.95rem",
-                              lineHeight: 1.6,
-                            },
-                          }}
-                        >
-                          {item.feedback}
-                        </Alert>
-                      </Stack>
-                    </Paper>
-                  ))
-                ) : (
-                  <Alert
-                    severity="info"
-                    sx={{
-                      borderRadius: 3,
-                      bgcolor: "rgba(99, 102, 241, 0.1)",
-                      color: "primary.light",
-                      border: "1px solid rgba(99, 102, 241, 0.2)",
-                    }}
-                  >
-                    No detailed feedback is available for this quiz.
-                  </Alert>
+                {result.is_auto_submitted && (
+                  <div className="mt-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 text-sm flex items-start gap-3">
+                    <Info className="shrink-0 mt-0.5 text-amber-400" size={18} />
+                    <span>Time limit reached. This quiz was submitted automatically.</span>
+                  </div>
                 )}
-              </Stack>
-            </Box>
-          </Stack>
-        </Container>
-      </Box>
-    </ThemeProvider>
+              </div>
+
+              <div className={`
+                flex items-center gap-3 px-6 py-4 rounded-2xl border-2 font-black text-xl tracking-wider
+                ${isPass 
+                  ? 'text-cyan-400 border-cyan-400/30 bg-cyan-400/10' 
+                  : 'text-rose-400 border-rose-400/30 bg-rose-400/10'
+                }
+              `}>
+                {isPass ? <CheckCircle size={28} /> : <X size={28} />}
+                {result.result.toUpperCase()}
+              </div>
+            </div>
+
+            <hr className="border-slate-700/50" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+              {/* Score card */}
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 hover:-translate-y-1 transition-transform">
+                <p className="text-sm font-semibold text-slate-400 mb-2">Final Score</p>
+                <p className={`text-4xl font-black bg-clip-text text-transparent ${result.score_percentage >= 60 ? 'bg-gradient-to-r from-cyan-400 to-blue-400' : 'bg-gradient-to-r from-indigo-400 to-purple-400'}`}>
+                  {result.score_percentage}%
+                </p>
+              </div>
+
+              {/* Time taken card */}
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 hover:-translate-y-1 transition-transform">
+                <p className="text-sm font-semibold text-slate-400 mb-2">Time Taken</p>
+                <p className="text-3xl font-bold text-white mb-1">{formatDuration(result.time_taken)}</p>
+                <p className="text-xs font-medium text-slate-400">Limit: {formatDuration(result.time_limit_seconds)}</p>
+              </div>
+
+              {/* Correct answers card */}
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 hover:-translate-y-1 transition-transform">
+                <p className="text-sm font-semibold text-slate-400 mb-2">Correct Answers</p>
+                <p className="text-3xl font-bold text-white">
+                  <span className="text-cyan-400">{result.correct_answers}</span>
+                  <span className="text-slate-500 text-2xl ml-1">/ {result.total_questions}</span>
+                </p>
+              </div>
+
+              {/* Difficulty card */}
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 hover:-translate-y-1 transition-transform flex flex-col justify-between">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="text-indigo-400" size={20} />
+                  <p className="text-sm font-semibold text-slate-400">Difficulty</p>
+                </div>
+                <p className="text-2xl font-bold text-indigo-400 capitalize">{result.difficulty}</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex justify-between text-sm font-semibold mb-2">
+                <span className="text-slate-400">Passing Accuracy Target</span>
+                <span className="text-white">{Math.round(passPercentage)}% Achieved</span>
+              </div>
+              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-700 ${result.score_percentage >= 60 ? 'bg-gradient-to-r from-cyan-400 to-blue-400' : 'bg-gradient-to-r from-indigo-400 to-purple-400'}`}
+                  style={{ width: `${passPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <button
+                onClick={onStartAgain}
+                className="flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-lg shadow-[0_8px_25px_-8px_rgba(99,102,241,0.6)] hover:shadow-[0_12px_30px_-8px_rgba(99,102,241,0.8)] hover:-translate-y-1 transition-all"
+              >
+                <RotateCcw size={20} /> Start Another Quiz
+              </button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Detailed Feedback Section */}
+        <div>
+          <h4 className="flex items-center gap-3 text-2xl font-bold text-white mb-8">
+            <Info className="text-indigo-400" size={32} /> Question Analysis
+          </h4>
+
+          <div className="flex flex-col gap-6">
+            {result.feedback && result.feedback.length > 0 ? (
+              result.feedback.map((item, index) => (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  key={item.question_id}
+                  className={`
+                    p-6 md:p-8 rounded-3xl border transition-all hover:bg-slate-800/30
+                    ${item.is_correct 
+                      ? 'bg-gradient-to-br from-cyan-900/10 to-slate-900/10 border-cyan-500/20 hover:border-cyan-500/40' 
+                      : 'bg-gradient-to-br from-rose-900/10 to-slate-900/10 border-rose-500/20 hover:border-rose-500/40'
+                    }
+                  `}
+                >
+                  <div className="flex flex-col gap-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <h6 className="text-lg text-white font-medium leading-relaxed">
+                        <span className="text-slate-400 mr-2">{index + 1}.</span>
+                        {item.question}
+                      </h6>
+                      <div className={`
+                        flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-bold shrink-0
+                        ${item.is_correct 
+                          ? 'text-cyan-400 border-cyan-400/30 bg-cyan-400/10' 
+                          : 'text-rose-400 border-rose-400/30 bg-rose-400/10'
+                        }
+                      `}>
+                        {item.is_correct ? <CheckCircle size={16} /> : <X size={16} />}
+                        {item.is_correct ? "Correct" : "Incorrect"}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-400 mb-2">Your Answer</p>
+                        <div className={`
+                          p-4 rounded-2xl border
+                          ${item.is_correct 
+                            ? 'bg-cyan-900/20 border-cyan-500/30 text-cyan-300' 
+                            : 'bg-rose-900/20 border-rose-500/30 text-rose-300'
+                          }
+                        `}>
+                          <p className="font-semibold">{item.selected_option || "Not answered"}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-semibold text-slate-400 mb-2">Correct Answer</p>
+                        <div className="p-4 rounded-2xl border bg-cyan-900/20 border-cyan-500/30 text-cyan-300">
+                          <p className="font-bold">{item.correct_answer}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`
+                      flex items-start gap-3 p-4 rounded-2xl border text-sm font-medium leading-relaxed
+                      ${item.is_correct 
+                        ? 'bg-cyan-900/10 border-cyan-500/20 text-cyan-200' 
+                        : 'bg-indigo-900/10 border-indigo-500/20 text-indigo-300'
+                      }
+                    `}>
+                      {item.is_correct ? <CheckCircle className="shrink-0 mt-0.5" size={18} /> : <Info className="shrink-0 mt-0.5" size={18} />}
+                      <p>{item.feedback}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="p-4 rounded-2xl border bg-indigo-900/20 border-indigo-500/30 text-indigo-300 flex items-center gap-3">
+                <Info size={20} />
+                <p>No detailed feedback is available for this quiz.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+    </div>
   );
 }

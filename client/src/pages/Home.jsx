@@ -1,257 +1,671 @@
-import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { useGsapReveal } from "../hooks/useGsapReveal";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import PsychologyIcon from "@mui/icons-material/Psychology";
-import QuizIcon from "@mui/icons-material/Quiz";
-import SummarizeIcon from "@mui/icons-material/Summarize";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutlineOutlined";
-import TimelineIcon from "@mui/icons-material/Timeline";
-import SchoolIcon from "@mui/icons-material/School";
-import BoltIcon from "@mui/icons-material/Bolt";
-import TrackChangesIcon from "@mui/icons-material/TrackChanges";
+import {
+  ArrowRight,
+  BookOpen,
+  Brain,
+  Check,
+  Clock3,
+  FileQuestion,
+  FileText,
+  GraduationCap,
+  LineChart,
+  MessageSquare,
+  Sparkles,
+  Target,
+  UploadCloud,
+  Zap,
+} from "lucide-react";
+import { motion } from "framer-motion";
 
 const modules = [
   {
     title: "AI Tutor Chat",
-    text: "Ask grounded questions against your uploaded study material with saved sessions.",
-    icon: <ChatBubbleOutlineIcon />,
+    text: "Ask grounded questions against your uploaded material and keep every session in one place.",
+    icon: <MessageSquare size={22} />,
     to: "/chatbot",
     badge: "RAG-powered",
-    badgeClass: "chip-accent",
+    badgeColor: "bg-primary/10 text-primary",
   },
   {
-    title: "AI Wizard Module",
-    text: "Generate an adaptive curriculum with spaced repetition, weak-area detection, and Pomodoro flow.",
-    icon: <AutoAwesomeIcon />,
+    title: "AI Wizard",
+    text: "Build an adaptive curriculum with spaced repetition, weak-area detection, and focused study blocks.",
+    icon: <Sparkles size={22} />,
     to: "/wizard",
     badge: "New",
-    badgeClass: "chip",
+    badgeColor: "bg-secondary/10 text-secondary",
   },
   {
     title: "Quiz Generator",
-    text: "Build topic-specific practice tests with difficulty, timing, scoring, and review flow.",
-    icon: <QuizIcon />,
+    text: "Create topic-specific tests with difficulty, timing, scoring, and review built in.",
+    icon: <FileQuestion size={22} />,
     to: "/quiz",
     badge: "AI-generated",
-    badgeClass: "chip",
+    badgeColor: "bg-slate-100 text-slate-700",
   },
   {
     title: "Quick Study",
-    text: "Turn PDFs, articles, and YouTube lessons into concise or detailed summaries.",
-    icon: <SummarizeIcon />,
+    text: "Turn PDFs, articles, and YouTube lessons into clear summaries you can act on immediately.",
+    icon: <FileText size={22} />,
     to: "/quick-study",
     badge: "Summarizer",
-    badgeClass: "chip-success",
+    badgeColor: "bg-emerald-50 text-emerald-700",
   },
   {
     title: "Progress Profile",
-    text: "Review quiz history, account settings, face login, and subscription options.",
-    icon: <TimelineIcon />,
+    text: "Review quiz history, progress signals, account settings, and subscription options.",
+    icon: <LineChart size={22} />,
     to: "/profile",
     badge: "Analytics",
-    badgeClass: "chip-warn",
+    badgeColor: "bg-amber-50 text-amber-700",
   },
 ];
 
 const stats = [
-  { number: "5+", label: "AI-Powered Modules" },
-  { number: "∞", label: "Adaptive Study Plans" },
-  { number: "35min", label: "Focused Study Blocks" },
+  { number: "5+", label: "AI-powered modules" },
+  { number: "∞", label: "Adaptive study paths" },
+  { number: "35m", label: "Focused study blocks" },
 ];
 
 const highlights = [
-  { icon: <BoltIcon />, title: "Instant Generation", text: "AI builds a full course plan in seconds from your goal and subject." },
-  { icon: <TrackChangesIcon />, title: "Weak-Area Detection", text: "Automatically identifies gaps and adjusts your schedule." },
-  { icon: <SchoolIcon />, title: "Spaced Repetition", text: "Scientifically timed review sessions maximize long-term retention." },
+  {
+    icon: <Zap size={22} />,
+    title: "Instant generation",
+    text: "Go from a subject or goal to a usable study plan in seconds instead of starting from a blank page.",
+  },
+  {
+    icon: <Target size={22} />,
+    title: "Weak-area signals",
+    text: "Use quiz performance and study history to focus your next session where it matters most.",
+  },
+  {
+    icon: <GraduationCap size={22} />,
+    title: "Better retention",
+    text: "Use spaced repetition and focused Pomodoro-style sessions to turn review into a repeatable habit.",
+  },
 ];
+
+const studySteps = [
+  {
+    title: "Bring your material",
+    text: "Upload notes, PDFs, or learning sources.",
+  },
+  {
+    title: "Understand the topic",
+    text: "Summarize, ask questions, and verify concepts.",
+  },
+  {
+    title: "Practice deliberately",
+    text: "Generate quizzes and surface weak areas.",
+  },
+  {
+    title: "Keep improving",
+    text: "Adjust your plan as your progress and deadlines change.",
+  },
+];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: "easeOut" },
+  },
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: "easeOut" },
+  },
+};
 
 export default function Home() {
   const { isAuthenticated, user } = useAuth();
-  const rootRef = useRef(null);
-  useGsapReveal(rootRef);
+
+  const primaryPath = isAuthenticated ? "/wizard" : "/signup";
+  const primaryLabel = isAuthenticated ? "Open AI Wizard" : "Start learning";
+  const displayName = user?.full_name || user?.email || "learner";
 
   return (
-    <div ref={rootRef}>
-      {/* ── HERO ── */}
-      <section className="hero-section">
-        <div className="container hero-content">
-          <div className="hero-copy">
-            <p className="eyebrow" data-reveal>AI study planner &amp; adaptive learning platform</p>
-            <h1 className="hero-title" data-reveal>
-              What can I help you learn today?
-            </h1>
-            <p className="section-copy" data-reveal>
-              CognitiveWizard combines a private RAG tutor, adaptive quizzes,
-              AI curriculum wizard, summarization, and progress tracking into
-              one focused learning workspace.
-            </p>
+    <div className="min-h-screen overflow-hidden bg-light text-dark">
+      {/* Ambient page background */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute left-[-10rem] top-[-8rem] h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute right-[-8rem] top-[18rem] h-96 w-96 rounded-full bg-secondary/10 blur-3xl" />
+      </div>
 
-            <div className="ai-command" data-reveal>
-              <div className="command-input">
-                <AutoAwesomeIcon style={{ color: "var(--primary-light)", flexShrink: 0 }} />
-                <span>
-                  {isAuthenticated
-                    ? `Welcome back, ${user?.full_name || user?.email}. Choose your next study action.`
-                    : "Enter a topic, upload material, or start with a guided study flow."}
-                </span>
-                <Link className="btn-primary" to={isAuthenticated ? "/wizard" : "/signup"} id="hero-cta-generate">
-                  Generate
+      {/* ───────────────────────── HERO ───────────────────────── */}
+      <section className="relative px-4 pb-16 pt-10 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid items-center gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:gap-16">
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={containerVariants}
+            >
+              <motion.div
+                variants={itemVariants}
+                className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-white/80 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-primary shadow-sm backdrop-blur"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                AI study planner · adaptive learning
+              </motion.div>
+
+              <motion.h1
+                variants={itemVariants}
+                className="max-w-3xl text-5xl font-black leading-[0.98] tracking-[-0.04em] text-dark sm:text-6xl lg:text-[4.5rem]"
+              >
+                Turn study time into{" "}
+                <span className="text-primary">forward progress.</span>
+              </motion.h1>
+
+              <motion.p
+                variants={itemVariants}
+                className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg"
+              >
+                CognitiveWizard brings tutoring, adaptive quizzes, curriculum
+                planning, summarization, and progress tracking into one calm
+                learning workspace.
+              </motion.p>
+
+              <motion.div
+                variants={itemVariants}
+                className="mt-8 rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.3)]"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.1rem] px-4 py-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Sparkles size={18} />
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                        Your next study move
+                      </p>
+
+                      <p className="mt-1 truncate text-sm font-semibold text-slate-700 sm:text-base">
+                        {isAuthenticated
+                          ? `Welcome back, ${displayName}. Pick your next learning action.`
+                          : "Start with a topic, upload material, or build a guided study plan."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Link
+                    to={primaryPath}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-slate-900 transition-all hover:-translate-y-0.5 hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/15 sm:min-w-[132px]"
+                  >
+                    Generate
+                    <ArrowRight size={16} />
+                  </Link>
+                </div>
+              </motion.div>
+
+              <motion.div
+                variants={itemVariants}
+                className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center"
+              >
+                <Link
+                  to={primaryPath}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-bold text-white shadow-lg shadow-slate-900/10 transition-all hover:-translate-y-0.5 "
+                >
+                  {primaryLabel}
+                  <ArrowRight size={17} />
                 </Link>
-              </div>
-              <div className="mode-tabs" aria-label="Learning formats">
-                <Link className="mode-tab active" to="/quick-study" id="mode-course">Course</Link>
-                <Link className="mode-tab" to="/chatbot" id="mode-guide">Guide</Link>
-                <Link className="mode-tab" to="/quiz" id="mode-quiz">Quiz</Link>
-              </div>
-            </div>
 
-            <div className="hero-actions" data-reveal>
-              <Link className="btn-primary" to={isAuthenticated ? "/wizard" : "/signup"} id="hero-cta-start">
-                Start Learning
-              </Link>
-              <Link className="btn-secondary" to="/about" id="hero-cta-explore">
-                Explore Platform
-              </Link>
-            </div>
+                <Link
+                  to="/about"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-bold text-dark transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50"
+                >
+                  Explore platform
+                </Link>
+              </motion.div>
+
+              <motion.div
+                variants={itemVariants}
+                className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500"
+              >
+                {[
+                  "Private study workspace",
+                  "Adaptive practice",
+                  "Saved sessions",
+                ].map((label) => (
+                  <span
+                    key={label}
+                    className="inline-flex items-center gap-2"
+                  >
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                    {label}
+                  </span>
+                ))}
+              </motion.div>
+            </motion.div>
+
+            {/* Hero product preview */}
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                duration: 0.6,
+                delay: 0.15,
+                ease: "easeOut",
+              }}
+              className="relative mx-auto w-full max-w-xl"
+            >
+              <div className="absolute -inset-5 rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-transparent to-secondary/15 blur-2xl" />
+
+              <div className="relative rounded-[2rem] border border-slate-200 bg-white p-4 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.32)] sm:p-5">
+                <div className="flex items-center justify-between border-b border-slate-100 px-1 pb-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400">
+                      Today&apos;s workspace
+                    </p>
+                    <h2 className="mt-1 text-lg font-extrabold text-dark">
+                      Adaptive study plan
+                    </h2>
+                  </div>
+
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Brain size={19} />
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                      <BookOpen size={18} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-bold text-dark">
+                          Machine Learning Foundations
+                        </p>
+
+                        <span className="text-xs font-bold text-primary">
+                          68%
+                        </span>
+                      </div>
+
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-full w-[68%] rounded-full bg-primary" />
+                      </div>
+
+                      <p className="mt-2 text-xs text-slate-500">
+                        Next: revisit gradient descent + take a 10-question quiz
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Clock3 size={15} />
+                      <span className="text-xs font-bold uppercase tracking-wider">
+                        Focus block
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex items-end justify-between">
+                      <p className="text-2xl font-black text-dark">35 min</p>
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
+                        On track
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Target size={15} />
+                      <span className="text-xs font-bold uppercase tracking-wider">
+                        Weak area
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-sm font-extrabold text-dark">
+                      Gradient descent
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                      Priority raised from quiz results
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-dark p-4 text-white">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-white/55">
+                        Recommended next
+                      </p>
+                      <p className="mt-1 text-sm font-bold">
+                        Review → Practice → Re-test
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-white/10 p-2.5">
+                      <Sparkles size={17} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute -bottom-5 -left-4 hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-xl shadow-slate-900/10 sm:flex sm:items-center sm:gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <UploadCloud size={17} />
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Ready when you are
+                  </p>
+                  <p className="text-sm font-bold text-dark">
+                    Upload your next source
+                  </p>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
-          {/* ── RIGHT PANEL ── */}
-          <div className="study-board" data-reveal>
-            <article className="board-card">
-              <p className="small-label">Personalized path</p>
-              <div className="roadmap-line">
-                <div className="roadmap-step">
-                  <strong>Collect material</strong>
-                  <p>Upload notes or paste learning sources.</p>
+          {/* Stats */}
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.3 }}
+            variants={fadeUp}
+            className="mt-16 grid overflow-hidden rounded-2xl border border-slate-200 bg-white sm:grid-cols-3"
+          >
+            {stats.map((stat, index) => (
+              <div
+                key={stat.label}
+                className={`px-6 py-7 text-center ${index < stats.length - 1
+                  ? "border-b border-slate-100 sm:border-b-0 sm:border-r"
+                  : ""
+                  }`}
+              >
+                <div className="text-3xl font-black tracking-tight text-primary sm:text-4xl">
+                  {stat.number}
                 </div>
-                <div className="roadmap-step">
-                  <strong>Understand faster</strong>
-                  <p>Summarize, question, and verify concepts.</p>
-                </div>
-                <div className="roadmap-step">
-                  <strong>Practice deliberately</strong>
-                  <p>Generate quizzes and identify weak areas.</p>
-                </div>
-                <div className="roadmap-step">
-                  <strong>Track &amp; adjust</strong>
-                  <p>AI auto-updates your plan as deadlines shift.</p>
-                </div>
-              </div>
-            </article>
 
-            <article className="board-card" style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
-              <div className="metric-badge">
-                <PsychologyIcon />
+                <div className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+                  {stat.label}
+                </div>
               </div>
-              <div>
-                <h3 style={{ color: "var(--text)", fontSize: "1rem", marginBottom: "6px" }}>
-                  Designed for information overload
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ─────────────────────── VALUE PROPOSITION ─────────────────────── */}
+      <section className="border-y border-slate-200/70 bg-white px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid items-end gap-8 lg:grid-cols-[0.8fr_1.2fr]">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                Why CognitiveWizard
+              </p>
+
+              <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight tracking-tight text-dark sm:text-4xl">
+                Less setup. More actual learning.
+              </h2>
+            </div>
+
+            <p className="max-w-2xl text-base leading-7 text-slate-600 lg:justify-self-end">
+              The experience is built around the study loop: collect material,
+              understand it, practice it, then let your results shape the next
+              session.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {highlights.map((highlight, index) => (
+              <motion.article
+                key={highlight.title}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.2 }}
+                variants={fadeUp}
+                transition={{ delay: index * 0.06 }}
+                className="group rounded-2xl border border-slate-200 bg-light p-6 transition-all hover:-translate-y-1 hover:border-primary/20 hover:bg-white hover:shadow-xl hover:shadow-slate-900/5"
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-primary shadow-sm transition-colors group-hover:bg-primary group-hover:text-white">
+                  {highlight.icon}
+                </div>
+
+                <h3 className="mt-5 text-lg font-extrabold text-dark">
+                  {highlight.title}
                 </h3>
-                <p style={{ margin: 0, fontSize: ".88rem" }}>
-                  Smart automation for meta-tasks — organization, summaries, and adaptive practice.
+
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {highlight.text}
+                </p>
+              </motion.article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────── STUDY LOOP ─────────────────────── */}
+      <section className="bg-light px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+            <div className="lg:sticky lg:top-8">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                A clearer study flow
+              </p>
+
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-dark sm:text-4xl">
+                From first upload to confident recall.
+              </h2>
+
+              <p className="mt-5 max-w-lg leading-7 text-slate-600">
+                CognitiveWizard turns scattered study tasks into a simple
+                sequence you can repeat for almost any subject.
+              </p>
+
+              <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Brain size={19} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-bold text-dark">
+                      Designed for information overload
+                    </p>
+
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Automate the meta-work — organization, summaries,
+                      practice, and planning — so your attention stays on the
+                      subject.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute left-5 top-6 hidden h-[calc(100%-3rem)] w-px bg-slate-200 md:block" />
+
+              <div className="space-y-5">
+                {studySteps.map((step, index) => (
+                  <motion.div
+                    key={step.title}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.2 }}
+                    variants={fadeUp}
+                    transition={{ delay: index * 0.06 }}
+                    className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:ml-0 md:pl-20"
+                  >
+                    <div className="absolute left-4 top-5 hidden h-10 w-10 items-center justify-center rounded-xl bg-dark text-sm font-black text-white md:flex">
+                      0{index + 1}
+                    </div>
+
+                    <div className="md:hidden">
+                      <span className="inline-flex rounded-full bg-dark px-2.5 py-1 text-[11px] font-bold text-white">
+                        Step 0{index + 1}
+                      </span>
+                    </div>
+
+                    <h3 className="mt-3 text-lg font-extrabold text-dark md:mt-0">
+                      {step.title}
+                    </h3>
+
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      {step.text}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────── MODULES ─────────────────────── */}
+      <section className="bg-white px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                Workspace modules
+              </p>
+
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-dark sm:text-4xl">
+                One workspace. Every study job.
+              </h2>
+
+              <p className="mt-4 leading-7 text-slate-600">
+                Jump directly into the tool you need without losing the context
+                of the rest of your study workflow.
+              </p>
+            </div>
+
+            <Link
+              to={primaryPath}
+              className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-dark transition-colors hover:border-slate-300 hover:bg-slate-50 md:self-auto"
+            >
+              {isAuthenticated
+                ? "Open workspace"
+                : "Create your workspace"}
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {modules.map((module, index) => (
+              <motion.div
+                key={module.title}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.15 }}
+                variants={fadeUp}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Link
+                  to={module.to}
+                  className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-primary/25 hover:shadow-xl hover:shadow-slate-900/5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-light text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                      {module.icon}
+                    </div>
+
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${module.badgeColor}`}
+                    >
+                      {module.badge}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 flex-1">
+                    <h3 className="text-lg font-extrabold text-dark">
+                      {module.title}
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      {module.text}
+                    </p>
+                  </div>
+
+                  <div className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-primary">
+                    Open module
+                    <ArrowRight
+                      size={15}
+                      className="transition-transform group-hover:translate-x-1"
+                    />
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────── CTA ─────────────────────── */}
+      <section className="px-4 pb-20 pt-4 sm:px-6 lg:px-8 lg:pb-24">
+        <div className="mx-auto max-w-7xl">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.3 }}
+            variants={fadeUp}
+            className="relative overflow-hidden rounded-[2rem] bg-dark px-6 py-12 text-white shadow-2xl shadow-slate-900/10 sm:px-10 sm:py-16 lg:px-16"
+          >
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
+            <div className="absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-secondary/15 blur-3xl" />
+
+            <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">
+                  Ready to study smarter?
+                </p>
+
+                <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                  Build your next focused study session in minutes.
+                </h2>
+
+                <p className="mt-5 max-w-xl text-base leading-7 text-white/65">
+                  Start with one subject, one source, or one quiz. Let the rest
+                  of the workspace meet you where you are.
                 </p>
               </div>
-            </article>
-          </div>
-        </div>
 
-        {/* Stats row */}
-        <div className="container">
-          <div className="stats-row" data-reveal>
-            {stats.map(s => (
-              <div className="stat-card" key={s.label}>
-                <div className="stat-number">{s.number}</div>
-                <div className="stat-label">{s.label}</div>
+              <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+                <Link
+                  to={primaryPath}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate px-6 py-3.5 font-bold text-dark transition-all hover:-translate-y-0.5 hover:bg-slate-800"
+                >
+                  {isAuthenticated
+                    ? "Open AI Wizard"
+                    : "Create free account"}
+                  <ArrowRight size={16} />
+                </Link>
+
+                <Link
+                  to="/quiz"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-6 py-3.5 font-bold text-white transition-all hover:bg-white/15"
+                >
+                  Try a quiz
+                </Link>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HIGHLIGHTS ── */}
-      <section className="page-shell" style={{ paddingTop: "48px" }}>
-        <div className="container">
-          <div className="section-divider" />
-          <div className="page-header" data-reveal>
-            <p className="eyebrow">Why CognitiveWizard</p>
-            <h2 className="page-title">Built for deep, deliberate learning.</h2>
-            <p className="section-copy">
-              Every module is designed around cognitive science — spaced repetition,
-              weak-area signals, and focused Pomodoro blocks keep study sessions productive.
-            </p>
-          </div>
-          <div className="feature-grid">
-            {highlights.map(h => (
-              <article className="feature-item" key={h.title} data-reveal>
-                <span className="feature-icon">{h.icon}</span>
-                <h2>{h.title}</h2>
-                <p>{h.text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── MODULES GRID ── */}
-      <section className="page-shell" style={{ paddingTop: "0" }}>
-        <div className="container">
-          <div className="section-divider" />
-          <div className="page-header" data-reveal>
-            <p className="eyebrow">Workspace modules</p>
-            <h2 className="page-title">Pick the tool that fits the study job.</h2>
-            <p className="section-copy">
-              The interface keeps core actions visible, uses compact cards for
-              scanning, and adapts cleanly across desktop, tablet, and mobile.
-            </p>
-          </div>
-          <div className="feature-grid">
-            {modules.map(mod => (
-              <Link
-                className="feature-item"
-                to={mod.to}
-                key={mod.title}
-                data-reveal
-                id={`module-card-${mod.title.toLowerCase().replace(/\s+/g, "-")}`}
-              >
-                <span className={`chip ${mod.badgeClass}`} style={{ marginBottom: "12px" }}>{mod.badge}</span>
-                <span className="feature-icon">{mod.icon}</span>
-                <h2>{mod.title}</h2>
-                <p>{mod.text}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA BANNER ── */}
-      <section className="page-shell" style={{ paddingTop: "0" }}>
-        <div className="container">
-          <div
-            className="board-card"
-            style={{
-              background: "linear-gradient(135deg,rgba(124,58,237,0.15) 0%,rgba(30, 217, 242,0.1) 100%)",
-              border: "1px solid rgba(124,58,237,0.3)",
-              textAlign: "center",
-              padding: "56px 40px",
-            }}
-            data-reveal
-          >
-            <p className="eyebrow" style={{ marginBottom: "12px" }}>Ready to level up?</p>
-            <h2 style={{ margin: "0 0 16px", color: "var(--text)", fontSize: "clamp(1.6rem,3vw,2.2rem)", fontWeight: 900 }}>
-              Start your adaptive learning journey today.
-            </h2>
-            <p className="section-copy" style={{ margin: "0 auto 28px" }}>
-              Join learners using CognitiveWizard to study smarter with AI.
-            </p>
-            <div className="hero-actions" style={{ justifyContent: "center" }}>
-              <Link className="btn-primary" to={isAuthenticated ? "/wizard" : "/signup"} id="cta-banner-start">
-                {isAuthenticated ? "Open AI Wizard" : "Create Free Account"}
-              </Link>
-              <Link className="btn-secondary" to="/quiz" id="cta-banner-quiz">Try a Quiz</Link>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
     </div>

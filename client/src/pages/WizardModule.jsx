@@ -1,145 +1,460 @@
-import { useRef, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import ScheduleIcon from "@mui/icons-material/Schedule";
-import PsychologyIcon from "@mui/icons-material/Psychology";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
-import ExploreIcon from "@mui/icons-material/Explore";
-import LocalLibraryIcon from "@mui/icons-material/LocalLibrary";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import HistoryIcon from "@mui/icons-material/History";
-import CreateIcon from "@mui/icons-material/Create";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import DeleteIcon from "@mui/icons-material/Delete";
-import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import { useRef, useState, useEffect, useMemo } from "react";
+import {
+  Sparkles,
+  Clock,
+  Brain,
+  BookOpen,
+  Compass,
+  Library,
+  ArrowLeft,
+  CheckCircle,
+  ChevronRight,
+  History,
+  Edit3,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  CheckSquare,
+  AlertCircle,
+  ArrowRight,
+  WandSparkles,
+  Layers3,
+  Target,
+  RotateCcw,
+  ExternalLink,
+  Search,
+} from "lucide-react";
+
 import { useGsapReveal } from "../hooks/useGsapReveal";
-import { generateWizardContent, generateAgenticWizardContent, getWizardContentDetail, provideWizardFeedback, publishWizardContent, getWizardHistory, deleteWizardContent, API } from "../services/api";
-import { CircularProgress } from "@mui/material";
+import {
+  generateWizardContent,
+  generateAgenticWizardContent,
+  getWizardContentDetail,
+  provideWizardFeedback,
+  publishWizardContent,
+  getWizardHistory,
+  deleteWizardContent,
+  API,
+} from "../services/api";
+
 import { useAuth } from "../hooks/useAuth";
 import RoadmapDisplay from "../components/wizard/RoadmapDisplay";
 import DraftReviewUI from "../components/wizard/DraftReviewUI";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Icon mapping for dynamic icon names from admin config
+/* -------------------------------------------------------------------------- */
+/*                                   CONFIG                                   */
+/* -------------------------------------------------------------------------- */
+
 const ICON_MAP = {
-  ExploreRounded: <ExploreIcon sx={{ fontSize: 28 }} />,
-  LocalLibraryRounded: <LocalLibraryIcon sx={{ fontSize: 28 }} />,
-  MenuBookRounded: <MenuBookIcon sx={{ fontSize: 28 }} />,
-  ScheduleRounded: <ScheduleIcon sx={{ fontSize: 28 }} />,
-  PsychologyRounded: <PsychologyIcon sx={{ fontSize: 28 }} />,
-  // Fallback
-  default: <ExploreIcon sx={{ fontSize: 28 }} />,
+  ExploreRounded: Compass,
+  LocalLibraryRounded: Library,
+  MenuBookRounded: BookOpen,
+  ScheduleRounded: Clock,
+  PsychologyRounded: Brain,
+  default: Compass,
 };
 
-function getIcon(iconName) {
-  return ICON_MAP[iconName] || ICON_MAP.default;
+function getIcon(iconName, props = {}) {
+  const Icon = ICON_MAP[iconName] || ICON_MAP.default;
+  return <Icon {...props} />;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                  HELPERS                                   */
+/* -------------------------------------------------------------------------- */
 
-// Expandable module component
-const ModuleItem = ({ mod, type }) => {
-  const [expanded, setExpanded] = useState(false);
+const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+function isAnswerEmpty(value) {
+  if (Array.isArray(value)) return value.length === 0;
+  return !String(value ?? "").trim();
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              PREMIUM CARD                                  */
+/* -------------------------------------------------------------------------- */
+
+function Surface({ children, className = "", ...props }) {
   return (
-    <div style={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "16px", padding: "24px", position: "relative", overflow: "hidden", transition: "all 0.3s", cursor: "pointer" }} onClick={() => setExpanded(!expanded)} className="hover-lift">
-      <div style={{ position: "absolute", top: 0, left: 0, width: "6px", height: "100%", background: "linear-gradient(to bottom, #5736C8, #1ED9F2)" }} />
+    <div
+      className={cn(
+        "rounded-[28px] border border-slate-200/80 bg-white shadow-[0_12px_45px_-24px_rgba(15,23,42,0.25)]",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-        <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 800, color: "var(--text)" }}>{mod.title}</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {mod.estimated_time && (
-            <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "4px 10px", borderRadius: "20px", color: "var(--text-light)", fontSize: "0.8rem", fontWeight: 600 }}>
-              <ScheduleIcon style={{ fontSize: "1rem", marginRight: "4px" }} /> {mod.estimated_time}
-            </div>
-          )}
-          {expanded ? <KeyboardArrowUpIcon style={{ color: "var(--text-light)" }} /> : <KeyboardArrowDownIcon style={{ color: "var(--text-light)" }} />}
-        </div>
-      </div>
+/* -------------------------------------------------------------------------- */
+/*                              SECTION HEADER                                 */
+/* -------------------------------------------------------------------------- */
 
-      <p style={{ color: "var(--text-light)", fontSize: "1rem", lineHeight: 1.6, margin: expanded ? "0 0 20px" : "0" }}>
-        {mod.description}
-      </p>
-
-      {expanded && mod.key_takeaways && mod.key_takeaways.length > 0 && (
-        <div style={{ marginBottom: "20px" }}>
-          <h4 style={{ margin: "0 0 8px", color: "var(--text)", fontSize: "0.95rem" }}>Key Takeaways:</h4>
-          <ul style={{ margin: 0, paddingLeft: "20px", color: "#7655F6", fontSize: "0.95rem" }}>
-            {mod.key_takeaways.map((k, i) => <li key={i}>{k}</li>)}
-          </ul>
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+  icon: Icon = Sparkles,
+}) {
+  return (
+    <div className="mb-10 text-center">
+      {eyebrow && (
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-cyan-700">
+          <Icon size={14} />
+          {eyebrow}
         </div>
       )}
 
-      {expanded && mod.topics && mod.topics.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {mod.topics.map((topic, idx) => (
-            <div key={idx} style={{
-              background: "rgba(30, 217, 242, 0.05)",
-              padding: "16px", borderRadius: "12px",
-              border: "1px solid rgba(30, 217, 242, 0.1)"
-            }}>
-              <h4 style={{ margin: "0 0 6px", color: "#1ED9F2", fontSize: "1rem", fontWeight: 700 }}>
-                {topic.name || topic}
-              </h4>
-              {(topic.details || topic.content) && (
-                <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.9rem", lineHeight: 1.5 }}>
-                  {topic.details || topic.content}
-                </p>
-              )}
-              {topic.practical_task && (
-                <div style={{ marginTop: "12px", padding: "8px 12px", background: "rgba(30, 217, 242, 0.1)", borderRadius: "6px", color: "#1ED9F2", fontSize: "0.85rem", fontWeight: 600 }}>
-                  <TaskAltIcon sx={{ fontSize: "1rem", marginRight: "4px", verticalAlign: "middle" }} />
-                  Task: {topic.practical_task}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+        {title}
+      </h2>
+
+      {description && (
+        <p className="mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-slate-500 sm:text-lg">
+          {description}
+        </p>
       )}
     </div>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              PROGRESS BAR                                  */
+/* -------------------------------------------------------------------------- */
+
+function WizardProgress({ step, totalSteps }) {
+  const percentage =
+    totalSteps <= 1
+      ? 100
+      : Math.min(100, Math.round((step / (totalSteps - 1)) * 100));
+
+  return (
+    <div className="mx-auto mb-10 w-full max-w-3xl">
+      <div className="mb-3 flex items-center justify-between text-xs font-extrabold uppercase tracking-widest">
+        <span className="text-slate-400">Progress</span>
+        <span className="text-slate-600">{percentage}% complete</span>
+      </div>
+
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <motion.div
+          className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500"
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        />
+      </div>
+
+      <div className="mt-3 flex justify-between text-[11px] font-bold text-slate-400">
+        <span>Start</span>
+        <span>Customize</span>
+        <span>Review</span>
+        <span>Generate</span>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              MODULE ITEM                                   */
+/* -------------------------------------------------------------------------- */
+
+const ModuleItem = ({ mod, index }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04 }}
+      className="group"
+    >
+      <Surface
+        className={cn(
+          "relative overflow-hidden transition-all duration-300",
+          expanded
+            ? "shadow-[0_24px_70px_-35px_rgba(37,99,235,0.3)]"
+            : "hover:-translate-y-1 hover:shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)]"
+        )}
+      >
+        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-cyan-500 via-blue-500 to-indigo-500" />
+
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="w-full p-6 text-left sm:p-7"
+        >
+          <div className="flex items-start gap-4">
+            <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white sm:flex">
+              {String(index + 1).padStart(2, "0")}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                  Module {index + 1}
+                </span>
+
+                {mod.estimated_time && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                    <Clock size={12} />
+                    {mod.estimated_time}
+                  </span>
+                )}
+              </div>
+
+              <h3 className="text-xl font-black tracking-tight text-slate-950 transition-colors group-hover:text-blue-600 sm:text-2xl">
+                {mod.title}
+              </h3>
+
+              {mod.description && (
+                <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-slate-500 sm:text-base">
+                  {mod.description}
+                </p>
+              )}
+            </div>
+
+            <div
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all",
+                expanded
+                  ? "border-blue-200 bg-blue-50 text-blue-600"
+                  : "border-slate-200 bg-white text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500"
+              )}
+            >
+              {expanded ? (
+                <ChevronUp size={19} />
+              ) : (
+                <ChevronDown size={19} />
+              )}
+            </div>
+          </div>
+        </button>
+
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-slate-100 px-6 pb-7 pt-6 sm:px-7">
+                {mod.key_takeaways?.length > 0 && (
+                  <div className="mb-7">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Target size={16} className="text-blue-600" />
+                      <h4 className="text-sm font-black uppercase tracking-wider text-slate-800">
+                        Key Takeaways
+                      </h4>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {mod.key_takeaways.map((takeaway, i) => (
+                        <div
+                          key={i}
+                          className="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold leading-5 text-slate-600"
+                        >
+                          <CheckCircle
+                            size={16}
+                            className="mt-0.5 shrink-0 text-blue-500"
+                          />
+                          <span>{takeaway}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {mod.topics?.length > 0 && (
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <Layers3 size={16} className="text-cyan-600" />
+                      <h4 className="text-sm font-black uppercase tracking-wider text-slate-800">
+                        Topics
+                      </h4>
+                    </div>
+
+                    <div className="space-y-3">
+                      {mod.topics.map((topic, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/80 to-blue-50/50 p-5"
+                        >
+                          <h4 className="font-extrabold text-cyan-800">
+                            {topic.name || topic}
+                          </h4>
+
+                          {(topic.details || topic.content) && (
+                            <p className="mt-2 text-sm font-medium leading-6 text-slate-600">
+                              {topic.details || topic.content}
+                            </p>
+                          )}
+
+                          {topic.practical_task && (
+                            <div className="mt-4 flex items-start gap-3 rounded-xl border border-cyan-200/80 bg-white/70 p-3.5 text-sm font-bold text-cyan-800">
+                              <CheckSquare
+                                className="mt-0.5 shrink-0 text-cyan-600"
+                                size={17}
+                              />
+                              <span>{topic.practical_task}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Surface>
+    </motion.div>
+  );
 };
+
+/* -------------------------------------------------------------------------- */
+/*                            GENERATING STATE                                */
+/* -------------------------------------------------------------------------- */
+
+function GeneratingState({ contentType, isTutor, generatedData }) {
+  const agentic =
+    isTutor && contentType === "Course/Syllabus";
+
+  let statusMessage = "This usually takes a few seconds.";
+
+  if (agentic) {
+    if (generatedData?.status === "generating_planning") {
+      statusMessage = "Your AI agent is planning the course architecture...";
+    } else if (generatedData?.status === "generating_resources") {
+      statusMessage =
+        "Your AI agent is integrating resources and YouTube videos...";
+    } else {
+      statusMessage =
+        "AI agents are structuring your course and finding relevant resources. This may take a few minutes.";
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-auto max-w-2xl py-16 text-center sm:py-24"
+    >
+      <div className="relative mx-auto mb-8 h-24 w-24">
+        <div className="absolute inset-0 animate-ping rounded-full bg-blue-100 opacity-60" />
+
+        <div className="relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_20px_60px_-20px_rgba(37,99,235,0.6)]">
+          <Sparkles size={38} />
+        </div>
+      </div>
+
+      <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-black uppercase tracking-widest text-blue-700">
+        <WandSparkles size={13} />
+        AI is working
+      </div>
+
+      <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+        Creating your {contentType}
+      </h2>
+
+      <p className="mx-auto mt-4 max-w-xl text-base font-medium leading-7 text-slate-500 sm:text-lg">
+        {statusMessage}
+      </p>
+
+      <div className="mx-auto mt-9 max-w-md overflow-hidden rounded-full bg-slate-100">
+        <motion.div
+          className="h-2 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500"
+          animate={{ x: ["-100%", "100%"] }}
+          transition={{
+            duration: 1.7,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                           WIZARD MODULE                                    */
+/* -------------------------------------------------------------------------- */
 
 export default function WizardModule() {
   const { isTutor } = useAuth();
-  const [activeTab, setActiveTab] = useState("generate"); // 'generate' or 'history'
 
-  // Dynamic question sets loaded from admin API
-  const [questionSets, setQuestionSets] = useState([]); // array of { content_type, label, description, icon, questions }
+  const [activeTab, setActiveTab] = useState("generate");
+
+  const [questionSets, setQuestionSets] = useState([]);
   const [setsLoading, setSetsLoading] = useState(true);
 
-  // Generator State
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({ contentType: "", topic: "" });
+  const [answers, setAnswers] = useState({
+    contentType: "",
+    topic: "",
+  });
+
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedData, setGeneratedData] = useState(null);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
-  // Polling ref
-  const pollIntervalRef = useRef(null);
-
-  // History State
   const [historyItems, setHistoryItems] = useState([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
 
+  const pollIntervalRef = useRef(null);
   const rootRef = useRef(null);
+
   useGsapReveal(rootRef);
 
-  // Load admin-managed question sets on mount
+  /* ------------------------------------------------------------------------ */
+  /*                               DATA                                       */
+  /* ------------------------------------------------------------------------ */
+
   useEffect(() => {
     API.get("/wizard/question-sets")
-      .then(res => setQuestionSets(res.data))
-      .catch(err => console.error("Failed to load wizard question sets", err))
+      .then((res) => setQuestionSets(res.data))
+      .catch((err) =>
+        console.error("Failed to load wizard question sets", err)
+      )
       .finally(() => setSetsLoading(false));
   }, []);
 
-  // Active questions for selected content type
-  const activeQuestionSet = questionSets.find(qs => qs.content_type === answers.contentType);
+  const activeQuestionSet = useMemo(
+    () =>
+      questionSets.find(
+        (qs) => qs.content_type === answers.contentType
+      ),
+    [questionSets, answers.contentType]
+  );
+
   const activeQuestions = activeQuestionSet?.questions || [];
 
-  // Fetch History
+  const totalSteps = 3 + activeQuestions.length;
+
+  const finalReviewStep = 2 + activeQuestions.length;
+  const resultStep = finalReviewStep + 1;
+
+  const filteredHistory = useMemo(() => {
+    const query = historySearch.trim().toLowerCase();
+
+    if (!query) return historyItems;
+
+    return historyItems.filter((item) =>
+      `${item.topic} ${item.content_type}`
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [historyItems, historySearch]);
+
   useEffect(() => {
     if (activeTab === "history") {
       fetchHistory();
@@ -148,19 +463,36 @@ export default function WizardModule() {
 
   useEffect(() => {
     return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
     };
   }, []);
 
+  /* ------------------------------------------------------------------------ */
+  /*                              POLLING                                     */
+  /* ------------------------------------------------------------------------ */
+
   const startPolling = (id) => {
-    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+
     pollIntervalRef.current = setInterval(async () => {
       try {
         const data = await getWizardContentDetail(id);
-        if (data.status === "pending_approval" || data.status === "published" || data.status === "error") {
+
+        if (
+          data.status === "pending_approval" ||
+          data.status === "published" ||
+          data.status === "error"
+        ) {
           clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+
           setIsLoading(false);
           setGeneratedData(data);
+
           if (data.status === "error") {
             setError("Generation failed. Please try again.");
           }
@@ -173,13 +505,18 @@ export default function WizardModule() {
     }, 3000);
   };
 
+  /* ------------------------------------------------------------------------ */
+  /*                              HISTORY                                     */
+  /* ------------------------------------------------------------------------ */
+
   const fetchHistory = async () => {
     setIsHistoryLoading(true);
+
     try {
       const data = await getWizardHistory();
       setHistoryItems(data);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load history", err);
     } finally {
       setIsHistoryLoading(false);
     }
@@ -187,93 +524,182 @@ export default function WizardModule() {
 
   const handleDeleteHistory = async (id, e) => {
     e.stopPropagation();
+
     try {
       await deleteWizardContent(id);
-      fetchHistory();
+      setHistoryItems((items) =>
+        items.filter((item) => item.id !== id)
+      );
     } catch (err) {
-      console.error("Delete failed");
+      console.error("Delete failed", err);
     }
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /*                            NAVIGATION                                    */
+  /* ------------------------------------------------------------------------ */
+
+  const updateAnswer = (key, value) => {
+    setAnswers((current) => ({
+      ...current,
+      [key]: value,
+    }));
+
+    setError(null);
   };
 
   const handleNext = () => {
     setError(null);
-    if (step === 0 && !answers.contentType) { setError("Please select an option."); return; }
-    if (step === 1 && !answers.topic.trim()) { setError("Please provide a topic."); return; }
 
-    if (step >= 2 && step < 2 + activeQuestions.length) {
-      const qIndex = step - 2;
-      const qKey = activeQuestions[qIndex].key;
-      if (!answers[qKey]) { setError("Please answer the question."); return; }
+    if (step === 0 && isAnswerEmpty(answers.contentType)) {
+      setError("Please select a content type to continue.");
+      return;
     }
 
-    setStep(s => s + 1);
+    if (step === 1 && isAnswerEmpty(answers.topic)) {
+      setError("Please enter a topic to continue.");
+      return;
+    }
+
+    if (
+      step >= 2 &&
+      step < finalReviewStep
+    ) {
+      const qIndex = step - 2;
+      const currentQuestion = activeQuestions[qIndex];
+
+      if (!currentQuestion) return;
+
+      if (isAnswerEmpty(answers[currentQuestion.key])) {
+        setError("Please answer this question before continuing.");
+        return;
+      }
+    }
+
+    setStep((current) => current + 1);
   };
 
   const handleBack = () => {
     setError(null);
-    setStep(s => Math.max(s - 1, 0));
+    setStep((current) => Math.max(current - 1, 0));
   };
+
+  /* ------------------------------------------------------------------------ */
+  /*                             GENERATION                                   */
+  /* ------------------------------------------------------------------------ */
 
   const handleGenerate = async () => {
     setError(null);
     setMessage(null);
     setIsLoading(true);
     setGeneratedData(null);
-    const targetStep = 2 + activeQuestions.length + 1; // Summary step + 1
-    setStep(targetStep);
+    setStep(resultStep);
 
-    let details = "";
-    activeQuestions.forEach((q) => {
-      details += `Q: ${q.label}\nA: ${answers[q.key]}\n\n`;
-    });
+    const details = activeQuestions
+      .map(
+        (q) =>
+          `Q: ${q.label}\nA: ${answers[q.key]}`
+      )
+      .join("\n\n");
 
     try {
       const payload = {
         topic: answers.topic,
         content_type: answers.contentType,
         details: details.trim(),
-        skill_level: answers.skillLevel || answers.skill_level || answers["Skill Level"],
-        goal: answers.goal || answers.learningGoal || answers["Learning Goal"],
-        learning_style: answers.learningStyle || answers.learning_style || answers["Learning Style"],
+
+        skill_level:
+          answers.skillLevel ||
+          answers.skill_level ||
+          answers["Skill Level"],
+
+        goal:
+          answers.goal ||
+          answers.learningGoal ||
+          answers["Learning Goal"],
+
+        learning_style:
+          answers.learningStyle ||
+          answers.learning_style ||
+          answers["Learning Style"],
       };
 
-      if (isTutor && answers.contentType === "Course/Syllabus") {
-        const response = await generateAgenticWizardContent(payload);
+      if (
+        isTutor &&
+        answers.contentType === "Course/Syllabus"
+      ) {
+        const response =
+          await generateAgenticWizardContent(payload);
+
         setGeneratedData(response);
+
         if (response.status === "generating") {
           startPolling(response.id);
-          // Leave isLoading true
         } else {
           setIsLoading(false);
-          setMessage(`Successfully generated!`);
+          setMessage("Successfully generated!");
         }
       } else {
-        const response = await generateWizardContent(payload);
+        const response =
+          await generateWizardContent(payload);
+
         setGeneratedData(response);
-        setMessage(`Successfully generated your ${answers.contentType.toLowerCase()}!`);
+        setMessage(
+          `Successfully generated your ${answers.contentType.toLowerCase()}!`
+        );
         setIsLoading(false);
       }
     } catch (err) {
-      setError(err.message || "An error occurred while generating.");
-      setStep(targetStep - 1);
+      console.error(err);
+
+      setError(
+        err.message ||
+        "Something went wrong while generating your content."
+      );
+
+      setStep(finalReviewStep);
       setIsLoading(false);
     }
   };
 
   const startOver = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+
     setStep(0);
     setGeneratedData(null);
-    setAnswers({ contentType: "", topic: "" });
+    setAnswers({
+      contentType: "",
+      topic: "",
+    });
+    setMessage(null);
+    setError(null);
+    setIsLoading(false);
     setActiveTab("generate");
   };
 
+  /* ------------------------------------------------------------------------ */
+  /*                          GENERATED CONTENT                               */
+  /* ------------------------------------------------------------------------ */
+
   const renderContentData = (data) => {
-    const isRoadmap = (data?.content_type || "").toLowerCase() === "roadmap";
-    const learningStyle = answers?.learningStyle || data?.content?.learning_style || "Visual & Project-based";
+    const isRoadmap =
+      (data?.content_type || "").toLowerCase() === "roadmap";
+
+    const learningStyle =
+      answers?.learningStyle ||
+      data?.content?.learning_style ||
+      "Visual & Project-based";
 
     if (isRoadmap) {
       return (
-        <div style={{ animation: "fadeIn 0.5s ease", width: "100%", margin: "0 auto" }}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="w-full"
+        >
           <RoadmapDisplay
             data={data}
             learningStyle={learningStyle}
@@ -281,29 +707,55 @@ export default function WizardModule() {
             onBack={startOver}
             onRegenerate={startOver}
           />
-        </div>
+        </motion.div>
       );
     }
 
     if (data?.status === "error") {
       return (
-        <div style={{ textAlign: "center", padding: "40px 0", animation: "fadeIn 0.5s ease" }}>
-          <div style={{ color: "#ef4444", marginBottom: "16px" }}>
-            <svg style={{ width: "64px", height: "64px", margin: "0 auto" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          </div>
-          <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>Generation Failed</h2>
-          <p style={{ color: "var(--text-light)", fontSize: "1.1rem", marginBottom: "32px" }}>
-            {data.content?.error || error || "An error occurred while generating the content. Would you like to try again?"}
-          </p>
-          <div style={{ display: "flex", justifyContent: "center", gap: "16px" }}>
-            <button onClick={startOver} className="hover-bg-surface" style={{ background: "transparent", border: "1px solid var(--border)", padding: "12px 24px", borderRadius: "30px", color: "var(--text)", cursor: "pointer", fontWeight: 600 }}>
-              Start Over
-            </button>
-            <button onClick={handleGenerate} className="btn-primary" style={{ padding: "12px 24px", fontSize: "1rem", borderRadius: "30px", background: "linear-gradient(135deg, #1ED9F2, #0BAABD)", cursor: "pointer", border: "none", color: "#111", fontWeight: 600 }}>
-              Retry Generation
-            </button>
-          </div>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-auto max-w-2xl"
+        >
+          <Surface className="overflow-hidden">
+            <div className="border-b border-rose-100 bg-gradient-to-br from-rose-50 to-white px-6 py-10 text-center sm:px-10">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+                <AlertCircle size={32} />
+              </div>
+
+              <h2 className="text-3xl font-black text-slate-950">
+                Generation Failed
+              </h2>
+
+              <p className="mx-auto mt-4 max-w-lg text-sm font-medium leading-6 text-slate-500 sm:text-base">
+                {data.content?.error ||
+                  error ||
+                  "An error occurred while generating the content. Would you like to try again?"}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 p-6 sm:flex-row sm:justify-center">
+              <button
+                type="button"
+                onClick={startOver}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3.5 font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                <RotateCcw size={17} />
+                Start Over
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGenerate}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 font-bold text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5 hover:bg-slate-800"
+              >
+                <Sparkles size={17} />
+                Retry Generation
+              </button>
+            </div>
+          </Surface>
+        </motion.div>
       );
     }
 
@@ -314,9 +766,13 @@ export default function WizardModule() {
           isSubmitting={isSubmittingFeedback}
           onFeedback={async (fb) => {
             setIsSubmittingFeedback(true);
+
             try {
-              const res = await provideWizardFeedback(data.id, fb);
+              const res =
+                await provideWizardFeedback(data.id, fb);
+
               setGeneratedData(res);
+
               if (res.status === "generating") {
                 setIsLoading(true);
                 startPolling(res.id);
@@ -330,8 +786,14 @@ export default function WizardModule() {
           }}
           onApprove={async (editedModules) => {
             setIsSubmittingFeedback(true);
+
             try {
-              const res = await publishWizardContent(data.id, editedModules);
+              const res =
+                await publishWizardContent(
+                  data.id,
+                  editedModules
+                );
+
               setGeneratedData(res);
               setMessage("Content published successfully!");
             } catch (err) {
@@ -346,399 +808,845 @@ export default function WizardModule() {
     }
 
     return (
-      <div style={{ animation: "fadeIn 0.5s ease", width: "100%", maxWidth: "800px", margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: "48px" }}>
-          <span style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mx-auto w-full max-w-5xl"
+      >
+        <div className="mb-10 text-center sm:mb-14">
+          <span className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3.5 py-1.5 text-xs font-black uppercase tracking-widest text-cyan-700">
+            <Sparkles size={13} />
             {data.content_type}
           </span>
-          <h1 style={{ fontSize: "2.8rem", fontWeight: 900, color: "var(--text)", marginBottom: "16px", lineHeight: 1.2 }}>
+
+          <h1 className="mx-auto mt-5 max-w-4xl text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
             {data.content?.title || data.topic}
           </h1>
+
           {data.content?.description && (
-            <p style={{ color: "var(--text-light)", fontSize: "1.15rem", maxWidth: "600px", margin: "0 auto", lineHeight: 1.6 }}>
+            <p className="mx-auto mt-5 max-w-2xl text-base font-medium leading-7 text-slate-500 sm:text-lg">
               {data.content.description}
             </p>
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          {data.content?.modules?.map((mod, i) => (
-            <ModuleItem key={i} mod={mod} type={data.content_type} />
-          ))}
-        </div>
-      </div>
+        {data.content?.modules?.length > 0 ? (
+          <div className="space-y-4">
+            {data.content.modules.map((mod, index) => (
+              <ModuleItem
+                key={index}
+                mod={mod}
+                index={index}
+              />
+            ))}
+          </div>
+        ) : (
+          <Surface className="p-10 text-center">
+            <BookOpen
+              size={40}
+              className="mx-auto mb-4 text-slate-300"
+            />
+
+            <h3 className="text-xl font-black text-slate-900">
+              Content generated
+            </h3>
+
+            <p className="mt-2 font-medium text-slate-500">
+              Your generated content is ready.
+            </p>
+          </Surface>
+        )}
+      </motion.div>
     );
   };
 
+  /* ------------------------------------------------------------------------ */
+  /*                          GENERATOR STEPS                                 */
+  /* ------------------------------------------------------------------------ */
+
   const renderGeneratorSteps = () => {
-    const totalSteps = activeQuestions.length > 0 ? 2 + activeQuestions.length + 1 : 4;
+    /* ------------------------------ STEP 0 ------------------------------- */
 
     if (step === 0) {
       return (
-        <div style={{ animation: "fadeInUp 0.4s ease" }}>
-          <h2 style={{ fontSize: "2rem", fontWeight: 900, textAlign: "center", marginBottom: "16px", color: "var(--text)" }}>What do you want to generate?</h2>
-          <p style={{ textAlign: "center", color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
-            Select an AI curriculum template to begin.
-          </p>
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-auto max-w-3xl"
+        >
+          <SectionHeader
+            eyebrow="Step 1 · Choose"
+            title="What do you want to create?"
+            description="Start with a learning format and we'll personalize the experience around your goal."
+            icon={WandSparkles}
+          />
+
           {setsLoading ? (
-            <div style={{ textAlign: "center", padding: "40px 0" }}>
-              <CircularProgress size={36} sx={{ color: "#1ED9F2" }} />
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {questionSets.filter(type => isTutor || type.content_type !== "Course/Syllabus").map(type => (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[1, 2, 3, 4].map((item) => (
                 <div
-                  key={type.content_type}
-                  onClick={() => {
-                    setAnswers({ contentType: type.content_type, topic: "" });
-                    setTimeout(() => setStep(1), 150);
-                  }}
-                  style={{
-                    display: "flex", alignItems: "center", padding: "20px 24px",
-                    borderRadius: "12px", cursor: "pointer", transition: "all 0.2s ease",
-                    background: answers.contentType === type.content_type ? "rgba(30, 217, 242, 0.1)" : "var(--surface-soft)",
-                    border: answers.contentType === type.content_type ? "1px solid #1ED9F2" : "1px solid var(--border)"
-                  }}
-                  className="wiz-hover-card"
-                >
-                  <div style={{ color: answers.contentType === type.content_type ? "#1ED9F2" : "var(--primary-light)", marginRight: "20px" }}>
-                    {getIcon(type.icon)}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: "0 0 4px", fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>{type.label}</h3>
-                    <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.9rem" }}>{type.description}</p>
-                  </div>
-                  <ChevronRightIcon style={{ color: "var(--text-light)" }} />
-                </div>
+                  key={item}
+                  className="h-28 animate-pulse rounded-[24px] bg-slate-100"
+                />
               ))}
             </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {questionSets
+                .filter(
+                  (type) =>
+                    isTutor ||
+                    type.content_type !== "Course/Syllabus"
+                )
+                .map((type) => {
+                  const isActive =
+                    answers.contentType === type.content_type;
+
+                  return (
+                    <motion.button
+                      key={type.content_type}
+                      type="button"
+                      whileHover={{ y: -3 }}
+                      whileTap={{ scale: 0.985 }}
+                      onClick={() => {
+                        updateAnswer(
+                          "contentType",
+                          type.content_type
+                        );
+
+                        setAnswers((current) => ({
+                          ...current,
+                          contentType: type.content_type,
+                          topic: "",
+                        }));
+
+                        setTimeout(() => setStep(1), 180);
+                      }}
+                      className={cn(
+                        "group relative overflow-hidden rounded-[26px] border p-5 text-left transition-all sm:p-6",
+                        isActive
+                          ? "border-blue-400 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-[0_20px_50px_-28px_rgba(37,99,235,0.7)]"
+                          : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-[0_20px_50px_-28px_rgba(15,23,42,0.3)]"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "absolute right-0 top-0 h-24 w-24 rounded-full blur-2xl transition-opacity",
+                          isActive
+                            ? "bg-blue-200/50 opacity-100"
+                            : "bg-blue-100 opacity-0 group-hover:opacity-60"
+                        )}
+                      />
+
+                      <div className="relative flex items-start gap-4">
+                        <div
+                          className={cn(
+                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all",
+                            isActive
+                              ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
+                              : "bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600"
+                          )}
+                        >
+                          {getIcon(type.icon, {
+                            size: 23,
+                          })}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-black text-slate-950">
+                            {type.label}
+                          </h3>
+
+                          <p className="mt-1.5 text-sm font-medium leading-5 text-slate-500">
+                            {type.description}
+                          </p>
+                        </div>
+
+                        <div
+                          className={cn(
+                            "mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all",
+                            isActive
+                              ? "bg-blue-600 text-white"
+                              : "bg-slate-50 text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500"
+                          )}
+                        >
+                          <ChevronRight size={17} />
+                        </div>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+            </div>
           )}
-        </div>
+        </motion.div>
       );
     }
+
+    /* ------------------------------ STEP 1 ------------------------------- */
 
     if (step === 1) {
       return (
-        <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
-          <div style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "24px" }}>
-            {answers.contentType}
-          </div>
-          <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)" }}>What is the topic?</h2>
-          <p style={{ color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
-            Enter the main subject or goal you want to focus on.
-          </p>
-          <input
-            autoFocus
-            className="wiz-input-clean"
-            placeholder="e.g. Frontend Development, Machine Learning..."
-            value={answers.topic}
-            onChange={e => setAnswers({ ...answers, topic: e.target.value })}
-            onKeyDown={e => e.key === 'Enter' && handleNext()}
-            style={{
-              width: "100%", padding: "20px", fontSize: "1.2rem", textAlign: "center",
-              background: "transparent", border: "none", borderBottom: "2px solid var(--border)",
-              color: "var(--text)", outline: "none", transition: "border-color 0.3s"
-            }}
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-auto max-w-3xl"
+        >
+          <SectionHeader
+            eyebrow="Step 2 · Define"
+            title="What are you learning?"
+            description="Give your AI wizard a clear topic. You can be broad or specific."
+            icon={Target}
           />
-        </div>
+
+          <Surface className="overflow-hidden p-2">
+            <div className="rounded-[22px] bg-slate-50 px-5 py-8 sm:px-8 sm:py-10">
+              <div className="mb-4 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-blue-600">
+                <BookOpen size={14} />
+                {answers.contentType}
+              </div>
+
+              <input
+                autoFocus
+                type="text"
+                placeholder="e.g. Frontend Development, Machine Learning..."
+                value={answers.topic}
+                onChange={(e) =>
+                  updateAnswer("topic", e.target.value)
+                }
+                onKeyDown={(e) =>
+                  e.key === "Enter" && handleNext()
+                }
+                className="w-full border-0 bg-transparent text-center text-2xl font-black tracking-tight text-slate-950 outline-none placeholder:text-slate-300 focus:ring-0 sm:text-4xl"
+              />
+
+              <div className="mx-auto mt-7 h-px max-w-xl bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+
+              <p className="mt-5 text-center text-xs font-semibold text-slate-400">
+                Press Enter to continue
+              </p>
+            </div>
+          </Surface>
+        </motion.div>
       );
     }
 
-    if (step >= 2 && step < 2 + activeQuestions.length) {
+    /* ------------------------- CUSTOM QUESTIONS -------------------------- */
+
+    if (
+      step >= 2 &&
+      step < finalReviewStep
+    ) {
       const qIndex = step - 2;
       const currentQ = activeQuestions[qIndex];
+
+      if (!currentQ) return null;
+
       const ansKey = currentQ.key;
 
       return (
-        <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
-          <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)", lineHeight: 1.2 }}>{currentQ.label}</h2>
-          <p style={{ color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
-            Help the AI understand your specific needs.
-          </p>
+        <motion.div
+          key={currentQ.key}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="mx-auto max-w-3xl"
+        >
+          <SectionHeader
+            eyebrow={`Step ${step + 1} · Personalize`}
+            title={currentQ.label}
+            description="Help the AI understand what will work best for you."
+            icon={Brain}
+          />
 
-          {/* Single-choice select */}
           {currentQ.type === "select" ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
-              {currentQ.options.map(opt => (
-                <button
-                  key={opt}
-                  onClick={() => {
-                    setAnswers({ ...answers, [ansKey]: opt });
-                    setTimeout(() => handleNext(), 150);
-                  }}
-                  style={{
-                    padding: "16px 24px", borderRadius: "12px", fontSize: "1.05rem",
-                    background: answers[ansKey] === opt ? "rgba(168, 85, 247, 0.15)" : "var(--surface-soft)",
-                    border: answers[ansKey] === opt ? "1px solid #7655F6" : "1px solid var(--border)",
-                    color: answers[ansKey] === opt ? "#A38CFF" : "var(--text)",
-                    fontWeight: 600, cursor: "pointer", transition: "all 0.2s", textAlign: "center"
-                  }}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          ) : currentQ.type === "multiselect" ? (
-            /* Multi-choice select */
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
-              {currentQ.options.map(opt => {
-                const selected = (answers[ansKey] || []).includes(opt);
+            <div className="mx-auto grid max-w-xl gap-3">
+              {currentQ.options?.map((opt) => {
+                const isActive = answers[ansKey] === opt;
+
                 return (
-                  <button
+                  <motion.button
                     key={opt}
+                    type="button"
+                    whileHover={{ x: 3 }}
+                    whileTap={{ scale: 0.99 }}
                     onClick={() => {
-                      const current = answers[ansKey] || [];
-                      const updated = selected ? current.filter(v => v !== opt) : [...current, opt];
-                      setAnswers({ ...answers, [ansKey]: updated });
+                      updateAnswer(ansKey, opt);
+
+                      setTimeout(() => {
+                        setStep((current) => current + 1);
+                      }, 180);
                     }}
-                    style={{
-                      padding: "16px 24px", borderRadius: "12px", fontSize: "1.05rem",
-                      background: selected ? "rgba(30, 217, 242, 0.15)" : "var(--surface-soft)",
-                      border: selected ? "1px solid #1ED9F2" : "1px solid var(--border)",
-                      color: selected ? "#1ED9F2" : "var(--text)",
-                      fontWeight: 600, cursor: "pointer", transition: "all 0.2s", textAlign: "left",
-                      display: "flex", alignItems: "center", gap: "12px"
-                    }}
+                    className={cn(
+                      "flex items-center justify-between rounded-2xl border px-5 py-4 text-left font-bold transition-all",
+                      isActive
+                        ? "border-blue-400 bg-blue-50 text-blue-700 shadow-[0_12px_30px_-20px_rgba(37,99,235,0.8)]"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-slate-50"
+                    )}
                   >
-                    <span style={{
-                      width: 18, height: 18, borderRadius: 4, border: `2px solid ${selected ? "#1ED9F2" : "var(--border)"}`,
-                      background: selected ? "#1ED9F2" : "transparent", display: "inline-flex",
-                      alignItems: "center", justifyContent: "center", flexShrink: 0
-                    }}>
-                      {selected && <span style={{ color: "#fff", fontSize: 12, fontWeight: 900 }}>✓</span>}
+                    <span>{opt}</span>
+
+                    <span
+                      className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-full",
+                        isActive
+                          ? "bg-blue-600 text-white"
+                          : "bg-slate-100 text-slate-300"
+                      )}
+                    >
+                      {isActive ? (
+                        <CheckCircle size={16} />
+                      ) : (
+                        <ChevronRight size={16} />
+                      )}
                     </span>
-                    {opt}
-                  </button>
+                  </motion.button>
                 );
               })}
-              <p style={{ color: "var(--text-light)", fontSize: "0.85rem", textAlign: "center", marginTop: 8 }}>Select all that apply, then click Continue</p>
+            </div>
+          ) : currentQ.type === "multiselect" ? (
+            <div className="mx-auto max-w-xl">
+              <div className="grid gap-3">
+                {currentQ.options?.map((opt) => {
+                  const selected =
+                    (answers[ansKey] || []).includes(opt);
+
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        const current =
+                          answers[ansKey] || [];
+
+                        const updated = selected
+                          ? current.filter(
+                            (value) => value !== opt
+                          )
+                          : [...current, opt];
+
+                        updateAnswer(ansKey, updated);
+                      }}
+                      className={cn(
+                        "flex items-center gap-4 rounded-2xl border px-5 py-4 text-left font-bold transition-all",
+                        selected
+                          ? "border-cyan-400 bg-cyan-50 text-cyan-800 shadow-[0_12px_30px_-20px_rgba(8,145,178,0.7)]"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-cyan-200 hover:bg-slate-50"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-all",
+                          selected
+                            ? "border-cyan-500 bg-cyan-500"
+                            : "border-slate-300 bg-white"
+                        )}
+                      >
+                        {selected && (
+                          <CheckSquare
+                            size={15}
+                            className="text-white"
+                          />
+                        )}
+                      </span>
+
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="mt-5 text-center text-xs font-semibold text-slate-400">
+                Select all that apply, then continue.
+              </p>
             </div>
           ) : (
-            /* Text / number / date / short_text inputs */
-            <input
-              autoFocus
-              type={currentQ.type === "short_text" ? "text" : currentQ.type}
-              className="wiz-input-clean"
-              placeholder={currentQ.placeholder}
-              value={answers[ansKey] || ""}
-              onChange={e => setAnswers({ ...answers, [ansKey]: e.target.value })}
-              onKeyDown={e => e.key === 'Enter' && handleNext()}
-              style={{
-                width: "100%", maxWidth: "500px", margin: "0 auto", padding: "20px", fontSize: "1.2rem", textAlign: "center",
-                background: "transparent", border: "none", borderBottom: "2px solid var(--border)",
-                color: "var(--text)", outline: "none", transition: "border-color 0.3s", display: "block"
-              }}
-            />
+            <Surface className="mx-auto max-w-2xl p-2">
+              <div className="rounded-[22px] bg-slate-50 px-5 py-8 sm:px-8">
+                <input
+                  autoFocus
+                  type={
+                    currentQ.type === "short_text"
+                      ? "text"
+                      : currentQ.type
+                  }
+                  placeholder={currentQ.placeholder}
+                  value={answers[ansKey] || ""}
+                  onChange={(e) =>
+                    updateAnswer(ansKey, e.target.value)
+                  }
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleNext()
+                  }
+                  className="w-full border-0 bg-transparent text-center text-xl font-black text-slate-950 outline-none placeholder:text-slate-300 focus:ring-0 sm:text-3xl"
+                />
+              </div>
+            </Surface>
           )}
-        </div>
+        </motion.div>
       );
     }
 
-    if (step === 2 + activeQuestions.length) {
-      return (
-        <div style={{ animation: "fadeInUp 0.4s ease", textAlign: "center" }}>
-          <div style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "12px", borderRadius: "50%", marginBottom: "24px" }}>
-            <AutoAwesomeIcon sx={{ fontSize: 40 }} />
-          </div>
-          <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "16px", color: "var(--text)" }}>Ready to Generate</h2>
-          <p style={{ color: "var(--text-light)", marginBottom: "40px", fontSize: "1rem" }}>
-            Review your inputs before we construct your personalized {answers.contentType.toLowerCase()}.
-          </p>
+    /* ------------------------------ REVIEW -------------------------------- */
 
-          <div style={{ background: "var(--surface-soft)", border: "1px solid var(--border)", borderRadius: "16px", padding: "32px", textAlign: "left", maxWidth: "500px", margin: "0 auto 40px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div>
-                <div style={{ color: "var(--text-light)", fontSize: "0.85rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Format</div>
-                <div style={{ color: "#1ED9F2", fontWeight: 700, fontSize: "1.1rem" }}>{answers.contentType}</div>
+    if (step === finalReviewStep) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-auto max-w-3xl"
+        >
+          <SectionHeader
+            eyebrow="Final step · Review"
+            title="Ready to generate?"
+            description={`Everything looks good. We'll now build your personalized ${answers.contentType.toLowerCase()}.`}
+            icon={Sparkles}
+          />
+
+          <Surface className="overflow-hidden">
+            <div className="border-b border-slate-100 bg-gradient-to-br from-slate-50 to-white p-6 sm:p-8">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                  <Sparkles size={22} />
+                </div>
+
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Your generation
+                  </p>
+
+                  <h3 className="mt-1 text-xl font-black text-slate-950">
+                    {answers.contentType}
+                  </h3>
+                </div>
               </div>
-              <div>
-                <div style={{ color: "var(--text-light)", fontSize: "0.85rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Topic</div>
-                <div style={{ color: "var(--text)", fontWeight: 600, fontSize: "1.1rem" }}>{answers.topic}</div>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              <div className="p-6 sm:p-8">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Topic
+                </p>
+
+                <p className="text-xl font-extrabold text-slate-950">
+                  {answers.topic}
+                </p>
               </div>
+
               {activeQuestions.map((q) => (
-                <div key={q.key}>
-                  <div style={{ color: "var(--text-light)", fontSize: "0.85rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>{q.label}</div>
-                  <div style={{ color: "var(--text)", fontWeight: 500, fontSize: "1rem" }}>{answers[q.key]}</div>
+                <div
+                  key={q.key}
+                  className="p-6 sm:p-8"
+                >
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    {q.label}
+                  </p>
+
+                  <p className="font-bold leading-6 text-slate-700">
+                    {Array.isArray(answers[q.key])
+                      ? answers[q.key].join(", ")
+                      : answers[q.key]}
+                  </p>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </Surface>
+        </motion.div>
       );
     }
 
     return null;
   };
 
+  /* ------------------------------------------------------------------------ */
+  /*                                  UI                                      */
+  /* ------------------------------------------------------------------------ */
+
   return (
-    <section ref={rootRef} className="page-shell" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "6vh", paddingBottom: "10vh" }}>
+    <div
+      ref={rootRef}
+      className="relative min-h-screen overflow-hidden bg-[#f8fafc] px-4 py-6 sm:px-6 lg:px-8"
+    >
+      {/* Decorative background */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-32 -top-32 h-72 w-72 rounded-full bg-cyan-200/20 blur-3xl" />
+        <div className="absolute -right-32 top-40 h-96 w-96 rounded-full bg-blue-200/20 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-indigo-200/10 blur-3xl" />
+      </div>
 
-      {/* TABS NAVIGATION */}
-      {!generatedData && step < (2 + activeQuestions.length + 1) && (
-        <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: "30px", padding: "6px", marginBottom: "40px", border: "1px solid var(--border)" }}>
-          <button
-            onClick={() => setActiveTab("generate")}
-            style={{ padding: "10px 24px", borderRadius: "24px", background: activeTab === "generate" ? "var(--surface-light)" : "transparent", color: activeTab === "generate" ? "var(--text)" : "var(--text-light)", border: "none", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", transition: "all 0.2s" }}
-          >
-            <CreateIcon sx={{ fontSize: "1.1rem", mr: 1 }} /> Generate New
-          </button>
-          <button
-            onClick={() => setActiveTab("history")}
-            style={{ padding: "10px 24px", borderRadius: "24px", background: activeTab === "history" ? "var(--surface-light)" : "transparent", color: activeTab === "history" ? "var(--text)" : "var(--text-light)", border: "none", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", transition: "all 0.2s" }}
-          >
-            <HistoryIcon sx={{ fontSize: "1.1rem", mr: 1 }} /> My Content
-          </button>
-        </div>
-      )}
+      <div className="relative mx-auto max-w-6xl">
+        {/* ------------------------------------------------------------------ */}
+        {/* HEADER                                                             */}
+        {/* ------------------------------------------------------------------ */}
 
-      <div style={{ width: "100%", maxWidth: (generatedData || step >= (2 + activeQuestions.length + 1)) ? "1400px" : "800px", padding: "0 20px", transition: "max-width 0.3s ease" }}>
-
-        {/* --- GENERATOR FLOW --- */}
-        {activeTab === "generate" && (
-          <>
-            {step < (2 + activeQuestions.length + 1) && (
+        {!generatedData &&
+          step < resultStep && (
+            <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                {/* Header / Back Button */}
-                <div style={{ display: "flex", alignItems: "center", marginBottom: "40px", height: "40px" }}>
-                  {step > 0 && (
-                    <button onClick={handleBack} style={{ background: "none", border: "none", color: "var(--text-light)", display: "flex", alignItems: "center", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600 }}>
-                      <ArrowBackIcon style={{ fontSize: "1.2rem", marginRight: "4px" }} /> Back
-                    </button>
-                  )}
-                  <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
-                    {Array.from({ length: activeQuestions.length > 0 ? 3 + activeQuestions.length : 1 }).map((_, idx) => (
-                      <div key={idx} style={{
-                        width: "24px", height: "4px", borderRadius: "2px",
-                        background: idx === step ? "#1ED9F2" : idx < step ? "rgba(30, 217, 242, 0.3)" : "rgba(255,255,255,0.1)",
-                        transition: "all 0.3s ease"
-                      }} />
-                    ))}
+                <div className="flex items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20">
+                    <WandSparkles size={19} />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                      AI Learning Wizard
+                    </p>
+
+                    <h1 className="text-lg font-black tracking-tight text-slate-950">
+                      Create something great
+                    </h1>
                   </div>
                 </div>
+              </div>
 
-                <div style={{ minHeight: "400px" }}>
-                  {renderGeneratorSteps()}
-                  {error && <div style={{ color: "#ef4444", textAlign: "center", marginTop: "20px", fontWeight: 500 }}>{error}</div>}
+              {/* Tabs */}
+              <div className="inline-flex self-start rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("generate")}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold transition-all",
+                    activeTab === "generate"
+                      ? "bg-slate-950 text-white shadow-md"
+                      : "text-slate-500 hover:text-slate-900"
+                  )}
+                >
+                  <Edit3 size={16} />
+                  Generate
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("history")}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold transition-all",
+                    activeTab === "history"
+                      ? "bg-slate-950 text-white shadow-md"
+                      : "text-slate-500 hover:text-slate-900"
+                  )}
+                >
+                  <History size={16} />
+                  My Content
+                </button>
+              </div>
+            </div>
+          )}
+
+        {/* ------------------------------------------------------------------ */}
+        {/* GENERATOR                                                          */}
+        {/* ------------------------------------------------------------------ */}
+
+        {activeTab === "generate" && (
+          <>
+            {step < resultStep && (
+              <div>
+                <WizardProgress
+                  step={step}
+                  totalSteps={totalSteps}
+                />
+
+                <div className="mb-8 min-h-[460px]">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={step}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.22 }}
+                    >
+                      {renderGeneratorSteps()}
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mx-auto mt-6 flex max-w-xl items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700"
+                    >
+                      <AlertCircle
+                        size={18}
+                        className="mt-0.5 shrink-0"
+                      />
+
+                      <span>{error}</span>
+                    </motion.div>
+                  )}
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
-                  {step > 0 && step < (2 + activeQuestions.length) && (
-                    <button onClick={handleNext} className="btn-primary" style={{ padding: "14px 40px", fontSize: "1.1rem", borderRadius: "30px", background: "linear-gradient(135deg, #5736C8, #1ED9F2)", minWidth: "200px" }}>
-                      Continue
-                    </button>
-                  )}
-                  {step === (2 + activeQuestions.length) && (
-                    <button onClick={handleGenerate} className="btn-primary" style={{ padding: "14px 40px", fontSize: "1.1rem", borderRadius: "30px", background: "linear-gradient(135deg, #1ED9F2, #0BAABD)", minWidth: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <AutoAwesomeIcon style={{ marginRight: "8px" }} /> Generate Now
-                    </button>
-                  )}
+                {/* Bottom navigation */}
+                <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 border-t border-slate-200/70 pt-6">
+                  <div>
+                    {step > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleBack}
+                        className="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-extrabold text-slate-500 transition hover:bg-white hover:text-slate-900"
+                      >
+                        <ArrowLeft size={17} />
+                        Back
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    {step > 0 &&
+                      step < finalReviewStep && (
+                        <button
+                          type="button"
+                          onClick={handleNext}
+                          className="group inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-extrabold text-white shadow-xl shadow-slate-950/10 transition hover:-translate-y-0.5 hover:bg-slate-800 sm:px-7"
+                        >
+                          Continue
+                          <ArrowRight
+                            size={17}
+                            className="transition-transform group-hover:translate-x-0.5"
+                          />
+                        </button>
+                      )}
+
+                    {step === finalReviewStep && (
+                      <button
+                        type="button"
+                        onClick={handleGenerate}
+                        disabled={isLoading}
+                        className="group inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-7 py-3.5 text-sm font-extrabold text-white shadow-xl shadow-blue-600/25 transition hover:-translate-y-0.5 hover:shadow-blue-600/35 disabled:cursor-not-allowed disabled:opacity-60 sm:px-8"
+                      >
+                        <Sparkles
+                          size={18}
+                          className="transition-transform group-hover:rotate-12"
+                        />
+                        Generate Now
+                        <ArrowRight
+                          size={17}
+                          className="transition-transform group-hover:translate-x-0.5"
+                        />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Loading & Result View */}
-            {step === (2 + activeQuestions.length + 1) && (
-              <div style={{ animation: "fadeIn 0.5s ease", width: "100%" }}>
+            {/* -------------------------------------------------------------- */}
+            {/* RESULT                                                         */}
+            {/* -------------------------------------------------------------- */}
+
+            {step === resultStep && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="w-full"
+              >
                 {isLoading ? (
-                  <div style={{ textAlign: "center", padding: "100px 0" }}>
-                    <CircularProgress size={60} thickness={4} sx={{ color: "#1ED9F2", marginBottom: "32px" }} />
-                    <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--text)", marginBottom: "12px" }}>Generating {answers.contentType}...</h2>
-                    <p style={{ color: "var(--text-light)", fontSize: "1.1rem" }}>
-                      {isTutor && answers.contentType === "Course/Syllabus"
-                        ? (generatedData?.status === "generating_planning" ? "Agent is planning your course architecture..." :
-                           generatedData?.status === "generating_resources" ? "Agent is integrating resources and YouTube videos..." :
-                           "AI Agents are currently structuring your course and fetching relevant resources. This may take a few minutes...")
-                        : "This usually takes a few seconds."}
-                    </p>
-                  </div>
+                  <GeneratingState
+                    contentType={answers.contentType}
+                    isTutor={isTutor}
+                    generatedData={generatedData}
+                  />
                 ) : generatedData ? (
                   <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px" }}>
-                      <button onClick={startOver} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", color: "var(--text)", padding: "10px 20px", borderRadius: "20px", cursor: "pointer", display: "flex", alignItems: "center", fontWeight: 600, transition: "all 0.2s" }} className="hover-bg-surface">
-                        <ArrowBackIcon style={{ fontSize: "1.1rem", marginRight: "6px" }} /> Start Over
+                    <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <button
+                        type="button"
+                        onClick={startOver}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      >
+                        <ArrowLeft size={17} />
+                        Create Another
                       </button>
-                      {message && <div style={{ display: "flex", alignItems: "center", color: "#1ED9F2", fontWeight: 600, fontSize: "0.95rem" }}><CheckCircleIcon style={{ fontSize: "1.2rem", marginRight: "6px" }} /> Done</div>}
+
+                      {message && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-extrabold text-emerald-700"
+                        >
+                          <CheckCircle size={17} />
+                          {message}
+                        </motion.div>
+                      )}
                     </div>
 
                     {renderContentData(generatedData)}
                   </div>
                 ) : null}
-              </div>
+              </motion.div>
             )}
           </>
         )}
 
-        {/* --- MY CONTENT FLOW --- */}
+        {/* ------------------------------------------------------------------ */}
+        {/* HISTORY                                                            */}
+        {/* ------------------------------------------------------------------ */}
+
         {activeTab === "history" && (
-          <div style={{ animation: "fadeInUp 0.4s ease", width: "100%" }}>
-            <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "8px", color: "var(--text)" }}>My Generated Content</h2>
-            <p style={{ color: "var(--text-light)", marginBottom: "32px", fontSize: "1rem" }}>
-              View and manage your previously generated roadmaps and schedules.
-            </p>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto max-w-4xl"
+          >
+            <div className="mb-8">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-widest text-slate-500">
+                <History size={14} />
+                Your library
+              </div>
+
+              <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                My Generated Content
+              </h2>
+
+              <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-500">
+                Revisit your previously generated learning plans,
+                roadmaps, and schedules.
+              </p>
+            </div>
+
+            {/* Search */}
+            {!isHistoryLoading && historyItems.length > 0 && (
+              <div className="mb-5">
+                <div className="relative">
+                  <Search
+                    size={18}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) =>
+                      setHistorySearch(e.target.value)
+                    }
+                    placeholder="Search your generated content..."
+                    className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+            )}
 
             {isHistoryLoading ? (
-              <div style={{ textAlign: "center", padding: "60px 0" }}>
-                <CircularProgress size={40} sx={{ color: "#1ED9F2" }} />
+              <div className="space-y-3">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="h-28 animate-pulse rounded-[24px] bg-slate-100"
+                  />
+                ))}
               </div>
             ) : historyItems.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 0", background: "var(--surface-soft)", borderRadius: "16px", border: "1px dashed var(--border)" }}>
-                <MenuBookIcon sx={{ fontSize: 48, color: "var(--text-light)", opacity: 0.5, mb: 2 }} />
-                <h3 style={{ color: "var(--text)", mb: 1 }}>No content generated yet</h3>
-                <p style={{ color: "var(--text-light)", fontSize: "0.95rem" }}>Head over to the Generate tab to create your first learning plan.</p>
-              </div>
+              <Surface className="border-dashed p-10 text-center sm:p-16">
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
+                  <BookOpen size={30} />
+                </div>
+
+                <h3 className="text-2xl font-black text-slate-900">
+                  Nothing here yet
+                </h3>
+
+                <p className="mx-auto mt-2 max-w-md text-sm font-medium leading-6 text-slate-500">
+                  Create your first learning plan and it will
+                  appear here automatically.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("generate");
+                    setStep(0);
+                  }}
+                  className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-extrabold text-white transition hover:bg-slate-800"
+                >
+                  <Sparkles size={17} />
+                  Generate Something
+                </button>
+              </Surface>
+            ) : filteredHistory.length === 0 ? (
+              <Surface className="p-10 text-center">
+                <Search
+                  size={36}
+                  className="mx-auto mb-4 text-slate-300"
+                />
+
+                <h3 className="text-xl font-black text-slate-900">
+                  No results found
+                </h3>
+
+                <p className="mt-2 text-sm font-medium text-slate-500">
+                  Try searching for a different topic or content
+                  type.
+                </p>
+              </Surface>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {historyItems.map(item => (
-                  <div
+              <div className="space-y-3">
+                {filteredHistory.map((item, index) => (
+                  <motion.div
                     key={item.id}
-                    onClick={() => window.open(`/wizard/view/${item.id}`, "_blank")}
-                    style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", transition: "all 0.2s" }}
-                    className="hover-lift"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      delay: index * 0.04,
+                    }}
+                    onClick={() =>
+                      window.open(
+                        `/wizard/view/${item.id}`,
+                        "_blank"
+                      )
+                    }
+                    className="group cursor-pointer rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.35)] transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_20px_50px_-30px_rgba(37,99,235,0.35)] sm:p-6"
                   >
-                    <div>
-                      <div style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "4px 10px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 700, marginBottom: "8px", textTransform: "uppercase" }}>
-                        {item.content_type}
+                    <div className="flex items-center gap-4">
+                      <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-50 to-blue-50 text-blue-600 sm:flex">
+                        <BookOpen size={21} />
                       </div>
-                      <h4 style={{ margin: "0 0 4px", fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>{item.topic}</h4>
-                      <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.85rem" }}>Generated on {new Date(item.created_at).toLocaleDateString()}</p>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-cyan-700">
+                            {item.content_type}
+                          </span>
+
+                          <span className="text-xs font-semibold text-slate-400">
+                            {new Date(
+                              item.created_at
+                            ).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <h4 className="truncate text-lg font-black text-slate-950 transition-colors group-hover:text-blue-600">
+                          {item.topic}
+                        </h4>
+
+                        <p className="mt-1 text-xs font-medium text-slate-400">
+                          Open generated content
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) =>
+                            handleDeleteHistory(
+                              item.id,
+                              e
+                            )
+                          }
+                          className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-500 transition hover:bg-rose-500 hover:text-white"
+                          title="Delete content"
+                        >
+                          <Trash2 size={17} />
+                        </button>
+
+                        <div className="hidden h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-300 transition group-hover:bg-blue-50 group-hover:text-blue-600 sm:flex">
+                          <ExternalLink size={17} />
+                        </div>
+                      </div>
                     </div>
-                    <button onClick={(e) => handleDeleteHistory(item.id, e)} style={{ background: "transparent", border: "none", color: "var(--text-light)", cursor: "pointer", padding: "8px" }} className="hover-text-red">
-                      <DeleteIcon />
-                    </button>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
         )}
-
       </div>
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .wiz-hover-card:hover {
-          transform: translateY(-2px);
-          border-color: #1ED9F2 !important;
-          background: rgba(30, 217, 242, 0.05) !important;
-        }
-        .wiz-input-clean:focus {
-          border-bottom-color: #1ED9F2 !important;
-        }
-        .hover-lift:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        .hover-bg-surface:hover {
-          background: rgba(255,255,255,0.1) !important;
-        }
-        .hover-text-red:hover {
-          color: #ef4444 !important;
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(15px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}} />
-    </section>
+    </div>
   );
 }

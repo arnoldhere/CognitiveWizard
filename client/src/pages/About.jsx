@@ -1,24 +1,16 @@
-import { useRef } from "react";
 import { Link } from "react-router-dom";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import PsychologyIcon from "@mui/icons-material/Psychology";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import SecurityIcon from "@mui/icons-material/Security";
-import DevicesIcon from "@mui/icons-material/Devices";
-import LightbulbIcon from "@mui/icons-material/Lightbulb";
-import TimerIcon from "@mui/icons-material/Timer";
-import QuizIcon from "@mui/icons-material/Quiz";
-import { useGsapReveal } from "../hooks/useGsapReveal";
+import { Sparkles, Brain, TrendingUp, Shield, MonitorSmartphone, Lightbulb, Timer, FileQuestion, Check } from "lucide-react";
+import { motion } from "framer-motion";
 
 const features = [
-  ["AI-powered quiz generation", "Create controlled practice tests with difficulty, count, scoring, and detailed feedback.", <AutoAwesomeIcon />],
-  ["Adaptive learning support", "Performance and weak-area signals guide every next learning action.", <PsychologyIcon />],
-  ["Progress analytics", "Review history and outcomes so revision work stays targeted and measurable.", <TrendingUpIcon />],
-  ["Concept summarization", "Break down complex material into concise study points and quick-reference summaries.", <LightbulbIcon />],
-  ["Pomodoro focus timer", "Built-in 35-min focus + 5-min break rhythm integrated directly into the AI Wizard.", <TimerIcon />],
-  ["Quiz builder", "AI-generated quizzes from any subject with difficulty tuning and score tracking.", <QuizIcon />],
-  ["Secure and private", "JWT authentication, private user workspaces, and optional face login support.", <SecurityIcon />],
-  ["Study anywhere", "Fully responsive layouts for laptops, tablets, and phones.", <DevicesIcon />],
+  ["AI-powered quiz generation", "Create controlled practice tests with difficulty, count, scoring, and detailed feedback.", <Sparkles size={24} />],
+  ["Adaptive learning support", "Performance and weak-area signals guide every next learning action.", <Brain size={24} />],
+  ["Progress analytics", "Review history and outcomes so revision work stays targeted and measurable.", <TrendingUp size={24} />],
+  ["Concept summarization", "Break down complex material into concise study points and quick-reference summaries.", <Lightbulb size={24} />],
+  ["Pomodoro focus timer", "Built-in 35-min focus + 5-min break rhythm integrated directly into the AI Wizard.", <Timer size={24} />],
+  ["Quiz builder", "AI-generated quizzes from any subject with difficulty tuning and score tracking.", <FileQuestion size={24} />],
+  ["Secure and private", "JWT authentication, private user workspaces, and optional face login support.", <Shield size={24} />],
+  ["Study anywhere", "Fully responsive layouts for laptops, tablets, and phones.", <MonitorSmartphone size={24} />],
 ];
 
 const timeline = [
@@ -30,65 +22,92 @@ const timeline = [
 ];
 
 export default function About() {
-  const rootRef = useRef(null);
-  useGsapReveal(rootRef);
-
   return (
-    <section ref={rootRef} className="page-shell">
-      <div className="container">
+    <section className="min-h-screen bg-light py-20 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="page-header" data-reveal>
-          <p className="eyebrow">About CognitiveWizard</p>
-          <h1 className="page-title">A calmer AI workspace for serious preparation.</h1>
-          <p className="section-copy">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-3xl mb-20"
+        >
+          <p className="text-primary font-bold uppercase tracking-wider text-sm mb-4">About CognitiveWizard</p>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-dark mb-6 leading-tight">
+            A calmer AI workspace for serious preparation.
+          </h1>
+          <p className="text-lg text-slate-600 mb-8 leading-relaxed">
             CognitiveWizard is an intelligent study companion for students,
             educators, and independent learners. It reduces cognitive load by
             combining document understanding, quiz practice, AI curriculum planning,
             summaries, and learning history in one secure platform.
           </p>
-          <div className="hero-actions" style={{ marginTop: "24px" }}>
-            <Link to="/wizard" className="btn-primary" id="about-cta-wizard">Try AI Wizard</Link>
-            <Link to="/chatbot" className="btn-secondary" id="about-cta-chat">Open AI Tutor</Link>
+          <div className="flex flex-wrap gap-4 mt-8">
+            <Link to="/wizard" className="bg-primary hover:bg-opacity-90 text-white px-6 py-3 rounded-xl font-semibold transition-colors">
+              Try AI Wizard
+            </Link>
+            <Link to="/chatbot" className="bg-white border-2 border-slate-200 hover:border-slate-300 text-dark px-6 py-3 rounded-xl font-semibold transition-colors">
+              Open AI Tutor
+            </Link>
           </div>
-        </div>
+        </motion.div>
 
         {/* Features grid */}
-        <div className="feature-grid">
-          {features.map(([title, text, icon]) => (
-            <article className="feature-item" key={title} data-reveal>
-              <span className="feature-icon">{icon}</span>
-              <h2>{title}</h2>
-              <p>{text}</p>
-            </article>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-24">
+          {features.map(([title, text, icon], idx) => (
+            <motion.article 
+              key={title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.1 }}
+              className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow"
+            >
+              <div className="w-12 h-12 bg-accent/30 rounded-2xl flex items-center justify-center text-primary mb-5">
+                {icon}
+              </div>
+              <h2 className="text-lg font-bold text-dark mb-2">{title}</h2>
+              <p className="text-sm text-slate-500 leading-relaxed">{text}</p>
+            </motion.article>
           ))}
         </div>
 
         {/* Roadmap timeline */}
-        <div className="section-divider" style={{ margin: "56px 0 40px" }} />
-        <div className="page-header" data-reveal>
-          <p className="eyebrow">Product roadmap</p>
-          <h2 className="page-title">Where we are &amp; where we're going.</h2>
-        </div>
-        <div style={{ display: "grid", gap: "12px", maxWidth: "640px" }} data-reveal>
-          {timeline.map((item, i) => (
-            <div key={item.phase} className="wizard-card" style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-              <div style={{
-                width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
-                background: item.done
-                  ? "linear-gradient(135deg,var(--primary),var(--accent))"
-                  : "var(--surface-bright)",
-                border: item.done ? "none" : "2px solid var(--border-strong)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: ".75rem", fontWeight: 800, color: item.done ? "#fff" : "var(--muted)",
-              }}>{item.done ? "✓" : i + 1}</div>
-              <div>
-                <div style={{ fontSize: ".72rem", color: "var(--muted)", fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase" }}>{item.phase}</div>
-                <div style={{ fontWeight: 700, color: item.done ? "var(--text)" : "var(--text-light)" }}>{item.label}</div>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-3xl"
+        >
+          <p className="text-primary font-bold uppercase tracking-wider text-sm mb-4">Product roadmap</p>
+          <h2 className="text-3xl font-extrabold text-dark mb-10">Where we are &amp; where we're going.</h2>
+          
+          <div className="space-y-4">
+            {timeline.map((item, i) => (
+              <div 
+                key={item.phase} 
+                className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 sm:gap-6"
+              >
+                <div className={`
+                  flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm
+                  ${item.done 
+                    ? 'bg-primary text-white shadow-sm' 
+                    : 'bg-slate-100 text-slate-400 border-2 border-slate-200'}
+                `}>
+                  {item.done ? <Check size={18} /> : i + 1}
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{item.phase}</div>
+                  <div className={`font-bold ${item.done ? 'text-dark' : 'text-slate-500'}`}>{item.label}</div>
+                </div>
+                {item.done && (
+                  <span className="hidden sm:inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">
+                    Live
+                  </span>
+                )}
               </div>
-              {item.done && <span className="chip chip-success" style={{ marginLeft: "auto" }}>Live</span>}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </motion.div>
       </div>
     </section>
   );

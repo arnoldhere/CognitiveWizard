@@ -1,5 +1,4 @@
 import React, { useState, useRef } from "react";
-import "../../styles/RoadmapDisplay.css";
 import RoadmapHeader from "./RoadmapHeader";
 import RoadmapHero from "./RoadmapHero";
 import TimelineNavigator from "./TimelineNavigator";
@@ -8,14 +7,9 @@ import ResourceGallery from "./ResourceGallery";
 import FloatingAIAssistant from "./FloatingAIAssistant";
 import CapstoneSection from "./CapstoneSection";
 import PdfExportModal from "./PdfExportModal";
-
 import { exportWizardPdf } from "../../services/api";
-
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import TimelineIcon from "@mui/icons-material/Timeline";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
-import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
-import StyleIcon from "@mui/icons-material/Style";
+import { LayoutDashboard, Activity, Layers, BookOpen, Rocket } from "lucide-react";
+import { motion } from "framer-motion";
 
 function normalizeRoadmapData(data, propLearningStyle, propTopic) {
   const rawContent = data?.content || data || {};
@@ -32,14 +26,12 @@ function normalizeRoadmapData(data, propLearningStyle, propTopic) {
   const prerequisites = Array.isArray(rawContent.prerequisites) ? rawContent.prerequisites : [];
   const outcomes = Array.isArray(rawContent.outcomes) ? rawContent.outcomes : [];
 
-  // Parse modules/phases from LLM response schema
   let phases = [];
 
   if (Array.isArray(rawContent.phasewise_modules) && rawContent.phasewise_modules.length > 0) {
     phases = rawContent.phasewise_modules.map((pm, index) => {
       const subModules = Array.isArray(pm.modules) ? pm.modules : [];
       const firstMod = subModules[0] || {};
-
       const topics = subModules.flatMap((mod) =>
         Array.isArray(mod.topics) ? mod.topics : []
       );
@@ -72,7 +64,6 @@ function normalizeRoadmapData(data, propLearningStyle, propTopic) {
       deliverables: [],
     }));
   } else {
-    // Default fallback phase if empty
     phases = [
       {
         title: "Phase 1: Core Foundations",
@@ -84,7 +75,6 @@ function normalizeRoadmapData(data, propLearningStyle, propTopic) {
     ];
   }
 
-  // Parse references and images injected by Reference Retriever Agent
   const references = rawContent.references || data?.references || {};
   const images = rawContent.images || data?.images || [];
 
@@ -104,17 +94,14 @@ function normalizeRoadmapData(data, propLearningStyle, propTopic) {
 
 export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onRegenerate }) {
   const roadmap = normalizeRoadmapData(data, learningStyle, topic);
-
   const [isSaved, setIsSaved] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState("overview");
-
-  // PDF Export State
+  
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportStepIndex, setExportStepIndex] = useState(0);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [exportError, setExportError] = useState(null);
 
-  // Section Refs for smooth scrolling
   const overviewRef = useRef(null);
   const timelineRef = useRef(null);
   const phasesRef = useRef(null);
@@ -165,7 +152,6 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
       setExportStepIndex(4);
       setExportSuccess(true);
 
-      // Create blob download link
       const downloadUrl = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
       const link = document.createElement("a");
       link.href = downloadUrl;
@@ -186,9 +172,16 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
     }
   };
 
+  const navItems = [
+    { id: "overview", label: "Overview", icon: LayoutDashboard, ref: overviewRef },
+    { id: "timeline", label: "Timeline", icon: Activity, ref: timelineRef },
+    { id: "phases", label: "Phase Cards", icon: Layers, ref: phasesRef },
+    { id: "resources", label: "Resources", icon: BookOpen, ref: resourcesRef },
+    { id: "capstone", label: "Capstone", icon: Rocket, ref: capstoneRef },
+  ];
+
   return (
-    <div className="roadmap-display-workspace printable-area">
-      {/* Header Bar */}
+    <div className="min-h-screen bg-slate-50 font-sans">
       <RoadmapHeader
         title={roadmap.title}
         onBack={onBack}
@@ -198,115 +191,97 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
         onToggleSave={() => setIsSaved(!isSaved)}
       />
 
-      <div className="roadmap-workspace-body">
+      <div className="max-w-[1600px] mx-auto w-full flex flex-col lg:flex-row items-start relative px-4 md:px-8 pb-32 pt-8 gap-8">
+        
         {/* Left Navigation Sidebar */}
-        <aside className="roadmap-left-sidebar no-print">
-          <div className="sidebar-title">Roadmap Sections</div>
-          <nav className="sidebar-nav-links">
-            <button
-              className={`sidebar-link ${activeNavTab === "overview" ? "active" : ""}`}
-              onClick={() => scrollToSection(overviewRef, "overview")}
-            >
-              <DashboardIcon sx={{ fontSize: 18 }} />
-              <span>Overview</span>
-            </button>
-
-            <button
-              className={`sidebar-link ${activeNavTab === "timeline" ? "active" : ""}`}
-              onClick={() => scrollToSection(timelineRef, "timeline")}
-            >
-              <TimelineIcon sx={{ fontSize: 18 }} />
-              <span>Timeline</span>
-            </button>
-
-            <button
-              className={`sidebar-link ${activeNavTab === "phases" ? "active" : ""}`}
-              onClick={() => scrollToSection(phasesRef, "phases")}
-            >
-              <StyleIcon sx={{ fontSize: 18 }} />
-              <span>Phase Cards</span>
-            </button>
-
-            <button
-              className={`sidebar-link ${activeNavTab === "resources" ? "active" : ""}`}
-              onClick={() => scrollToSection(resourcesRef, "resources")}
-            >
-              <MenuBookIcon sx={{ fontSize: 18 }} />
-              <span>Resources</span>
-            </button>
-
-            <button
-              className={`sidebar-link ${activeNavTab === "capstone" ? "active" : ""}`}
-              onClick={() => scrollToSection(capstoneRef, "capstone")}
-            >
-              <RocketLaunchIcon sx={{ fontSize: 18 }} />
-              <span>Capstone</span>
-            </button>
+        <aside className="hidden lg:block sticky top-[100px] w-[260px] shrink-0 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm z-10">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 px-4">Roadmap Sections</div>
+          <nav className="flex flex-col gap-2">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => scrollToSection(item.ref, item.id)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all text-sm ${activeNavTab === item.id ? 'bg-primary text-slate-900 shadow-md shadow-primary/20 scale-105' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+              >
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </button>
+            ))}
           </nav>
         </aside>
 
+        {/* Mobile Navigation (Horizontal scrollable) */}
+        <div className="lg:hidden w-full overflow-x-auto pb-4 sticky top-[72px] z-40 bg-slate-50/90 backdrop-blur-md -mx-4 px-4 flex gap-2 hide-scrollbar">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => scrollToSection(item.ref, item.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-bold transition-all text-sm shrink-0 whitespace-nowrap ${activeNavTab === item.id ? 'bg-primary text-slate-900 shadow-md' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+              >
+                <item.icon size={16} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+        </div>
+
         {/* Main Content Area */}
-        <main className="roadmap-main-content">
-          {/* Section 1: Hero Summary */}
-          <div ref={overviewRef}>
-            <RoadmapHero
-              title={roadmap.title}
-              description={roadmap.description}
-              goal={roadmap.goal}
-              difficulty={roadmap.difficulty}
-              learningStyle={roadmap.learningStyle}
-              prerequisites={roadmap.prerequisites}
-              outcomes={roadmap.outcomes}
-              totalPhases={totalPhases}
-              onExplorePhases={() => scrollToSection(phasesRef, "phases")}
-              onExportPdf={handleExportPdf}
-              isSaved={isSaved}
-              onToggleSave={() => setIsSaved(!isSaved)}
-            />
-          </div>
-
-          {/* Section 2: Interactive Timeline */}
-          <div ref={timelineRef} className="workspace-section">
-            <TimelineNavigator
-              phases={roadmap.phases}
-              onSelectPhase={scrollToPhaseCard}
-            />
-          </div>
-
-          {/* Section 3: Phase Cards */}
-          <div ref={phasesRef} className="workspace-section">
-            <div className="section-title-bar">
-              <h2>Phase Cards & Milestones</h2>
-              <span className="section-subtitle">
-                Expand a phase to view topics, objectives, and key deliverables.
-              </span>
+        <main className="flex-1 w-full min-w-0">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+            <div ref={overviewRef} className="scroll-mt-[100px]">
+              <RoadmapHero
+                title={roadmap.title}
+                description={roadmap.description}
+                goal={roadmap.goal}
+                difficulty={roadmap.difficulty}
+                learningStyle={roadmap.learningStyle}
+                prerequisites={roadmap.prerequisites}
+                outcomes={roadmap.outcomes}
+                totalPhases={totalPhases}
+                onExplorePhases={() => scrollToSection(phasesRef, "phases")}
+                onExportPdf={handleExportPdf}
+                isSaved={isSaved}
+                onToggleSave={() => setIsSaved(!isSaved)}
+              />
             </div>
 
-            <div className="phase-cards-stack">
-              {roadmap.phases.map((phase, idx) => (
-                <PhaseCard
-                  key={idx}
-                  phaseIndex={idx}
-                  phase={phase}
-                  defaultExpanded={idx === 0}
-                />
-              ))}
+            <div ref={timelineRef} className="scroll-mt-[100px]">
+              <TimelineNavigator
+                phases={roadmap.phases}
+                onSelectPhase={scrollToPhaseCard}
+              />
             </div>
-          </div>
 
-          {/* Section 4: Resource Gallery (Agent Curated Resources) */}
-          <div ref={resourcesRef} className="workspace-section">
-            <ResourceGallery topic={topic || roadmap.title} references={roadmap.references} />
-          </div>
+            <div ref={phasesRef} className="scroll-mt-[100px] mb-12">
+              <div className="mb-8">
+                <h2 className="text-3xl font-extrabold text-slate-900 mb-2">Phase Cards & Milestones</h2>
+                <p className="text-slate-500 font-medium text-lg">
+                  Expand a phase to view topics, objectives, and key deliverables.
+                </p>
+              </div>
 
-          {/* Section 5: Capstone Project Section */}
-          <div ref={capstoneRef} className="workspace-section">
-            <CapstoneSection topic={topic || roadmap.title} />
-          </div>
+              <div className="flex flex-col gap-6">
+                {roadmap.phases.map((phase, idx) => (
+                  <PhaseCard
+                    key={idx}
+                    phaseIndex={idx}
+                    phase={phase}
+                    defaultExpanded={idx === 0}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div ref={resourcesRef} className="scroll-mt-[100px] mb-12">
+              <ResourceGallery topic={topic || roadmap.title} references={roadmap.references} />
+            </div>
+
+            <div ref={capstoneRef} className="scroll-mt-[100px]">
+              <CapstoneSection topic={topic || roadmap.title} />
+            </div>
+          </motion.div>
         </main>
       </div>
 
-      {/* Floating AI Tutor Drawer — RAG-powered */}
       <FloatingAIAssistant
         topic={topic || roadmap.title}
         roadmapId={data?.id}
@@ -321,7 +296,6 @@ export default function RoadmapDisplay({ data, learningStyle, topic, onBack, onR
         }}
       />
 
-      {/* Backend PDF Export Animated Modal */}
       <PdfExportModal
         isOpen={isExportingPdf}
         currentStepIndex={exportStepIndex}

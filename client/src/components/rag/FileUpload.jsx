@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import ErrorMessage from "../utils/ErrorMessage";
 import { uploadDocument } from "../../services/rag";
-import "../../styles/FileUpload.css";
+import { Upload, FileText } from "lucide-react";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const ACCEPTED_TYPES = [
@@ -54,7 +54,7 @@ export default function FileUpload({ onUploadSuccess }) {
     try {
       const result = await uploadDocument(file);
       setSuccess(
-        `Uploaded ${result.filename}. ${result.chunks} private chunks are now available only for your retrieval.`,
+        `Uploaded ${result.filename}. ${result.chunks} chunks are now available.`,
       );
       setFile(null);
       if (onUploadSuccess) onUploadSuccess(result);
@@ -66,32 +66,48 @@ export default function FileUpload({ onUploadSuccess }) {
   };
 
   return (
-    <section className="rag-panel file-upload-panel">
-      <div className="rag-panel-header">
-        <h2>Private Knowledge Upload</h2>
-        <p>Add PDF or DOCX files. The uploaded context stays bound to your account.</p>
+    <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-bold text-dark mb-1">Knowledge Upload</h2>
+        <p className="text-sm text-slate-500">Add PDF or DOCX files to your private context.</p>
       </div>
-      <form className="file-upload-form" onSubmit={handleUpload}>
-        <label htmlFor={fileInputId} className="file-upload-input-label">
-          Select document
+
+      <form onSubmit={handleUpload} className="flex flex-col gap-3">
+        <label 
+          htmlFor={fileInputId} 
+          className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 rounded-xl hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer group"
+        >
+          <div className="w-10 h-10 bg-slate-100 group-hover:bg-primary/10 rounded-full flex items-center justify-center mb-3 transition-colors">
+            {file ? <FileText className="text-primary" size={20} /> : <Upload className="text-slate-400 group-hover:text-primary transition-colors" size={20} />}
+          </div>
+          <span className="text-sm font-semibold text-slate-700 mb-1">
+            {file ? file.name : "Click to select document"}
+          </span>
+          <span className="text-xs text-slate-500 text-center px-4">
+            Max size: 50MB. Only .pdf and .docx
+          </span>
         </label>
+        
         <input
           id={fileInputId}
           type="file"
+          className="hidden"
           accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={handleFileChange}
           disabled={loading}
         />
-        <div className="file-upload-meta">
-          {file ? <span>Selected: {file.name}</span> : <span>No file selected</span>}
-          <span>Max size: 50MB</span>
-        </div>
-        <button type="submit" disabled={loading || !file}>
+
+        <button 
+          type="submit" 
+          disabled={loading || !file}
+          className="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           {loading ? "Uploading..." : "Upload & Ingest"}
         </button>
       </form>
-      {error ? <ErrorMessage message={error} /> : null}
-      {success ? <p className="success-msg">{success}</p> : null}
+      
+      {error ? <div className="mt-1"><ErrorMessage message={error} /></div> : null}
+      {success ? <p className="text-sm font-medium text-emerald-600 bg-emerald-50 p-3 rounded-xl border border-emerald-100">{success}</p> : null}
     </section>
   );
 }

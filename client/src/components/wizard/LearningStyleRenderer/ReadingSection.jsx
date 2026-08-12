@@ -1,10 +1,5 @@
 import React from "react";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
-import LaunchIcon from "@mui/icons-material/Launch";
-import DescriptionIcon from "@mui/icons-material/Description";
-import ArticleIcon from "@mui/icons-material/Article";
-import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import StarIcon from "@mui/icons-material/Star";
+import { BookOpen, ExternalLink, FileText, Star } from "lucide-react";
 
 export default function ReadingSection({ topic, references = {} }) {
   const articles = references.article || [];
@@ -33,37 +28,37 @@ export default function ReadingSection({ topic, references = {} }) {
   const displayList = allReadingResources.length > 0 ? allReadingResources : defaultReadingCards;
 
   return (
-    <div className="learning-style-section reading-section-root">
-      <div className="section-header">
-        <div className="header-icon-pill reading-pill">
-          <MenuBookIcon sx={{ fontSize: 20 }} />
-          <span>Theoretical & Reading Path</span>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 w-fit">
+          <BookOpen size={16} />
+          <span className="text-xs font-bold uppercase tracking-widest">Theoretical & Reading Path</span>
         </div>
-        <h2>Curated Reading, Docs & Research Papers</h2>
-        <p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Curated Reading, Docs & Research Papers</h2>
+        <p className="text-slate-500 dark:text-slate-400">
           Master theoretical foundations with authoritative documentation, articles, and research papers for {topic}.
         </p>
       </div>
 
-      <div className="reading-cards-grid">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {displayList.map((item, idx) => (
-          <div key={idx} className="reading-card">
-            <div className="reading-card-header">
-              <div className="source-badge">
-                <DescriptionIcon sx={{ fontSize: 14 }} />
+          <div key={idx} className="flex flex-col p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg hover:border-cyan-500/50">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">
+                <FileText size={14} />
                 <span>{item.source || "Curated Reference"}</span>
               </div>
               {item.relevance_score && (
-                <div className="score-badge">
-                  <StarIcon sx={{ fontSize: 12, color: "#A38CFF" }} />
+                <div className="flex items-center gap-1 text-[10px] font-bold text-amber-500 uppercase tracking-widest bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded">
+                  <Star size={12} fill="currentColor" />
                   <span>{Math.round(item.relevance_score * 100)}% match</span>
                 </div>
               )}
             </div>
 
-            <h3 className="reading-card-title">{item.title}</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{item.title}</h3>
             {item.description && (
-              <p className="reading-card-desc">{item.description}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 flex-1">{item.description}</p>
             )}
 
             {item.url && (
@@ -71,10 +66,10 @@ export default function ReadingSection({ topic, references = {} }) {
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="open-link-btn"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors mt-auto"
               >
                 <span>Read Reference</span>
-                <LaunchIcon sx={{ fontSize: 14 }} />
+                <ExternalLink size={14} />
               </a>
             )}
           </div>

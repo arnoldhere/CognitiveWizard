@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { CircularProgress } from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import SendIcon from "@mui/icons-material/Send";
-import EditIcon from "@mui/icons-material/Edit";
-import OndemandVideoIcon from "@mui/icons-material/OndemandVideo";
+import { CheckCircle, Send, Edit3, Video, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const MenuBar = ({ editor }) => {
   if (!editor) {
@@ -13,49 +10,49 @@ const MenuBar = ({ editor }) => {
   }
 
   return (
-    <div style={{ borderBottom: "1px solid var(--border)", padding: "8px", display: "flex", gap: "8px", flexWrap: "wrap", background: "var(--surface-soft)" }}>
+    <div className="flex flex-wrap gap-2 p-2 bg-slate-50 border-b border-slate-200">
       <button
         onClick={() => editor.chain().focus().toggleBold().run()}
         disabled={!editor.can().chain().focus().toggleBold().run()}
-        style={{ fontWeight: editor.isActive('bold') ? 'bold' : 'normal', background: editor.isActive('bold') ? '#1ED9F2' : 'transparent', color: editor.isActive('bold') ? '#fff' : 'var(--text)', border: '1px solid var(--border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}
+        className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${editor.isActive('bold') ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
       >
         Bold
       </button>
       <button
         onClick={() => editor.chain().focus().toggleItalic().run()}
         disabled={!editor.can().chain().focus().toggleItalic().run()}
-        style={{ fontStyle: 'italic', background: editor.isActive('italic') ? '#1ED9F2' : 'transparent', color: editor.isActive('italic') ? '#fff' : 'var(--text)', border: '1px solid var(--border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}
+        className={`px-3 py-1.5 rounded-lg border text-sm italic transition-colors ${editor.isActive('italic') ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
       >
         Italic
       </button>
       <button
         onClick={() => editor.chain().focus().toggleStrike().run()}
         disabled={!editor.can().chain().focus().toggleStrike().run()}
-        style={{ textDecoration: 'line-through', background: editor.isActive('strike') ? '#1ED9F2' : 'transparent', color: editor.isActive('strike') ? '#fff' : 'var(--text)', border: '1px solid var(--border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}
+        className={`px-3 py-1.5 rounded-lg border text-sm line-through transition-colors ${editor.isActive('strike') ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
       >
         Strike
       </button>
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        style={{ background: editor.isActive('heading', { level: 3 }) ? '#1ED9F2' : 'transparent', color: editor.isActive('heading', { level: 3 }) ? '#fff' : 'var(--text)', border: '1px solid var(--border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}
+        className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${editor.isActive('heading', { level: 3 }) ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
       >
         H3
       </button>
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
-        style={{ background: editor.isActive('heading', { level: 4 }) ? '#1ED9F2' : 'transparent', color: editor.isActive('heading', { level: 4 }) ? '#fff' : 'var(--text)', border: '1px solid var(--border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}
+        className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${editor.isActive('heading', { level: 4 }) ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
       >
         H4
       </button>
       <button
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        style={{ background: editor.isActive('bulletList') ? '#1ED9F2' : 'transparent', color: editor.isActive('bulletList') ? '#fff' : 'var(--text)', border: '1px solid var(--border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}
+        className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${editor.isActive('bulletList') ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
       >
         Bullet List
       </button>
       <button
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        style={{ background: editor.isActive('orderedList') ? '#1ED9F2' : 'transparent', color: editor.isActive('orderedList') ? '#fff' : 'var(--text)', border: '1px solid var(--border)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}
+        className={`px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${editor.isActive('orderedList') ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}
       >
         Ordered List
       </button>
@@ -73,23 +70,22 @@ const TiptapEditor = ({ content, onChange }) => {
   });
 
   return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: "8px", overflow: "hidden", background: "var(--surface)" }}>
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
       <MenuBar editor={editor} />
-      <div style={{ padding: "16px", minHeight: "150px", color: "var(--text)" }}>
+      <div className="p-4 min-h-[150px] text-slate-700 prose prose-slate max-w-none">
         <EditorContent editor={editor} />
       </div>
       <style dangerouslySetInnerHTML={{__html:`
         .ProseMirror { outline: none; }
         .ProseMirror p { margin-top: 0; margin-bottom: 1em; line-height: 1.6; }
         .ProseMirror ul, .ProseMirror ol { padding-left: 20px; margin-top: 0; margin-bottom: 1em; }
-        .ProseMirror h3, .ProseMirror h4 { margin-top: 0; margin-bottom: 0.5em; }
+        .ProseMirror h3, .ProseMirror h4 { margin-top: 0; margin-bottom: 0.5em; font-weight: bold; color: #0f172a; }
       `}} />
     </div>
   );
 };
 
 export default function DraftReviewUI({ data, onApprove, onFeedback, isSubmitting }) {
-  // We'll manage a local copy of the modules to allow editing
   const [modules, setModules] = useState(() => {
     return data?.content?.modules?.map(m => ({
       ...m,
@@ -126,39 +122,42 @@ export default function DraftReviewUI({ data, onApprove, onFeedback, isSubmittin
   };
 
   return (
-    <div style={{ animation: "fadeInUp 0.4s ease", width: "100%", maxWidth: "900px", margin: "0 auto" }}>
-      <div style={{ textAlign: "center", marginBottom: "40px" }}>
-         <h1 style={{ fontSize: "2.5rem", fontWeight: 900, color: "var(--text)", marginBottom: "16px" }}>
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-4xl mx-auto">
+      <div className="text-center mb-10">
+         <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
             Review Generated Draft
          </h1>
-         <p style={{ color: "var(--text-light)", fontSize: "1.1rem" }}>
+         <p className="text-slate-600 text-lg max-w-2xl mx-auto">
             Please review the generated content below. You can edit the text directly, request changes from AI, or approve to publish it.
          </p>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginBottom: "40px" }}>
+      <div className="flex flex-col gap-6 mb-12">
         {modules.map((mod, idx) => (
-          <div key={idx} style={{ background: "var(--surface)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-strong)", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+          <div key={idx} className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
             
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
                {mod.isEditing ? (
                  <input 
                    value={mod.title} 
                    onChange={(e) => handleTitleChange(idx, e.target.value)} 
-                   style={{ fontSize: "1.3rem", fontWeight: 800, padding: "8px", width: "70%", background: "var(--surface-soft)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: "8px" }} 
+                   className="text-xl font-bold p-3 w-full sm:w-2/3 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                  />
                ) : (
-                 <h3 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 800, color: "var(--text)" }}>{mod.title}</h3>
+                 <h3 className="text-2xl font-bold text-slate-900">{mod.title}</h3>
                )}
                
-               <button onClick={() => handleEditToggle(idx)} style={{ background: mod.isEditing ? "#1ED9F2" : "rgba(30, 217, 242, 0.1)", color: mod.isEditing ? "#fff" : "#1ED9F2", border: "none", padding: "8px 16px", borderRadius: "20px", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
-                 <EditIcon fontSize="small" />
+               <button 
+                 onClick={() => handleEditToggle(idx)} 
+                 className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all shrink-0 ${mod.isEditing ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100'}`}
+               >
+                 <Edit3 size={16} />
                  {mod.isEditing ? "Done" : "Edit"}
                </button>
             </div>
 
             {mod.isEditing ? (
-              <div style={{ marginTop: "16px" }}>
+              <div className="mt-4">
                  <TiptapEditor 
                    content={mod.description} 
                    onChange={(val) => handleDescChange(idx, val)} 
@@ -166,24 +165,29 @@ export default function DraftReviewUI({ data, onApprove, onFeedback, isSubmittin
               </div>
             ) : (
               <div 
-                style={{ color: "var(--text-light)", fontSize: "1.05rem", lineHeight: 1.6 }}
+                className="prose prose-slate max-w-none text-slate-600 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: mod.description }}
               />
             )}
             
-            {/* Display References */}
             {mod.references && mod.references.length > 0 && (
-              <div style={{ marginTop: "20px", borderTop: "1px solid var(--border)", paddingTop: "16px" }}>
-                 <h4 style={{ margin: "0 0 12px 0", color: "var(--text)", fontSize: "1rem" }}>Curated References</h4>
-                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div className="mt-8 border-t border-slate-100 pt-6">
+                 <h4 className="font-bold text-slate-900 mb-4">Curated References</h4>
+                 <div className="grid gap-3">
                    {mod.references.map((ref, rIdx) => (
-                     <a key={rIdx} href={ref.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "flex-start", gap: "12px", background: "var(--surface-soft)", padding: "12px", borderRadius: "12px", textDecoration: "none", transition: "transform 0.2s" }} className="hover-lift">
-                       <div style={{ color: "#ff0000", marginTop: "2px" }}>
-                         <OndemandVideoIcon />
+                     <a 
+                        key={rIdx} 
+                        href={ref.url} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="flex items-start gap-4 bg-slate-50 p-4 rounded-2xl hover:bg-slate-100 hover:-translate-y-0.5 transition-all group"
+                      >
+                       <div className="text-rose-500 mt-1 shrink-0 bg-rose-100 p-2 rounded-xl">
+                         <Video size={20} />
                        </div>
                        <div>
-                         <h5 style={{ margin: "0 0 4px", color: "var(--text)", fontSize: "1rem" }}>{ref.title}</h5>
-                         <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.85rem" }}>{ref.description}</p>
+                         <h5 className="font-bold text-slate-900 mb-1 group-hover:text-primary transition-colors">{ref.title}</h5>
+                         <p className="text-slate-500 text-sm leading-relaxed">{ref.description}</p>
                        </div>
                      </a>
                    ))}
@@ -194,47 +198,43 @@ export default function DraftReviewUI({ data, onApprove, onFeedback, isSubmittin
         ))}
       </div>
 
-      {/* Action Area */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-        
-        {/* Feedback block */}
-        <div style={{ background: "var(--surface-soft)", padding: "24px", borderRadius: "16px", border: "1px solid var(--border)" }}>
-           <h3 style={{ margin: "0 0 16px", color: "var(--text)", fontSize: "1.2rem" }}>Request AI Changes</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200">
+           <h3 className="font-bold text-slate-900 text-xl mb-4">Request AI Changes</h3>
            <textarea 
              placeholder="Tell AI what to change..."
              value={feedbackText}
              onChange={(e) => setFeedbackText(e.target.value)}
-             style={{ width: "100%", minHeight: "100px", padding: "16px", background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", borderRadius: "12px", marginBottom: "16px", outline: "none", resize: "vertical" }}
+             className="w-full min-h-[120px] p-4 bg-white border border-slate-200 text-slate-700 rounded-2xl mb-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-y"
            />
            <button 
              onClick={handleSubmitFeedback} 
              disabled={isSubmitting || !feedbackText.trim()}
-             style={{ width: "100%", padding: "12px", background: "var(--primary)", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: (isSubmitting || !feedbackText.trim()) ? "not-allowed" : "pointer", opacity: (isSubmitting || !feedbackText.trim()) ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+             className="w-full flex items-center justify-center gap-2 py-3.5 bg-slate-900 text-white rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
            >
-             {isSubmitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon fontSize="small" />}
+             {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
              Send to AI
            </button>
         </div>
 
-        {/* Approve block */}
-        <div style={{ background: "var(--surface-soft)", padding: "24px", borderRadius: "16px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-           <div style={{ color: "#10b981", marginBottom: "16px" }}>
-              <CheckCircleIcon sx={{ fontSize: 64 }} />
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 md:p-8 rounded-3xl border border-emerald-100 flex flex-col justify-center items-center text-center">
+           <div className="text-emerald-500 mb-4 bg-white p-4 rounded-full shadow-sm border border-emerald-100">
+              <CheckCircle size={48} />
            </div>
-           <h3 style={{ margin: "0 0 12px", color: "var(--text)", fontSize: "1.2rem" }}>Looks Good?</h3>
-           <p style={{ color: "var(--text-light)", fontSize: "0.95rem", marginBottom: "24px" }}>
+           <h3 className="font-bold text-emerald-900 text-2xl mb-3">Looks Good?</h3>
+           <p className="text-emerald-700 mb-8 font-medium">
              Once approved, the syllabus will be published for learners to browse and enroll.
            </p>
            <button 
              onClick={() => onApprove(modules)}
              disabled={isSubmitting}
-             style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 700, fontSize: "1.1rem", cursor: isSubmitting ? "not-allowed" : "pointer", opacity: isSubmitting ? 0.6 : 1 }}
+             className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white border-none rounded-xl font-extrabold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/30 transition-all hover:-translate-y-1"
            >
              Approve & Publish
            </button>
         </div>
       </div>
       
-    </div>
+    </motion.div>
   );
 }

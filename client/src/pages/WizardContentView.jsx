@@ -2,92 +2,86 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getWizardContentDetail } from "../services/api";
 import RoadmapDisplay from "../components/wizard/RoadmapDisplay";
-import { CircularProgress } from "@mui/material";
-import ScheduleIcon from "@mui/icons-material/Schedule";
-import TaskAltIcon from "@mui/icons-material/TaskAlt";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import { Clock, CheckSquare, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-// ─── ModuleItem (mirrored from WizardModule.jsx for non-roadmap display) ─────
 const ModuleItem = ({ mod }) => {
   const [expanded, setExpanded] = useState(false);
   return (
     <div
       onClick={() => setExpanded(!expanded)}
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border-strong)",
-        borderRadius: "16px",
-        padding: "24px",
-        position: "relative",
-        overflow: "hidden",
-        transition: "all 0.3s",
-        cursor: "pointer",
-      }}
-      className="wcv-hover-lift"
+      className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
     >
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "6px",
-          height: "100%",
-          background: "linear-gradient(to bottom, #5736C8, #1ED9F2)",
-        }}
-      />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-        <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 800, color: "var(--text)" }}>{mod.title}</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-500 to-cyan-400" />
+      
+      <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4">
+        <h3 className="text-xl font-bold text-slate-900 group-hover:text-primary transition-colors">{mod.title}</h3>
+        <div className="flex items-center gap-3 shrink-0">
           {mod.estimated_time && (
-            <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "4px 10px", borderRadius: "20px", color: "var(--text-light)", fontSize: "0.8rem", fontWeight: 600 }}>
-              <ScheduleIcon style={{ fontSize: "1rem", marginRight: "4px" }} /> {mod.estimated_time}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-slate-600 text-xs font-bold uppercase tracking-wider">
+              <Clock size={14} className="text-primary" /> {mod.estimated_time}
             </div>
           )}
-          {expanded ? <KeyboardArrowUpIcon style={{ color: "var(--text-light)" }} /> : <KeyboardArrowDownIcon style={{ color: "var(--text-light)" }} />}
+          <button className="p-1 rounded-full hover:bg-slate-100 text-slate-400 transition-colors">
+            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
         </div>
       </div>
 
-      <p style={{ color: "var(--text-light)", fontSize: "1rem", lineHeight: 1.6, margin: expanded ? "0 0 20px" : "0" }}>
+      <p className={`text-slate-600 leading-relaxed ${expanded ? 'mb-6' : 'm-0'}`}>
         {mod.description}
       </p>
 
-      {expanded && mod.key_takeaways?.length > 0 && (
-        <div style={{ marginBottom: "20px" }}>
-          <h4 style={{ margin: "0 0 8px", color: "var(--text)", fontSize: "0.95rem" }}>Key Takeaways:</h4>
-          <ul style={{ margin: 0, paddingLeft: "20px", color: "#7655F6", fontSize: "0.95rem" }}>
-            {mod.key_takeaways.map((k, i) => <li key={i}>{k}</li>)}
-          </ul>
-        </div>
-      )}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            {mod.key_takeaways?.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-bold text-slate-900 mb-3 text-sm">Key Takeaways:</h4>
+                <ul className="space-y-2">
+                  {mod.key_takeaways.map((k, i) => (
+                    <li key={i} className="flex items-start gap-2 text-indigo-700 text-sm font-medium">
+                      <span className="text-indigo-400 mt-1">•</span> {k}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-      {expanded && mod.topics?.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {mod.topics.map((topic, idx) => (
-            <div key={idx} style={{ background: "rgba(30, 217, 242, 0.05)", padding: "16px", borderRadius: "12px", border: "1px solid rgba(30, 217, 242, 0.1)" }}>
-              <h4 style={{ margin: "0 0 6px", color: "#1ED9F2", fontSize: "1rem", fontWeight: 700 }}>
-                {topic.name || topic}
-              </h4>
-              {(topic.details || topic.content) && (
-                <p style={{ margin: 0, color: "var(--text-light)", fontSize: "0.9rem", lineHeight: 1.5 }}>
-                  {topic.details || topic.content}
-                </p>
-              )}
-              {topic.practical_task && (
-                <div style={{ marginTop: "12px", padding: "8px 12px", background: "rgba(30, 217, 242, 0.1)", borderRadius: "6px", color: "#1ED9F2", fontSize: "0.85rem", fontWeight: 600 }}>
-                  <TaskAltIcon sx={{ fontSize: "1rem", marginRight: "4px", verticalAlign: "middle" }} />
-                  Task: {topic.practical_task}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+            {mod.topics?.length > 0 && (
+              <div className="flex flex-col gap-4">
+                {mod.topics.map((topic, idx) => (
+                  <div key={idx} className="bg-cyan-50/50 p-5 rounded-2xl border border-cyan-100">
+                    <h4 className="text-cyan-700 font-bold mb-2">
+                      {topic.name || topic}
+                    </h4>
+                    {(topic.details || topic.content) && (
+                      <p className="text-slate-600 text-sm leading-relaxed">
+                        {topic.details || topic.content}
+                      </p>
+                    )}
+                    {topic.practical_task && (
+                      <div className="mt-4 p-3 bg-cyan-100/50 rounded-xl text-cyan-800 text-sm font-semibold flex items-start gap-2">
+                        <CheckSquare className="shrink-0 mt-0.5 text-cyan-600" size={16} />
+                        <span>Task: {topic.practical_task}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
-// ─── Main Page ───────────────────────────────────────────────────────────────
 export default function WizardContentView() {
   const { id } = useParams();
   const [data, setData] = useState(null);
@@ -110,20 +104,23 @@ export default function WizardContentView() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "20px" }}>
-        <CircularProgress size={52} thickness={3} sx={{ color: "#1ED9F2" }} />
-        <p style={{ color: "var(--text-light)", fontSize: "1.1rem" }}>Loading your content…</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-500 font-medium">Loading your content…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "16px" }}>
-        <p style={{ color: "#ef4444", fontSize: "1.1rem" }}>{error}</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="flex items-center gap-3 text-rose-600 bg-rose-50 px-6 py-4 rounded-2xl font-bold">
+          <AlertCircle size={24} />
+          {error}
+        </div>
         <button
           onClick={() => window.location.reload()}
-          style={{ padding: "10px 24px", borderRadius: "20px", background: "linear-gradient(135deg, #5736C8, #1ED9F2)", border: "none", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+          className="px-8 py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-bold transition-all shadow-lg"
         >
           Retry
         </button>
@@ -137,7 +134,7 @@ export default function WizardContentView() {
 
   if (isRoadmap) {
     return (
-      <div style={{ animation: "fadeIn 0.5s ease", width: "100%", margin: "0 auto" }}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full mx-auto">
         <RoadmapDisplay
           data={data}
           learningStyle={data?.content?.learning_style}
@@ -145,44 +142,33 @@ export default function WizardContentView() {
           onBack={() => window.history.back()}
           onRegenerate={() => { window.opener && window.close(); window.location.href = "/wizard"; }}
         />
-      </div>
+      </motion.div>
     );
   }
 
-  // ── Non-roadmap content display ────────────────────────────────────────────
   return (
-    <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "6vh", paddingBottom: "10vh" }}>
-      <div style={{ width: "100%", maxWidth: "800px", padding: "0 20px", animation: "fadeIn 0.5s ease" }}>
-        <div style={{ textAlign: "center", marginBottom: "48px" }}>
-          <span style={{ display: "inline-block", background: "rgba(30, 217, 242, 0.1)", color: "#1ED9F2", padding: "6px 16px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+    <div className="min-h-screen py-16 px-4 md:px-8 max-w-4xl mx-auto">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="text-center mb-16">
+          <span className="inline-block px-4 py-1.5 bg-cyan-50 text-cyan-600 border border-cyan-200 rounded-full text-xs font-bold uppercase tracking-widest mb-6 shadow-sm">
             {data.content_type}
           </span>
-          <h1 style={{ fontSize: "2.8rem", fontWeight: 900, color: "var(--text)", marginBottom: "16px", lineHeight: 1.2 }}>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight leading-tight">
             {data.content?.title || data.topic}
           </h1>
           {data.content?.description && (
-            <p style={{ color: "var(--text-light)", fontSize: "1.15rem", maxWidth: "600px", margin: "0 auto", lineHeight: 1.6 }}>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
               {data.content.description}
             </p>
           )}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        
+        <div className="flex flex-col gap-6">
           {data.content?.modules?.map((mod, i) => (
             <ModuleItem key={i} mod={mod} />
           ))}
         </div>
-      </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .wcv-hover-lift:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      ` }} />
-    </section>
+      </motion.div>
+    </div>
   );
 }

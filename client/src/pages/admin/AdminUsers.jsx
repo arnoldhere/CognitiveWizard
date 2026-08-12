@@ -1,16 +1,11 @@
 import { useState, useEffect } from "react";
-import {
-    Box, Typography, Paper, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Switch, CircularProgress,
-    Chip, Avatar, Tooltip, IconButton, TextField, InputAdornment
-} from "@mui/material";
-import {
-    Search, User, ShieldCheck, Ban, CheckCircle, RefreshCw,
-} from "lucide-react";
+import { useOutletContext } from "react-router-dom";
+import { Search, User, ShieldCheck, Ban, CheckCircle, RefreshCw, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { getAdminUsers, updateUserStatus } from "../../services/admin";
 
 export default function AdminUsers() {
+    const { isDark } = useOutletContext() || { isDark: false };
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -49,147 +44,157 @@ export default function AdminUsers() {
     );
 
     return (
-        <Box sx={{ pb: 4 }}>
+        <div className="pb-12 max-w-7xl mx-auto font-sans">
             {/* Header */}
-            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 4, flexWrap: "wrap", gap: 2, p: { xs: 2.5, md: 3 }, borderRadius: 4, border: "1px solid", borderColor: "divider", background: "linear-gradient(115deg, rgba(20,140,255,0.15), rgba(118,85,246,0.10) 58%, rgba(30,217,242,0.06))" }}>
-                <Box>
-                    <Typography variant="overline" sx={{ color: "primary.light", fontWeight: 800, letterSpacing: "0.14em" }}>Access control</Typography>
-                    <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>User Management</Typography>
-                    <Typography variant="body2" color="text.secondary">
+            <div className={`relative overflow-hidden mb-6 p-6 md:p-8 rounded-3xl border flex flex-col md:flex-row md:items-start justify-between gap-4 shadow-sm ${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200'}`}>
+                <div className="absolute -top-24 -right-12 w-64 h-64 bg-cyan-400/10 blur-3xl rounded-full pointer-events-none" />
+                
+                <div className="relative z-10">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Access Control</div>
+                    <h1 className={`text-2xl font-extrabold mb-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>User Management</h1>
+                    <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         Manage platform users and control access permissions
-                    </Typography>
-                </Box>
-                <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-                    <TextField
-                        size="small"
-                        placeholder="Search users..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        InputProps={{
-                            startAdornment: <InputAdornment position="start"><Search size={18} style={{ opacity: 0.6 }} /></InputAdornment>,
-                            sx: { borderRadius: 2.5, minWidth: 220 }
-                        }}
-                    />
-                    <Tooltip title="Refresh">
-                        <IconButton size="small" onClick={fetchUsers} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
-                            <RefreshCw size={16} />
-                        </IconButton>
-                    </Tooltip>
-                </Box>
-            </Box>
+                    </p>
+                </div>
+                
+                <div className="relative z-10 flex items-center gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-64">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <Search size={16} />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className={`w-full pl-9 pr-4 py-2 text-sm rounded-full border focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors ${isDark ? 'bg-slate-900/50 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
+                        />
+                    </div>
+                    <button 
+                        onClick={fetchUsers} 
+                        disabled={loading}
+                        className={`p-2 rounded-xl border shadow-sm transition-colors shrink-0 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-50' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50'}`}
+                        title="Refresh"
+                    >
+                        <RefreshCw size={18} className={loading ? "animate-spin text-primary" : ""} />
+                    </button>
+                </div>
+            </div>
 
             {loading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
-                    <CircularProgress color="primary" />
-                </Box>
+                <div className="flex justify-center items-center py-20">
+                    <Loader2 size={40} className="animate-spin text-primary" />
+                </div>
             ) : (
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-                    <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>User</TableCell>
-                                    <TableCell>Email</TableCell>
-                                    <TableCell>Role</TableCell>
-                                    <TableCell>Joined</TableCell>
-                                    <TableCell align="center">Status</TableCell>
-                                    <TableCell align="center">Toggle</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {filtered.map((userItem, i) => (
-                                    <motion.tr
-                                        key={userItem.id}
-                                        component="tr"
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.04, duration: 0.25 }}
-                                        style={{ display: "table-row" }}
-                                    >
-                                        <TableCell>
-                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                                                <Avatar sx={{
-                                                    width: 34, height: 34, fontSize: "0.8rem", fontWeight: 700,
-                                                    bgcolor: userItem.role === "admin" ? "rgba(20,140,255,0.16)" : "rgba(30,217,242,0.14)",
-                                                    color: userItem.role === "admin" ? "#56B5FF" : "#1ED9F2",
-                                                }}>
-                                                    {userItem.full_name?.charAt(0) || userItem.email?.charAt(0)?.toUpperCase()}
-                                                </Avatar>
-                                                <Typography variant="body2" fontWeight={600} noWrap>{userItem.full_name || "—"}</Typography>
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Typography variant="body2" color="text.secondary" noWrap>{userItem.email}</Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                icon={userItem.role === "admin" ? <ShieldCheck size={14} /> : <User size={14} />}
-                                                label={userItem.role}
-                                                size="small"
-                                                sx={{
-                                                    textTransform: "capitalize",
-                                                    fontWeight: 700,
-                                                    bgcolor: userItem.role === "admin" ? "rgba(20,140,255,0.14)" : "rgba(168,199,255,0.10)",
-                                                    color: userItem.role === "admin" ? "#56B5FF" : "text.secondary",
-                                                    border: "none",
-                                                    gap: 0.5,
-                                                    "& .MuiChip-icon": { marginLeft: "4px" }
-                                                }}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {new Date(userItem.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell align="center">
-                                            <Chip
-                                                icon={userItem.is_active ? <CheckCircle size={14} /> : <Ban size={14} />}
-                                                label={userItem.is_active ? "Active" : "Blocked"}
-                                                size="small"
-                                                sx={{
-                                                    fontWeight: 700,
-                                                    bgcolor: userItem.is_active ? "rgba(30,217,242,0.14)" : "rgba(255,99,126,0.12)",
-                                                    color: userItem.is_active ? "#1ED9F2" : "#FF637E",
-                                                    border: "none",
-                                                    gap: 0.5,
-                                                    "& .MuiChip-icon": { marginLeft: "4px" }
-                                                }}
-                                            />
-                                        </TableCell>
-                                        <TableCell align="center">
-                                            {updating === userItem.id ? (
-                                                <CircularProgress size={20} color="primary" />
-                                            ) : (
-                                                <Switch
-                                                    checked={userItem.is_active}
-                                                    onChange={() => handleToggleStatus(userItem.id, userItem.is_active)}
-                                                    disabled={userItem.role === "admin"}
-                                                    size="small"
-                                                    sx={{
-                                                        "& .MuiSwitch-switchBase.Mui-checked": { color: "#1ED9F2" },
-                                                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#1ED9F2" },
-                                                    }}
-                                                />
-                                            )}
-                                        </TableCell>
-                                    </motion.tr>
-                                ))}
-                                {filtered.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={6} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                                            No users found
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: "block", textAlign: "right" }}>
+                    <div className={`rounded-2xl border shadow-sm overflow-hidden ${isDark ? 'bg-slate-800/80 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className={`text-xs uppercase font-bold tracking-wider ${isDark ? 'bg-slate-900/50 text-slate-400 border-b border-slate-700' : 'bg-slate-50 text-slate-500 border-b border-slate-200'}`}>
+                                    <tr>
+                                        <th className="px-6 py-4">User</th>
+                                        <th className="px-6 py-4">Email</th>
+                                        <th className="px-6 py-4">Role</th>
+                                        <th className="px-6 py-4">Joined</th>
+                                        <th className="px-6 py-4 text-center">Status</th>
+                                        <th className="px-6 py-4 text-center">Access</th>
+                                    </tr>
+                                </thead>
+                                <tbody className={`divide-y ${isDark ? 'divide-slate-700/50' : 'divide-slate-100'}`}>
+                                    {filtered.map((userItem, i) => (
+                                        <motion.tr
+                                            key={userItem.id}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: i * 0.04, duration: 0.25 }}
+                                            className={`transition-colors ${isDark ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50/50'}`}
+                                        >
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-sm ${
+                                                        userItem.role === "admin" 
+                                                            ? (isDark ? 'bg-primary/20 text-blue-400' : 'bg-primary/10 text-primary')
+                                                            : (isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-50 text-cyan-600')
+                                                    }`}>
+                                                        {userItem.full_name?.charAt(0) || userItem.email?.charAt(0)?.toUpperCase()}
+                                                    </div>
+                                                    <div className={`font-bold truncate max-w-[150px] sm:max-w-[200px] ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
+                                                        {userItem.full_name || "—"}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className={`text-sm truncate max-w-[200px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                    {userItem.email}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
+                                                    userItem.role === "admin"
+                                                        ? (isDark ? 'bg-primary/10 text-blue-400 border-primary/20' : 'bg-primary/10 text-primary border-primary/20')
+                                                        : (isDark ? 'bg-slate-700/50 text-slate-300 border-slate-600' : 'bg-slate-100 text-slate-600 border-slate-200')
+                                                }`}>
+                                                    {userItem.role === "admin" ? <ShieldCheck size={12} /> : <User size={12} />}
+                                                    {userItem.role}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                    {new Date(userItem.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
+                                                    userItem.is_active
+                                                        ? (isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-cyan-50 text-cyan-600 border-cyan-100')
+                                                        : (isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-rose-50 text-rose-600 border-rose-100')
+                                                }`}>
+                                                    {userItem.is_active ? <CheckCircle size={12} /> : <Ban size={12} />}
+                                                    {userItem.is_active ? "Active" : "Blocked"}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex justify-center items-center h-full">
+                                                    {updating === userItem.id ? (
+                                                        <Loader2 size={20} className="animate-spin text-primary" />
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleToggleStatus(userItem.id, userItem.is_active)}
+                                                            disabled={userItem.role === "admin"}
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 ${isDark ? 'focus:ring-offset-slate-900' : 'focus:ring-offset-white'} disabled:opacity-50 disabled:cursor-not-allowed ${
+                                                                userItem.is_active ? 'bg-cyan-500' : (isDark ? 'bg-slate-600' : 'bg-slate-300')
+                                                            }`}
+                                                            role="switch"
+                                                            aria-checked={userItem.is_active}
+                                                        >
+                                                            <span
+                                                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                                                    userItem.is_active ? 'translate-x-4.5' : 'translate-x-1'
+                                                                }`}
+                                                            />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </motion.tr>
+                                    ))}
+                                    {filtered.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className={`px-6 py-12 text-center font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                No users found matching "{search}"
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div className={`mt-3 text-right text-xs font-bold uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                         Showing {filtered.length} of {users.length} users
-                    </Typography>
+                    </div>
                 </motion.div>
             )}
-        </Box>
+        </div>
     );
 }
