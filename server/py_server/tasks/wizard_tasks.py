@@ -1,19 +1,13 @@
 import asyncio
-import os
 import httpx
-from celery import Celery
 from core.celery_app import celery_app
 from agents.graphs.course_generation_graph import get_compiled_course_graph
 from agents.states.course_agent_state import CourseAgentState
 
 from langgraph.checkpoint.redis import AsyncRedisSaver
-import redis.asyncio as redis
 from config.settings import settings
 
 redis_url = settings.REDIS_URL
-if redis_url.startswith("rediss://") and "ssl_cert_reqs" not in redis_url:
-    separator = "&" if "?" in redis_url else "?"
-    redis_url += f"{separator}ssl_cert_reqs=CERT_NONE"
 js_server_url = settings.JS_SERVER_URL
 
 
@@ -34,11 +28,19 @@ async def _send_complete_webhook(
         print(f"Failed to send complete webhook: {e}")
 
 
-async def _run_agentic_workflow_async(initial_state: CourseAgentState, job_id: str):
-    async with redis.from_url(redis_url) as conn:
-        checkpointer = AsyncRedisSaver(conn)
+async def _run_agentic_workflow_async(
+    initial_state: CourseAgentState,
+    job_id: str,
+):
+    async with AsyncRedisSaver.from_conn_string(redis_url) as checkpointer:
         graph = get_compiled_course_graph(checkpointer=checkpointer)
-        config = {"configurable": {"thread_id": job_id}}
+
+        config = {
+            "configurable": {
+                "thread_id": job_id,
+            }
+        }
+
         return await graph.ainvoke(initial_state, config)
 
 

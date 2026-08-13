@@ -64,7 +64,11 @@ class Settings:
 
     @property
     def REDIS_URL(self):
-        return os.getenv("REDIS_URL", f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB_INDEX}")
+        url = os.getenv("REDIS_URL", f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB_INDEX}")
+        if url.startswith("rediss://") and "ssl_cert_reqs" not in url:
+            separator = "&" if "?" in url else "?"
+            url += f"{separator}ssl_cert_reqs=CERT_REQUIRED"
+        return url
 
     # ===========
     # Middlewares & Authentication configurations
