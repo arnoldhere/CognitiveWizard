@@ -1,25 +1,60 @@
+/**
+ * models/index.js
+ * ===============
+ * Sequelize model registry.
+ *
+ * - Imports all models (load-order matters: parent before child)
+ * - Cross-model associations are defined HERE to avoid circular imports
+ * - Seeds default LLM configs and wizard question sets on first run
+ * - Uses sequelize.sync({ alter: true }) to auto-migrate new columns/tables
+ *
+ * Course hierarchy (new):
+ *   WizardContent → CoursePhase → CourseModule → CourseLesson
+ *                                              → LessonSection
+ *                                              → LessonResource
+ *                                              → LessonExercise
+ */
+
 const { sequelize } = require('../config/db');
 
-const User = require('./User');
-const ChatSession = require('./ChatSession');
-const WizardContent = require('./WizardContent');
-const Grade = require('./Grade');
-const PaymentTransaction = require('./PaymentTransaction');
-const RAGDocument = require('./RAGDocument');
-const RAGQueryLog = require('./RAGLog');
-const LLMConfig = require('./LLMConfig');
-const WizardQuestionSet = require('./WizardQuestionSet');
-const WizardModule = require('./WizardModule');
-const WizardResource = require('./WizardResource');
+// ─── Core models ─────────────────────────────────────────────────────────────
+const User                = require('./User');
+const ChatSession         = require('./ChatSession');
+const WizardContent       = require('./WizardContent');
+const Grade               = require('./Grade');
+const PaymentTransaction  = require('./PaymentTransaction');
+const RAGDocument         = require('./RAGDocument');
+const RAGQueryLog         = require('./RAGLog');
+const LLMConfig           = require('./LLMConfig');
+const WizardQuestionSet   = require('./WizardQuestionSet');
 
-// Define relationships
+// ─── Legacy Wizard models (kept for Roadmap/Guide/Schedule content types) ────
+const WizardModule        = require('./WizardModule');
+const WizardResource      = require('./WizardResource');
+
+// ─── New Course generation models ─────────────────────────────────────────────
+const CoursePhase         = require('./CoursePhase');
+const CourseModule        = require('./CourseModule');
+const CourseLesson        = require('./CourseLesson');
+const LessonSection       = require('./LessonSection');
+const LessonResource      = require('./LessonResource');
+const LessonExercise      = require('./LessonExercise');
+
+// ─── Cross-model associations ─────────────────────────────────────────────────
+
+// User relationships
 User.hasMany(Grade, { foreignKey: 'user_id', as: 'grades' });
 Grade.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 User.hasMany(PaymentTransaction, { foreignKey: 'user_id', as: 'payment_transactions' });
 PaymentTransaction.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-// Default wizard question sets (mirrors the previously hardcoded QUESTION_SETS)
+// ─── Default seeding data ──────────────────────────────────────────────────────
+
+/**
+ * Default wizard question sets (mirrors previously hardcoded QUESTION_SETS).
+ * These drive the dynamic Wizard UI configuration.
+ */
 const DEFAULT_WIZARD_QUESTION_SETS = [
   {
     content_type: 'Roadmap',
@@ -38,15 +73,18 @@ const DEFAULT_WIZARD_QUESTION_SETS = [
   {
     content_type: 'Course/Syllabus',
     label: 'Course / Syllabus',
-    description: 'Structured educational modules',
+    description: 'Deep structured course with full lesson content',
     icon: 'LocalLibraryRounded',
     sort_order: 1,
     is_active: true,
     questions: [
-      { key: 'targetAudience', label: 'Who is the target audience?', type: 'text', placeholder: 'e.g., High school students, Beginners', required: true },
-      { key: 'moduleCount', label: 'How many modules or weeks?', type: 'number', placeholder: 'e.g., 8', required: true },
+      { key: 'skillLevel', label: 'What is your current skill level?', type: 'select', options: ['Beginner', 'Intermediate', 'Advanced'], required: true },
+      { key: 'targetAudience', label: 'Who is the target audience?', type: 'text', placeholder: 'e.g., Beginners, Data Science students', required: true },
+      { key: 'moduleCount', label: 'How many modules (approximate)?', type: 'number', placeholder: 'e.g., 8', required: false },
       { key: 'courseFocus', label: 'Primary focus of the course?', type: 'select', options: ['Academic/Theoretical', 'Bootcamp/Practical', 'Corporate Training'], required: true },
-      { key: 'prerequisites', label: 'Any prerequisites needed?', type: 'text', placeholder: 'e.g., Basic JavaScript, High School Math', required: false },
+      { key: 'prerequisites', label: 'Any prerequisites needed?', type: 'text', placeholder: 'e.g., Basic Python, High School Math', required: false },
+      { key: 'goal', label: 'What is the learner\'s goal?', type: 'text', placeholder: 'e.g., Get a job as ML Engineer', required: false },
+      { key: 'learningStyle', label: 'Preferred learning style?', type: 'select', options: ['Visual & Project-based', 'Theoretical & Reading', 'Interactive & Coding'], required: true },
     ],
   },
   {
@@ -75,23 +113,26 @@ const DEFAULT_WIZARD_QUESTION_SETS = [
   },
 ];
 
-// Sync all models and seed defaults
-sequelize.sync().then(async () => {
-  // Seed LLM configs
+// ─── DB sync + seeding ─────────────────────────────────────────────────────────
+// alter: true → adds new columns/tables without dropping existing data.
+// Switch to explicit Alembic/Umzug migrations for production stability.
+sequelize.sync({ alter: true }).then(async () => {
+  // Seed LLM configs on first run
   const llmCount = await LLMConfig.count();
   if (llmCount === 0) {
     const defaultConfigs = [
-      { task_name: 'chat', temperature: 0.5, max_new_tokens: 512, use_chat: true },
+      { task_name: 'chat',      temperature: 0.5, max_new_tokens: 512,  use_chat: true },
       { task_name: 'summarize', temperature: 0.3, max_new_tokens: 1024, use_chat: true },
-      { task_name: 'quiz', temperature: 0.8, max_new_tokens: 2500, top_p: 0.9, top_k: 50, use_chat: true },
-      { task_name: 'rag', temperature: 0.3, max_new_tokens: 768, use_chat: true },
-      { task_name: 'wizard', temperature: 0.6, max_new_tokens: 3000, top_p: 0.9, top_k: 50, use_chat: true },
+      { task_name: 'quiz',      temperature: 0.8, max_new_tokens: 2500, top_p: 0.9, top_k: 50, use_chat: true },
+      { task_name: 'rag',       temperature: 0.3, max_new_tokens: 768,  use_chat: true },
+      // wizard: higher token budget for deep lesson content generation
+      { task_name: 'wizard',    temperature: 0.6, max_new_tokens: 4000, top_p: 0.9, top_k: 50, use_chat: true },
     ];
     await LLMConfig.bulkCreate(defaultConfigs);
     console.log('[SEED] Default LLM configs created.');
   }
 
-  // Seed wizard question sets
+  // Seed wizard question sets on first run
   const wizardCount = await WizardQuestionSet.count();
   if (wizardCount === 0) {
     await WizardQuestionSet.bulkCreate(DEFAULT_WIZARD_QUESTION_SETS);
@@ -99,6 +140,7 @@ sequelize.sync().then(async () => {
   }
 }).catch(console.error);
 
+// ─── Exports ───────────────────────────────────────────────────────────────────
 module.exports = {
   sequelize,
   User,
@@ -110,6 +152,16 @@ module.exports = {
   RAGQueryLog,
   LLMConfig,
   WizardQuestionSet,
+
+  // Legacy wizard models (roadmap / guide / schedule)
   WizardModule,
   WizardResource,
+
+  // New course generation models
+  CoursePhase,
+  CourseModule,
+  CourseLesson,
+  LessonSection,
+  LessonResource,
+  LessonExercise,
 };

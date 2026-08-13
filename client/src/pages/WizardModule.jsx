@@ -322,23 +322,60 @@ const ModuleItem = ({ mod, index }) => {
 /*                            GENERATING STATE                                */
 /* -------------------------------------------------------------------------- */
 
+// Pipeline step labels for the advanced course generation pipeline
+const PIPELINE_STATUS_CONFIG = {
+  generating_blueprint: {
+    emoji: "🏗️",
+    label: "Designing course structure",
+    sub: "The Learning Architect is mapping out phases, modules, and lesson objectives...",
+    step: 1,
+  },
+  generating_evidence: {
+    emoji: "🔍",
+    label: "Researching sources",
+    sub: "Gathering curated references and evidence for each lesson...",
+    step: 2,
+  },
+  generating_lessons: {
+    emoji: "✍️",
+    label: "Writing lesson content",
+    sub: "Generating deep explanations, examples, analogies, code, and exercises...",
+    step: 3,
+  },
+  reviewing_content: {
+    emoji: "🧐",
+    label: "Reviewing for quality",
+    sub: "The Pedagogical Reviewer is checking each lesson for completeness and accuracy...",
+    step: 4,
+  },
+  quality_check: {
+    emoji: "✅",
+    label: "Quality gate",
+    sub: "Validating content, citations, and finalizing your course...",
+    step: 5,
+  },
+  generating: {
+    emoji: "🚀",
+    label: "Starting pipeline",
+    sub: "Initializing multi-agent course generation. This takes 3-10 minutes.",
+    step: 0,
+  },
+};
+
+const PIPELINE_STEPS = [
+  "generating_blueprint",
+  "generating_evidence",
+  "generating_lessons",
+  "reviewing_content",
+  "quality_check",
+];
+
 function GeneratingState({ contentType, isTutor, generatedData }) {
-  const agentic =
-    isTutor && contentType === "Course/Syllabus";
-
-  let statusMessage = "This usually takes a few seconds.";
-
-  if (agentic) {
-    if (generatedData?.status === "generating_planning") {
-      statusMessage = "Your AI agent is planning the course architecture...";
-    } else if (generatedData?.status === "generating_resources") {
-      statusMessage =
-        "Your AI agent is integrating resources and YouTube videos...";
-    } else {
-      statusMessage =
-        "AI agents are structuring your course and finding relevant resources. This may take a few minutes.";
-    }
-  }
+  const isCourse = contentType === "Course/Syllabus";
+  const currentStatus = generatedData?.status || "generating";
+  const statusConfig = PIPELINE_STATUS_CONFIG[currentStatus] || PIPELINE_STATUS_CONFIG.generating;
+  // Dynamic label from webhook (e.g. '✍️ Writing lessons... (3/4 batches done)')
+  const dynamicLabel = generatedData?.content?._status_label || null;
 
   return (
     <motion.div
@@ -348,15 +385,14 @@ function GeneratingState({ contentType, isTutor, generatedData }) {
     >
       <div className="relative mx-auto mb-8 h-24 w-24">
         <div className="absolute inset-0 animate-ping rounded-full bg-blue-100 opacity-60" />
-
-        <div className="relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_20px_60px_-20px_rgba(37,99,235,0.6)]">
-          <Sparkles size={38} />
+        <div className="relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_20px_60px_-20px_rgba(37,99,235,0.6)] text-4xl">
+          {statusConfig.emoji}
         </div>
       </div>
 
       <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-black uppercase tracking-widest text-blue-700">
         <WandSparkles size={13} />
-        AI is working
+        {statusConfig.label}
       </div>
 
       <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
@@ -364,20 +400,55 @@ function GeneratingState({ contentType, isTutor, generatedData }) {
       </h2>
 
       <p className="mx-auto mt-4 max-w-xl text-base font-medium leading-7 text-slate-500 sm:text-lg">
-        {statusMessage}
+        {statusConfig.sub}
       </p>
 
-      <div className="mx-auto mt-9 max-w-md overflow-hidden rounded-full bg-slate-100">
+      {/* Live webhook status label */}
+      {dynamicLabel && dynamicLabel !== statusConfig.sub && (
+        <div className="mx-auto mt-3 max-w-sm rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-xs font-semibold text-blue-700">
+          {dynamicLabel}
+        </div>
+      )}
+
+      {/* Pipeline step progress dots (courses only) */}
+      {isCourse && (
+        <div className="mx-auto mt-6 flex items-center justify-center gap-2">
+          {PIPELINE_STEPS.map((step) => {
+            const currentIdx = PIPELINE_STEPS.indexOf(currentStatus);
+            const stepIdx = PIPELINE_STEPS.indexOf(step);
+            const isDone = stepIdx < currentIdx;
+            const isActive = step === currentStatus;
+            return (
+              <div
+                key={step}
+                title={PIPELINE_STATUS_CONFIG[step]?.label}
+                className={`rounded-full transition-all duration-500 ${
+                  isDone
+                    ? "h-2 w-8 bg-emerald-500"
+                    : isActive
+                    ? "h-2 w-10 bg-blue-500 animate-pulse"
+                    : "h-2 w-3 bg-slate-200"
+                }`}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* Animated progress bar */}
+      <div className="mx-auto mt-6 max-w-md overflow-hidden rounded-full bg-slate-100">
         <motion.div
           className="h-2 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500"
           animate={{ x: ["-100%", "100%"] }}
-          transition={{
-            duration: 1.7,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+          transition={{ duration: 1.7, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
+
+      <p className="mt-5 text-xs font-medium text-slate-400">
+        {isCourse
+          ? "Course generation takes 3–10 minutes. You can leave and come back."
+          : "This usually takes a few seconds."}
+      </p>
     </motion.div>
   );
 }
@@ -760,19 +831,80 @@ export default function WizardModule() {
     }
 
     if (data?.status === "pending_approval") {
+      const isCourse = ["course/syllabus", "course", "syllabus"].includes(
+        (data.content_type || "").toLowerCase().trim()
+      );
+
+      // Course/Syllabus with relational data: show preview + View Course / Publish buttons
+      if (isCourse && data.phases?.length > 0) {
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto max-w-2xl"
+          >
+            <Surface className="overflow-hidden">
+              <div className="border-b border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 px-6 py-10 text-center sm:px-10">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-3xl">
+                  📚
+                </div>
+                <h2 className="text-3xl font-black text-slate-950">
+                  Course Ready for Review
+                </h2>
+                <p className="mx-auto mt-4 max-w-lg text-sm font-medium leading-6 text-slate-500">
+                  Your course <strong>{data.topic}</strong> has been generated with{" "}
+                  <strong>{data.phases.length} phases</strong> and is ready for review.
+                  Open the full course viewer to explore lessons before publishing.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 p-6 sm:flex-row sm:justify-center">
+                {/* View course in full viewer */}
+                <a
+                  href={`/wizard/view/${data.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3.5 font-bold text-slate-700 transition hover:bg-slate-50"
+                >
+                  <ExternalLink size={17} />
+                  Preview Course
+                </a>
+                {/* Publish */}
+                <button
+                  type="button"
+                  disabled={isSubmittingFeedback}
+                  onClick={async () => {
+                    setIsSubmittingFeedback(true);
+                    try {
+                      const res = await publishWizardContent(data.id, []);
+                      setGeneratedData(res);
+                      setMessage("Course published successfully!");
+                    } catch (err) {
+                      setError("Failed to publish course.");
+                    } finally {
+                      setIsSubmittingFeedback(false);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
+                >
+                  <CheckCircle size={17} />
+                  {isSubmittingFeedback ? "Publishing..." : "Publish Course"}
+                </button>
+              </div>
+            </Surface>
+          </motion.div>
+        );
+      }
+
+      // Non-course content: use existing DraftReviewUI
       return (
         <DraftReviewUI
           data={data}
           isSubmitting={isSubmittingFeedback}
           onFeedback={async (fb) => {
             setIsSubmittingFeedback(true);
-
             try {
-              const res =
-                await provideWizardFeedback(data.id, fb);
-
+              const res = await provideWizardFeedback(data.id, fb);
               setGeneratedData(res);
-
               if (res.status === "generating") {
                 setIsLoading(true);
                 startPolling(res.id);
@@ -786,14 +918,8 @@ export default function WizardModule() {
           }}
           onApprove={async (editedModules) => {
             setIsSubmittingFeedback(true);
-
             try {
-              const res =
-                await publishWizardContent(
-                  data.id,
-                  editedModules
-                );
-
+              const res = await publishWizardContent(data.id, editedModules);
               setGeneratedData(res);
               setMessage("Content published successfully!");
             } catch (err) {

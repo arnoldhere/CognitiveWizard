@@ -250,36 +250,47 @@ async def export_roadmap_pdf(request: WizardPdfExportRequest):
 
 
 async def run_agentic_workflow_bg(agent_state: dict):
+    """
+    Background task: run the full 5-stage course generation pipeline.
+    Sends a final webhook to JS server on success or failure.
+    """
     from agents.graphs.course_generation_graph import compiled_course_graph
-    
+
     content_id = agent_state.get("content_id")
     config = {"configurable": {"thread_id": str(content_id)}} if content_id else {}
-    
+
     try:
         final_state = await compiled_course_graph.ainvoke(agent_state, config=config)
-        
+
         if content_id:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 await client.post(
                     f"{settings.JS_SERVER_URL}/internal/wizard-webhook/complete",
-                    json={"content_id": content_id, "data": final_state.get("course_draft", {})}
+                    json={
+                        "content_id": content_id,
+                        "data": final_state.get("course_draft", {}),
+                    },
                 )
     except Exception as e:
         logger.exception("Background agentic generation failed: %s", e)
         if content_id:
             try:
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     await client.post(
                         f"{settings.JS_SERVER_URL}/internal/wizard-webhook/complete",
-                        json={"content_id": content_id, "error": str(e)}
+                        json={"content_id": content_id, "error": str(e)},
                     )
             except Exception as inner_e:
-                logger.error(f"Failed to send error webhook: {inner_e}")
+                logger.error("Failed to send error webhook: %s", inner_e)
+
 
 @router.post("/generate-agentic", response_model=WizardRawResponse)
-async def generate_agentic_content(request: WizardAgenticRequest, background_tasks: BackgroundTasks):
+async def generate_agentic_content(
+    request: WizardAgenticRequest, background_tasks: BackgroundTasks
+):
     """
-    Start the agentic workflow for course/syllabus generation in the background.
+    Start the advanced course generation pipeline in the background.
+    Returns immediately — JS server polls for status via the webhook updates.
     """
     agent_state = {
         "content_id": getattr(request, "content_id", None),
@@ -291,12 +302,24 @@ async def generate_agentic_content(request: WizardAgenticRequest, background_tas
         "learning_style": request.learning_style or "",
         "user_role": request.user_role or "user",
         "feedback": None,
+        # Pipeline stage fields (populated by each node)
+        "course_blueprint": None,
+        "lesson_evidence": None,
+        "generated_lessons": None,
+        "reviewer_results": None,
+        "quality_gate_result": None,
+        # Final output
         "course_draft": {},
+        # Cross-cutting
         "warnings": [],
+        "retry_count": 0,
+        "pipeline_status": "generating",
     }
 
     background_tasks.add_task(run_agentic_workflow_bg, agent_state)
-    return WizardRawResponse(content={"status": "generating_planning"}, warnings=[])
+    return WizardRawResponse(content={"status": "generating"}, warnings=[])
+
+
 
 @router.post("/regenerate-agentic", response_model=WizardRawResponse)
 async def regenerate_agentic_content(request: WizardAgenticRegenerateRequest, background_tasks: BackgroundTasks):

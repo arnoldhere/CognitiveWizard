@@ -180,6 +180,15 @@ export const getWizardContentDetail = async (id) => {
   return res.data;
 };
 
+/**
+ * Fetch full lesson detail — all sections, resources, and exercises.
+ * Called when a learner opens a specific lesson in the CourseViewer.
+ */
+export const getWizardCourseLesson = async (contentId, lessonId) => {
+  const res = await API.get(`/wizard/${contentId}/lesson/${lessonId}`);
+  return res.data;
+};
+
 export const deleteWizardContent = async (id) => {
   const res = await API.delete(`/wizard/${id}`);
   return res.data;
