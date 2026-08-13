@@ -29,8 +29,9 @@ from typing import Dict, Any, List, Optional
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from providers.llm.factory import get_llm_for_task
+from providers.llm.factory import get_llm_for_course_task
 from providers.llm.tasks import TaskType
+from providers.llm.provider_errors import AllProvidersFailedError
 from agents.states.course_agent_state import CourseAgentState
 from schemas.course_generation import LessonReviewSchema
 from utils.json_extractor import extract_json, extract_model_response
@@ -125,7 +126,17 @@ Output ONLY this JSON (no markdown, no extra text):
         "Output ONLY valid JSON."
     )
 
-    llm = get_llm_for_task(TaskType.WIZARD)
+    # ── Acquire LLM from router (provider-agnostic) ─────────────────────────
+    try:
+        llm = await get_llm_for_course_task(TaskType.COURSE_REVIEWER)
+    except AllProvidersFailedError as exc:
+        logger.warning(
+            "[Reviewer] All LLM providers failed for '%s' — defaulting to PASS: %s",
+            lesson_title, exc
+        )
+        # Non-blocking: reviewer failure should not abort the pipeline
+        return {"lesson_title": lesson_title, "passed": True, "issues": [], "suggestions": [], "bloom_levels_covered": []}
+
     messages = [SystemMessage(content=system_msg), HumanMessage(content=review_prompt)]
 
     try:
@@ -158,6 +169,7 @@ Output ONLY this JSON (no markdown, no extra text):
     except Exception as exc:
         logger.warning("[Reviewer] Review failed for '%s' (defaulting to PASS): %s", lesson_title, exc)
         return {"lesson_title": lesson_title, "passed": True, "issues": [], "suggestions": [], "bloom_levels_covered": []}
+
 
 
 def _build_lesson_blueprint_index(blueprint: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:

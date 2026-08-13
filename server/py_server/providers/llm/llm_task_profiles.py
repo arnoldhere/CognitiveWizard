@@ -20,8 +20,8 @@ TASK_PROFILES = {
     },
     "quiz": {
         "temperature": 0.8,
-        "top_p": 0.9,  # more creative, but still somewhat focused
-        "top_k": 50,  # limit to top 50 tokens to reduce randomness while allowing creativity
+        "top_p": 0.9,
+        "top_k": 50,
         "max_new_tokens": 2500,  # quiz JSON is long
         "model_override": settings.QUIZ_GENERATOR_MODEL,
         "use_chat": True,
@@ -30,7 +30,7 @@ TASK_PROFILES = {
     "rag": {
         "top_p": None,
         "top_k": None,
-        "temperature": 0.3,  # factual, grounded — lower than chat
+        "temperature": 0.3,  # factual, grounded
         "max_new_tokens": 768,
         "model_override": None,
         "use_chat": True,
@@ -43,4 +43,46 @@ TASK_PROFILES = {
         "model_override": None,
         "use_chat": True,
     },
+
+    # ── Course generation pipeline task profiles ───────────────────────────
+    # These are used exclusively via LLMRouter (Ollama → HF fallback).
+    # Tuned for deep content generation; larger max_new_tokens than wizard.
+
+    "course_architect": {
+        # Blueprint-only pass: needs structure, moderate creativity
+        "temperature": 0.4,
+        "max_new_tokens": 4096,
+        "top_p": 0.9,
+        "top_k": 40,
+        "model_override": None,
+        "use_chat": True,
+    },
+    "course_lesson": {
+        # Full lesson generation: explanations, code, exercises — needs more tokens
+        "temperature": 0.6,
+        "max_new_tokens": 6144,
+        "top_p": 0.9,
+        "top_k": 50,
+        "model_override": None,
+        "use_chat": True,
+    },
+    "course_reviewer": {
+        # Pedagogical QA: deterministic grader, short output (PASS/FAIL JSON)
+        "temperature": 0.2,
+        "max_new_tokens": 2048,
+        "top_p": None,
+        "top_k": None,
+        "model_override": None,
+        "use_chat": True,
+    },
+    "course_quality": {
+        # Final quality gate: tight, factual validation
+        "temperature": 0.1,
+        "max_new_tokens": 1024,
+        "top_p": None,
+        "top_k": None,
+        "model_override": None,
+        "use_chat": True,
+    },
 }
+

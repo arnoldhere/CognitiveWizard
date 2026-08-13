@@ -23,8 +23,9 @@ from typing import Dict, Any
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from providers.llm.factory import get_llm_for_task
+from providers.llm.factory import get_llm_for_course_task
 from providers.llm.tasks import TaskType
+from providers.llm.provider_errors import AllProvidersFailedError
 from agents.states.course_agent_state import CourseAgentState
 from schemas.course_generation import CourseBlueprintSchema
 from utils.builders.wizard_prompt import build_learning_architect_prompt
@@ -89,7 +90,17 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
         "Adhere strictly to the JSON schema provided. Output no markdown, no prose."
     )
 
-    llm = get_llm_for_task(TaskType.WIZARD)
+    llm = None
+    try:
+        llm = await get_llm_for_course_task(TaskType.COURSE_ARCHITECT)
+    except AllProvidersFailedError as exc:
+        logger.error("[Architect] All LLM providers failed: %s", exc)
+        return {
+            "warnings": state.get("warnings", []) + [f"Architect: all providers failed — {exc}"],
+            "pipeline_status": "error",
+            "course_blueprint": {},
+        }
+
     messages = [SystemMessage(content=system_msg), HumanMessage(content=prompt_text)]
 
     try:
@@ -139,9 +150,10 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
         }
 
     except Exception as exc:
-        logger.exception("[Architect] Unexpected error: %s", exc)
+        logger.exception("[Architect] Unexpected error during LLM invocation: %s", exc)
         return {
             "warnings": state.get("warnings", []) + [f"Architect node error: {exc}"],
             "pipeline_status": "error",
             "course_blueprint": {},
         }
+

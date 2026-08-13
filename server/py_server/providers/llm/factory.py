@@ -60,6 +60,8 @@ def get_task_profile(task_name: str):
 def get_llm_for_task(task: TaskType, provider: str = None):
     """
     Returns a LangChain-compatible LLM configured for the given task.
+    Used by: chat, rag, summarize, quiz, wizard (non-course features).
+    NOT used for course generation — see get_llm_for_course_task().
     """
     profile = get_task_profile(task.value)
     hf_task = "conversational" if task.value == "quiz" else None
@@ -78,3 +80,27 @@ def get_llm_for_task(task: TaskType, provider: str = None):
 @lru_cache(maxsize=8)
 def get_cached_llm(task_value: str, provider: str):
     return get_llm_for_task(TaskType(task_value), provider)
+
+
+async def get_llm_for_course_task(task: TaskType):
+    """
+    Returns a LangChain-compatible LLM for course generation tasks, using
+    the LLMRouter (Ollama → HuggingFace fallback).
+
+    This is the ONLY entry point for course agent nodes. They should NOT
+    call get_llm_for_task() directly — the router handles provider selection,
+    health checks, and fallback logic.
+
+    Args:
+        task: One of COURSE_ARCHITECT, COURSE_LESSON, COURSE_REVIEWER, COURSE_QUALITY
+
+    Returns:
+        A LangChain-compatible LLM object (ChatOllama or ChatHuggingFace)
+
+    Raises:
+        AllProvidersFailedError: If every configured provider is unavailable.
+            Course nodes should catch this and set status='error' in state.
+    """
+    from providers.llm.router import llm_router
+    return await llm_router.select(task)
+

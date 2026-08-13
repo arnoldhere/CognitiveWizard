@@ -26,8 +26,9 @@ from typing import Dict, Any, List, Optional
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from providers.llm.factory import get_llm_for_task
+from providers.llm.factory import get_llm_for_course_task
 from providers.llm.tasks import TaskType
+from providers.llm.provider_errors import AllProvidersFailedError
 from agents.states.course_agent_state import CourseAgentState
 from schemas.course_generation import CourseLessonSchema, EvidenceItemSchema
 from utils.builders.wizard_prompt import build_lesson_content_prompt
@@ -96,7 +97,13 @@ async def _generate_single_lesson(
         "Output ONLY valid JSON matching the exact schema. No markdown, no extra text."
     )
 
-    llm = get_llm_for_task(TaskType.WIZARD)
+    # ── Acquire LLM from router (provider-agnostic) ─────────────────────────
+    try:
+        llm = await get_llm_for_course_task(TaskType.COURSE_LESSON)
+    except AllProvidersFailedError as exc:
+        logger.error("[LessonGen] All LLM providers failed for '%s': %s", lesson_title, exc)
+        return None  # Soft-fail: lesson placeholder will be used; pipeline continues
+
     messages = [SystemMessage(content=system_msg), HumanMessage(content=prompt_text)]
 
     try:
@@ -135,13 +142,13 @@ async def _generate_single_lesson(
                 "[LessonGen] Pydantic validation failed for '%s': %s — using raw",
                 lesson_title, validation_err
             )
-            # Use raw but mark as unvalidated so reviewer can catch issues
             raw_data["_validation_failed"] = True
             return raw_data
 
     except Exception as exc:
         logger.exception("[LessonGen] Error generating lesson '%s': %s", lesson_title, exc)
         return None
+
 
 
 def _collect_all_lessons(blueprint: Dict[str, Any]) -> List[Dict[str, Any]]:

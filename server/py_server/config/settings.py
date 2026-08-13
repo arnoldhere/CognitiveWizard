@@ -107,6 +107,20 @@ class Settings:
     DEF_LLM_PROVIDER: str = os.getenv("DEF_LLM_PROVIDER")
     RAG_EVAL_LLM: str = os.getenv("RAG_EVAL_LLM")
     DEF_EMBEDD_MODEL: str = os.getenv("DEF_EMBEDD_MODEL", "")
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    ANTHROPIC_DEF_MODEL: str = os.getenv("ANTHROPIC_DEF_MODEL", "claude-3-5-sonnet-20241022")
+
+    # ===========
+    # Ollama local provider
+    # ===========
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+    OLLAMA_ENABLED: bool = os.getenv("OLLAMA_ENABLED", "true").lower() in ("true", "1", "yes")
+
+    # Provider order for course generation (comma-separated).
+    # First healthy provider wins. Supported values: ollama, huggingface, openai, anthropic
+    COURSE_PROVIDER_ORDER: str = os.getenv("COURSE_PROVIDER_ORDER", "ollama,huggingface")
+
 
     # ===========
     # AUTH Configs

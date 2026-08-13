@@ -18,27 +18,27 @@
 const { sequelize } = require('../config/db');
 
 // ─── Core models ─────────────────────────────────────────────────────────────
-const User                = require('./User');
-const ChatSession         = require('./ChatSession');
-const WizardContent       = require('./WizardContent');
-const Grade               = require('./Grade');
-const PaymentTransaction  = require('./PaymentTransaction');
-const RAGDocument         = require('./RAGDocument');
-const RAGQueryLog         = require('./RAGLog');
-const LLMConfig           = require('./LLMConfig');
-const WizardQuestionSet   = require('./WizardQuestionSet');
+const User = require('./User');
+const ChatSession = require('./ChatSession');
+const WizardContent = require('./WizardContent');
+const Grade = require('./Grade');
+const PaymentTransaction = require('./PaymentTransaction');
+const RAGDocument = require('./RAGDocument');
+const RAGQueryLog = require('./RAGLog');
+const LLMConfig = require('./LLMConfig');
+const WizardQuestionSet = require('./WizardQuestionSet');
 
 // ─── Legacy Wizard models (kept for Roadmap/Guide/Schedule content types) ────
-const WizardModule        = require('./WizardModule');
-const WizardResource      = require('./WizardResource');
+const WizardModule = require('./WizardModule');
+const WizardResource = require('./WizardResource');
 
 // ─── New Course generation models ─────────────────────────────────────────────
-const CoursePhase         = require('./CoursePhase');
-const CourseModule        = require('./CourseModule');
-const CourseLesson        = require('./CourseLesson');
-const LessonSection       = require('./LessonSection');
-const LessonResource      = require('./LessonResource');
-const LessonExercise      = require('./LessonExercise');
+const CoursePhase = require('./CoursePhase');
+const CourseModule = require('./CourseModule');
+const CourseLesson = require('./CourseLesson');
+const LessonSection = require('./LessonSection');
+const LessonResource = require('./LessonResource');
+const LessonExercise = require('./LessonExercise');
 
 // ─── Cross-model associations ─────────────────────────────────────────────────
 
@@ -121,12 +121,12 @@ sequelize.sync({ alter: true }).then(async () => {
   const llmCount = await LLMConfig.count();
   if (llmCount === 0) {
     const defaultConfigs = [
-      { task_name: 'chat',      temperature: 0.5, max_new_tokens: 512,  use_chat: true },
+      { task_name: 'chat', temperature: 0.5, max_new_tokens: 512, use_chat: true },
       { task_name: 'summarize', temperature: 0.3, max_new_tokens: 1024, use_chat: true },
-      { task_name: 'quiz',      temperature: 0.8, max_new_tokens: 2500, top_p: 0.9, top_k: 50, use_chat: true },
-      { task_name: 'rag',       temperature: 0.3, max_new_tokens: 768,  use_chat: true },
+      { task_name: 'quiz', temperature: 0.8, max_new_tokens: 2500, top_p: 0.9, top_k: 50, use_chat: true },
+      { task_name: 'rag', temperature: 0.3, max_new_tokens: 768, use_chat: true },
       // wizard: higher token budget for deep lesson content generation
-      { task_name: 'wizard',    temperature: 0.6, max_new_tokens: 4000, top_p: 0.9, top_k: 50, use_chat: true },
+      { task_name: 'wizard', temperature: 0.6, max_new_tokens: 4000, top_p: 0.9, top_k: 50, use_chat: true },
     ];
     await LLMConfig.bulkCreate(defaultConfigs);
     console.log('[SEED] Default LLM configs created.');
