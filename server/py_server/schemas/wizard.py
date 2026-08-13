@@ -58,6 +58,7 @@ class WizardPdfExportRequest(BaseModel):
 
 class WizardAgenticRequest(BaseModel):
     content_id: int
+    job_id: str
     topic: str
     content_type: str
     details: Optional[str] = None

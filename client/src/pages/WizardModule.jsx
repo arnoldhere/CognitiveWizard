@@ -23,6 +23,11 @@ import {
   RotateCcw,
   ExternalLink,
   Search,
+  LayoutTemplate,
+  PenTool,
+  ShieldCheck,
+  Rocket,
+  Hourglass,
 } from "lucide-react";
 
 import { useGsapReveal } from "../hooks/useGsapReveal";
@@ -325,44 +330,52 @@ const ModuleItem = ({ mod, index }) => {
 // Pipeline step labels for the advanced course generation pipeline
 const PIPELINE_STATUS_CONFIG = {
   generating_blueprint: {
-    emoji: "🏗️",
+    icon: <LayoutTemplate className="h-10 w-10 text-white" />,
     label: "Designing course structure",
     sub: "The Learning Architect is mapping out phases, modules, and lesson objectives...",
     step: 1,
   },
   generating_evidence: {
-    emoji: "🔍",
+    icon: <Search className="h-10 w-10 text-white" />,
     label: "Researching sources",
     sub: "Gathering curated references and evidence for each lesson...",
     step: 2,
   },
   generating_lessons: {
-    emoji: "✍️",
+    icon: <PenTool className="h-10 w-10 text-white" />,
     label: "Writing lesson content",
     sub: "Generating deep explanations, examples, analogies, code, and exercises...",
     step: 3,
   },
   reviewing_content: {
-    emoji: "🧐",
+    icon: <ShieldCheck className="h-10 w-10 text-white" />,
     label: "Reviewing for quality",
     sub: "The Pedagogical Reviewer is checking each lesson for completeness and accuracy...",
     step: 4,
   },
   quality_check: {
-    emoji: "✅",
+    icon: <CheckSquare className="h-10 w-10 text-white" />,
     label: "Quality gate",
     sub: "Validating content, citations, and finalizing your course...",
     step: 5,
   },
   generating: {
-    emoji: "🚀",
+    icon: <Rocket className="h-10 w-10 text-white" />,
     label: "Starting pipeline",
     sub: "Initializing multi-agent course generation. This takes 3-10 minutes.",
+    step: 1,
+  },
+  queued: {
+    icon: <Hourglass className="h-10 w-10 text-white" />,
+    label: "Queued",
+    sub: "Waiting for a background worker to pick up your job...",
     step: 0,
   },
 };
 
 const PIPELINE_STEPS = [
+  "queued",
+  "generating",
   "generating_blueprint",
   "generating_evidence",
   "generating_lessons",
@@ -372,7 +385,12 @@ const PIPELINE_STEPS = [
 
 function GeneratingState({ contentType, isTutor, generatedData }) {
   const isCourse = contentType === "Course/Syllabus";
-  const currentStatus = generatedData?.status || "generating";
+  
+  let currentStatus = generatedData?.status || "generating";
+  if (currentStatus === "generating" && generatedData?.generation_job?.status === "queued") {
+    currentStatus = "queued";
+  }
+  
   const statusConfig = PIPELINE_STATUS_CONFIG[currentStatus] || PIPELINE_STATUS_CONFIG.generating;
   // Dynamic label from webhook (e.g. '✍️ Writing lessons... (3/4 batches done)')
   const dynamicLabel = generatedData?.content?._status_label || null;
@@ -385,8 +403,8 @@ function GeneratingState({ contentType, isTutor, generatedData }) {
     >
       <div className="relative mx-auto mb-8 h-24 w-24">
         <div className="absolute inset-0 animate-ping rounded-full bg-blue-100 opacity-60" />
-        <div className="relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_20px_60px_-20px_rgba(37,99,235,0.6)] text-4xl">
-          {statusConfig.emoji}
+        <div className="relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-[0_20px_60px_-20px_rgba(37,99,235,0.6)]">
+          {statusConfig.icon}
         </div>
       </div>
 

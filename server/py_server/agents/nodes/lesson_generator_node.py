@@ -55,6 +55,31 @@ async def _send_status_webhook(content_id: int | None, status: str, label: str) 
         logger.warning("Status webhook failed (non-critical): %s", exc)
 
 
+async def _send_incremental_lesson_webhook(content_id: int | None, job_id: str | None, lesson_data: dict, module_context: dict, lesson_idx: int) -> None:
+    """Send an incremental save of a generated lesson to JS server."""
+    if not content_id:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(
+                f"{settings.JS_SERVER_URL}/internal/wizard-webhook/lesson-incremental",
+                json={
+                    "content_id": content_id,
+                    "job_id": job_id,
+                    "lesson_data": lesson_data,
+                    "phase_title": module_context.get("phase_title", ""),
+                    "module_title": module_context.get("module_title", ""),
+                    "sequence_info": {
+                        "phase_seq": module_context.get("phase_idx", 0) + 1,
+                        "module_seq": module_context.get("mod_idx", 0) + 1,
+                        "lesson_seq": lesson_idx + 1
+                    }
+                },
+            )
+    except Exception as exc:
+        logger.warning("Incremental lesson webhook failed: %s", exc)
+
+
 async def _generate_single_lesson(
     lesson_blueprint: Dict[str, Any],
     module_context: Dict[str, str],
@@ -101,7 +126,9 @@ async def _generate_single_lesson(
     try:
         llm = await get_llm_for_course_task(TaskType.COURSE_LESSON)
     except AllProvidersFailedError as exc:
-        logger.error("[LessonGen] All LLM providers failed for '%s': %s", lesson_title, exc)
+        logger.error(
+            "[LessonGen] All LLM providers failed for '%s': %s", lesson_title, exc
+        )
         return None  # Soft-fail: lesson placeholder will be used; pipeline continues
 
     messages = [SystemMessage(content=system_msg), HumanMessage(content=prompt_text)]
@@ -118,7 +145,9 @@ async def _generate_single_lesson(
         success, json_str = extract_json(response_text)
 
         if not success:
-            logger.error("[LessonGen] Failed JSON extraction for lesson='%s'", lesson_title)
+            logger.error(
+                "[LessonGen] Failed JSON extraction for lesson='%s'", lesson_title
+            )
             return None
 
         raw_data = json.loads(json_str)
@@ -135,20 +164,24 @@ async def _generate_single_lesson(
         try:
             lesson = CourseLessonSchema(**raw_data)
             lesson_dict = lesson.model_dump()
-            logger.info("[LessonGen] ✓ Lesson generated + validated: '%s'", lesson_title)
+            logger.info(
+                "[LessonGen] ✓ Lesson generated + validated: '%s'", lesson_title
+            )
             return lesson_dict
         except Exception as validation_err:
             logger.warning(
                 "[LessonGen] Pydantic validation failed for '%s': %s — using raw",
-                lesson_title, validation_err
+                lesson_title,
+                validation_err,
             )
             raw_data["_validation_failed"] = True
             return raw_data
 
     except Exception as exc:
-        logger.exception("[LessonGen] Error generating lesson '%s': %s", lesson_title, exc)
+        logger.exception(
+            "[LessonGen] Error generating lesson '%s': %s", lesson_title, exc
+        )
         return None
-
 
 
 def _collect_all_lessons(blueprint: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -168,12 +201,14 @@ def _collect_all_lessons(blueprint: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "mod_idx": mod_idx,
             }
             for lesson_idx, lesson_bp in enumerate(module.get("lessons", [])):
-                all_lessons.append({
-                    "blueprint": lesson_bp,
-                    "module_context": module_context,
-                    "lesson_idx": lesson_idx,
-                    "path": (phase_idx, mod_idx, lesson_idx),
-                })
+                all_lessons.append(
+                    {
+                        "blueprint": lesson_bp,
+                        "module_context": module_context,
+                        "lesson_idx": lesson_idx,
+                        "path": (phase_idx, mod_idx, lesson_idx),
+                    }
+                )
     return all_lessons
 
 
@@ -203,18 +238,21 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
             "pipeline_status": "error",
             "warnings": state.get("warnings", []) + ["Lesson generator: no blueprint."],
         }
+    job_id = state.get("job_id")
 
     all_lesson_tasks = _collect_all_lessons(blueprint)
     total = len(all_lesson_tasks)
     logger.info(
         "[LessonGen] Generating %d lessons (batch=%d, retry=%d)",
-        total, _LESSON_BATCH_SIZE, retry_count
+        total,
+        _LESSON_BATCH_SIZE,
+        retry_count,
     )
 
     await _send_status_webhook(
         content_id,
         status="generating_lessons",
-        label=f"✍️ Writing content for {total} lessons..."
+        label=f"✍️ Writing content for {total} lessons...",
     )
 
     learner_profile = {
@@ -224,7 +262,9 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
     }
 
     # If this is a retry, preserve lessons that already passed reviewer
-    existing_lessons: List[Optional[Dict]] = state.get("generated_lessons") or [None] * total
+    existing_lessons: List[Optional[Dict]] = (
+        state.get("generated_lessons") or [None] * total
+    )
     generated_lessons: List[Optional[Dict]] = list(existing_lessons)
 
     # Determine which lessons need (re)generation
@@ -244,7 +284,7 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
 
     # Process in batches
     for batch_start in range(0, len(tasks_to_run), _LESSON_BATCH_SIZE):
-        batch = tasks_to_run[batch_start: batch_start + _LESSON_BATCH_SIZE]
+        batch = tasks_to_run[batch_start : batch_start + _LESSON_BATCH_SIZE]
 
         coroutines = [
             _generate_single_lesson(
@@ -274,19 +314,29 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
                 }
             else:
                 generated_lessons[list_idx] = result
+                # Send incremental save for successfully generated lesson
+                asyncio.create_task(_send_incremental_lesson_webhook(
+                    content_id=content_id,
+                    job_id=job_id,
+                    lesson_data=result,
+                    module_context=task["module_context"],
+                    lesson_idx=task["lesson_idx"]
+                ))
 
         batch_num = batch_start // _LESSON_BATCH_SIZE + 1
-        total_batches = (len(tasks_to_run) + _LESSON_BATCH_SIZE - 1) // _LESSON_BATCH_SIZE
+        total_batches = (
+            len(tasks_to_run) + _LESSON_BATCH_SIZE - 1
+        ) // _LESSON_BATCH_SIZE
         await _send_status_webhook(
             content_id,
             status="generating_lessons",
-            label=f"✍️ Writing lessons... ({batch_num}/{total_batches} batches done)"
+            label=f"✍️ Writing lessons... ({batch_num}/{total_batches} batches done)",
         )
 
     logger.info(
         "[LessonGen] Done. %d/%d lessons generated successfully.",
         sum(1 for l in generated_lessons if l and not l.get("_generation_failed")),
-        total
+        total,
     )
 
     return {

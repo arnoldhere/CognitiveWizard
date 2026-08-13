@@ -81,13 +81,17 @@ def _validate_lesson(
         issues.append(f"'{title}': has < {_MIN_SECTIONS_PER_LESSON} sections")
 
     # Content check: at least one explanation with meaningful content
-    explanation_sections = [s for s in sections if s.get("section_type") == "explanation"]
+    explanation_sections = [
+        s for s in sections if s.get("section_type") == "explanation"
+    ]
     if not explanation_sections:
         issues.append(f"'{title}': missing explanation section")
     else:
         word_count = len((explanation_sections[0].get("body") or "").split())
         if word_count < _MIN_EXPLANATION_WORDS:
-            issues.append(f"'{title}': explanation too short ({word_count} words, min {_MIN_EXPLANATION_WORDS})")
+            issues.append(
+                f"'{title}': explanation too short ({word_count} words, min {_MIN_EXPLANATION_WORDS})"
+            )
 
     # Citation check: at least 1 resource
     if not lesson.get("resources"):
@@ -97,7 +101,7 @@ def _validate_lesson(
 
 
 def _build_lesson_index(
-    generated_lessons: List[Optional[Dict[str, Any]]]
+    generated_lessons: List[Optional[Dict[str, Any]]],
 ) -> Dict[str, Dict[str, Any]]:
     """Index generated lessons by title for O(1) lookup during assembly."""
     index = {}
@@ -133,39 +137,47 @@ def _assemble_course_package(
                         lessons_full.append(lesson_obj)
                     except Exception:
                         # Best-effort: build a minimal valid lesson
-                        lessons_full.append(CourseLessonSchema(
-                            title=lesson_title,
-                            overview=generated.get("overview", ""),
-                            sections=generated.get("sections", []),
-                            exercises=generated.get("exercises", []),
-                            resources=generated.get("resources", []),
-                        ))
+                        lessons_full.append(
+                            CourseLessonSchema(
+                                title=lesson_title,
+                                overview=generated.get("overview", ""),
+                                sections=generated.get("sections", []),
+                                exercises=generated.get("exercises", []),
+                                resources=generated.get("resources", []),
+                            )
+                        )
                 else:
                     # Placeholder for failed lesson — keeps course structure intact
-                    lessons_full.append(CourseLessonSchema(
-                        title=lesson_title,
-                        overview="This lesson content is being prepared.",
-                        sections=[],
-                        exercises=[],
-                        resources=[],
-                    ))
+                    lessons_full.append(
+                        CourseLessonSchema(
+                            title=lesson_title,
+                            overview="This lesson content is being prepared.",
+                            sections=[],
+                            exercises=[],
+                            resources=[],
+                        )
+                    )
 
-            modules_full.append(CourseModuleFullSchema(
-                title=module.get("title", ""),
-                description=module.get("description", ""),
-                difficulty=module.get("difficulty", "beginner"),
-                estimated_time=module.get("estimated_time", "2 hours"),
-                learning_objectives=module.get("learning_objectives", []),
-                key_takeaways=module.get("key_takeaways", []),
-                lessons=lessons_full,
-            ))
+            modules_full.append(
+                CourseModuleFullSchema(
+                    title=module.get("title", ""),
+                    description=module.get("description", ""),
+                    difficulty=module.get("difficulty", "beginner"),
+                    estimated_time=module.get("estimated_time", "2 hours"),
+                    learning_objectives=module.get("learning_objectives", []),
+                    key_takeaways=module.get("key_takeaways", []),
+                    lessons=lessons_full,
+                )
+            )
 
-        phases_full.append(CoursePhaseFullSchema(
-            title=phase.get("title", ""),
-            description=phase.get("description", ""),
-            estimated_duration=phase.get("estimated_duration", "2 weeks"),
-            modules=modules_full,
-        ))
+        phases_full.append(
+            CoursePhaseFullSchema(
+                title=phase.get("title", ""),
+                description=phase.get("description", ""),
+                estimated_duration=phase.get("estimated_duration", "2 weeks"),
+                modules=modules_full,
+            )
+        )
 
     return CoursePackageSchema(
         content_type="course",
@@ -199,12 +211,14 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
     reviewer_results = state.get("reviewer_results", {}) or {}
     warnings = list(state.get("warnings", []))
 
-    logger.info("[QualityGate] Running quality checks on %d lessons", len(generated_lessons))
+    logger.info(
+        "[QualityGate] Running quality checks on %d lessons", len(generated_lessons)
+    )
 
     await _send_status_webhook(
         content_id,
         status="quality_check",
-        label="✅ Running quality checks and finalizing..."
+        label="✅ Running quality checks and finalizing...",
     )
 
     # ── Validate each lesson ───────────────────────────────────────────────────
@@ -221,13 +235,18 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
             lessons_failed += 1
             for issue in issues:
                 # Critical: generation completely failed
-                if "_generation_failed" in issue.lower() or "completely failed" in issue.lower():
+                if (
+                    "_generation_failed" in issue.lower()
+                    or "completely failed" in issue.lower()
+                ):
                     critical_issues.append(issue)
                 else:
                     gate_warnings.append(issue)
 
     total_lessons = len(generated_lessons)
-    quality_passed = lessons_failed == 0 or (lessons_passed / max(total_lessons, 1)) >= 0.7
+    quality_passed = (
+        lessons_failed == 0 or (lessons_passed / max(total_lessons, 1)) >= 0.7
+    )
 
     quality_result = QualityGateResultSchema(
         passed=quality_passed,
@@ -242,7 +261,9 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
 
     logger.info(
         "[QualityGate] Result: passed=%s, lessons=%d/%d valid",
-        quality_result.passed, lessons_passed, total_lessons
+        quality_result.passed,
+        lessons_passed,
+        total_lessons,
     )
 
     # ── Hard block: no valid lessons at all ───────────────────────────────────
@@ -250,7 +271,10 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
         logger.error("[QualityGate] 0 valid lessons — cannot publish this course")
         return {
             "quality_gate_result": quality_result.model_dump(),
-            "course_draft": {"error": "No valid lessons were generated", "type": "course"},
+            "course_draft": {
+                "error": "No valid lessons were generated",
+                "type": "course",
+            },
             "pipeline_status": "error",
             "warnings": warnings + ["Quality Gate: 0 valid lessons — course aborted"],
         }
@@ -258,7 +282,9 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
     # ── Assemble the final course package ────────────────────────────────────
     lesson_index = _build_lesson_index(generated_lessons)
     try:
-        package = _assemble_course_package(blueprint, lesson_index, quality_result, warnings)
+        package = _assemble_course_package(
+            blueprint, lesson_index, quality_result, warnings
+        )
         course_draft = package.model_dump()
     except Exception as exc:
         logger.exception("[QualityGate] Course assembly failed: %s", exc)

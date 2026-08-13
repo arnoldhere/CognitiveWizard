@@ -87,7 +87,7 @@ def generate_quiz(
         logger.debug("Sending request to model...")
 
         # Use factory pattern for task-specific text-generation configuration
-        llm = get_llm_for_task(TaskType.QUIZ, provider="huggingface")
+        llm = get_llm_for_task(TaskType.QUIZ)
 
         prompt_text = (
             "You are an AI quiz generator. Generate ONLY valid JSON. "

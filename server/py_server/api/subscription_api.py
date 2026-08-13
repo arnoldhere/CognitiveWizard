@@ -11,15 +11,17 @@ Note: subscription state (activate/cancel) is managed by the Express gateway
 (js_server) which owns the Users MySQL table.
 """
 
-from fastapi import APIRouter, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 import hmac
 import hashlib
-import os
-import requests
-from datetime import datetime
+import httpx
+import base64
 import logging
-
+from datetime import datetime
+from schemas.subscription_schema import *
+from config.settings import settings
 from utils.email_utils import send_subscription_expiry_email
 
 logger = logging.getLogger(__name__)
@@ -52,36 +54,6 @@ SUBSCRIPTION_PLANS = {
     },
 }
 
-# ─── Pydantic models ─────────────────────────────────────────────────────────
-
-
-class SubscriptionPlan(BaseModel):
-    id: str
-    name: str
-    amount_inr: int
-    daily_chat_limit: int
-    description: str
-
-
-class SubscriptionOrderRequest(BaseModel):
-    plan: str
-
-
-class SubscriptionOrderResponse(BaseModel):
-    order_id: str
-    amount: int
-    currency: str
-
-
-class VerifySignatureRequest(BaseModel):
-    razorpay_order_id: str
-    razorpay_payment_id: str
-    razorpay_signature: str
-
-
-class VerifySignatureResponse(BaseModel):
-    valid: bool
-
 
 class ExpiryNotifyRequest(BaseModel):
     """Payload sent from js_server when triggering expiry reminder emails."""
@@ -103,7 +75,7 @@ def list_subscription_plans():
 
 
 @router.post("/order-raw", response_model=SubscriptionOrderResponse)
-def create_subscription_order_raw(request: SubscriptionOrderRequest):
+async def create_subscription_order_raw(request: SubscriptionOrderRequest):
     """
     Create a Razorpay payment order for the given plan.
     Called by js_server after authentication.
@@ -113,12 +85,20 @@ def create_subscription_order_raw(request: SubscriptionOrderRequest):
         if not plan_data:
             raise ValueError(f"Invalid plan ID: {request.plan}")
 
-        api_key = os.environ.get("RAZORPAY_KEY_ID", "")
-        api_secret = os.environ.get("RAZORPAY_KEY_SECRET", "")
+        api_key = settings.RAZORPAY_KEY_ID
+        api_secret = settings.RAZORPAY_KEY_SECRET
+
+        if not api_key or not api_secret:
+            raise HTTPException(
+                status_code=500, detail="Razorpay credentials not configured"
+            )
 
         # Amount in paise (INR × 100)
         amount = int(plan_data["amount_inr"] * 100)
         receipt = f"subscription_{request.plan}_{int(datetime.utcnow().timestamp())}"
+
+        auth_string = f"{api_key}:{api_secret}"
+        encoded_auth = base64.b64encode(auth_string.encode()).decode()
 
         payload = {
             "amount": amount,
@@ -127,12 +107,16 @@ def create_subscription_order_raw(request: SubscriptionOrderRequest):
             "payment_capture": 1,
         }
 
-        response = requests.post(
-            os.environ.get("RAZORPAY_ORDER_URL", "https://api.razorpay.com/v1/orders"),
-            auth=(api_key, api_secret),
-            json=payload,
-            timeout=15,
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                settings.RAZORPAY_ORDER_URL or "https://api.razorpay.com/v1/orders",
+                headers={
+                    "Authorization": f"Basic {encoded_auth}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=15,
+            )
         response.raise_for_status()
         order = response.json()
 
@@ -159,7 +143,11 @@ def verify_signature(request: VerifySignatureRequest):
     Verify a Razorpay payment signature using HMAC-SHA256.
     Returns {valid: true} if the signature matches, {valid: false} otherwise.
     """
-    secret = os.environ.get("RAZORPAY_KEY_SECRET", "")
+    secret = settings.RAZORPAY_KEY_SECRET
+    if not secret:
+        raise HTTPException(
+            status_code=500, detail="Razorpay secret not configured on server"
+        )
     message = f"{request.razorpay_order_id}|{request.razorpay_payment_id}"
     generated_signature = hmac.new(
         secret.encode("utf-8"),

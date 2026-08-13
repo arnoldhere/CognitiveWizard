@@ -62,6 +62,10 @@ class Settings:
     REDIS_PORT: int = os.getenv("REDIS_PORT", 6379)
     REDIS_DB_INDEX: int = os.getenv("REDIS_DB_INDEX", 0)
 
+    @property
+    def REDIS_URL(self):
+        return os.getenv("REDIS_URL", f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB_INDEX}")
+
     # ===========
     # Middlewares & Authentication configurations
     # ===========

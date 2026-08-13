@@ -99,8 +99,15 @@ builder.add_conditional_edges(
 
 builder.add_edge("quality_gate", END)
 
-# Compile with in-memory checkpointing (keyed by content_id thread_id)
-memory = MemorySaver()
-compiled_course_graph = builder.compile(checkpointer=memory)
+def get_compiled_course_graph(checkpointer=None):
+    """
+    Returns the compiled course generation graph, optionally with a checkpointer
+    (e.g., AsyncRedisSaver) for durable state persistence across runs.
+    """
+    graph = builder.compile(checkpointer=checkpointer)
+    logger.info("[Graph] Advanced course generation graph compiled successfully.")
+    return graph
 
-logger.info("[Graph] Advanced course generation graph compiled successfully.")
+# For backward compatibility (if any other part uses it synchronously)
+compiled_course_graph = get_compiled_course_graph(MemorySaver())
+

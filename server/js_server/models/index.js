@@ -39,8 +39,10 @@ const CourseLesson = require('./CourseLesson');
 const LessonSection = require('./LessonSection');
 const LessonResource = require('./LessonResource');
 const LessonExercise = require('./LessonExercise');
+const GenerationJob = require('./GenerationJob');
 
 // ─── Cross-model associations ─────────────────────────────────────────────────
+
 
 // User relationships
 User.hasMany(Grade, { foreignKey: 'user_id', as: 'grades' });
@@ -152,11 +154,9 @@ module.exports = {
   RAGQueryLog,
   LLMConfig,
   WizardQuestionSet,
-
   // Legacy wizard models (roadmap / guide / schedule)
   WizardModule,
   WizardResource,
-
   // New course generation models
   CoursePhase,
   CourseModule,
@@ -164,4 +164,6 @@ module.exports = {
   LessonSection,
   LessonResource,
   LessonExercise,
+  GenerationJob,
 };
+

@@ -23,6 +23,7 @@ import CourseViewer from "../components/wizard/CourseViewer";
 import {
   Clock, CheckSquare, ChevronDown, ChevronUp, AlertCircle,
   Loader, Sparkles, BookOpen, GraduationCap,
+  LayoutTemplate, Search, PenTool, ShieldCheck, Settings, Rocket, Hourglass
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -36,39 +37,44 @@ const isGenerating = (status) =>
 // ── Status label map for dynamic messages ─────────────────────────────────────
 const STATUS_MESSAGES = {
   generating_blueprint: {
-    icon: "🏗️",
+    icon: <LayoutTemplate className="h-10 w-10 text-white" />,
     title: "Designing your course structure",
     sub: "The Learning Architect is mapping out phases, modules, and lessons...",
   },
   generating_evidence: {
-    icon: "🔍",
+    icon: <Search className="h-10 w-10 text-white" />,
     title: "Researching sources",
     sub: "Gathering curated references and evidence for each lesson...",
   },
   generating_lessons: {
-    icon: "✍️",
+    icon: <PenTool className="h-10 w-10 text-white" />,
     title: "Writing lesson content",
     sub: "Generating deep explanations, examples, analogies, and exercises...",
   },
   reviewing_content: {
-    icon: "🧐",
+    icon: <ShieldCheck className="h-10 w-10 text-white" />,
     title: "Reviewing for quality",
     sub: "Checking each lesson against pedagogical standards...",
   },
   quality_check: {
-    icon: "✅",
+    icon: <CheckSquare className="h-10 w-10 text-white" />,
     title: "Running quality checks",
     sub: "Validating content and finalizing your course...",
   },
   processing: {
-    icon: "⚙️",
+    icon: <Settings className="h-10 w-10 text-white" />,
     title: "Processing",
     sub: "Setting up your course generation pipeline...",
   },
   generating: {
-    icon: "🚀",
+    icon: <Rocket className="h-10 w-10 text-white" />,
     title: "Starting generation",
     sub: "Initializing the multi-agent course pipeline...",
+  },
+  queued: {
+    icon: <Hourglass className="h-10 w-10 text-white" />,
+    title: "Queued",
+    sub: "Waiting for a background worker to pick up your job...",
   },
 };
 
@@ -81,7 +87,7 @@ function GeneratingState({ status, statusLabel }) {
       {/* Pulsing icon */}
       <div className="relative">
         <div className="absolute inset-0 animate-ping rounded-full bg-blue-100 opacity-60" />
-        <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-3xl shadow-lg shadow-blue-200">
+        <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-200">
           {msg.icon}
         </div>
       </div>
@@ -100,9 +106,9 @@ function GeneratingState({ status, statusLabel }) {
 
       {/* Generation steps progress */}
       <div className="flex items-center gap-2">
-        {["generating_blueprint", "generating_evidence", "generating_lessons", "reviewing_content", "quality_check"].map(
+        {["queued", "generating", "generating_blueprint", "generating_evidence", "generating_lessons", "reviewing_content", "quality_check"].map(
           (step, i) => {
-            const steps = Object.keys(STATUS_MESSAGES).slice(0, 5);
+            const steps = ["queued", "generating", "generating_blueprint", "generating_evidence", "generating_lessons", "reviewing_content", "quality_check"];
             const currentIdx = steps.indexOf(status);
             const stepIdx = steps.indexOf(step);
             const isDone = stepIdx < currentIdx;
@@ -274,10 +280,13 @@ export default function WizardContentView() {
   if (!data) return null;
 
   const type = (data.content_type || "").toLowerCase().trim();
-  const status = data.status || "";
+  let status = data.status || "";
+  if (status === "generating" && data.generation_job?.status === "queued") {
+    status = "queued";
+  }
 
-  // ── Generating (any type) ──
-  if (isGenerating(status)) {
+  // ── Show Loading / Generating ───────────────────────────────────────────────
+  if (isGenerating(status) || status === "queued") {
     const statusLabel = data.content?._status_label || null;
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

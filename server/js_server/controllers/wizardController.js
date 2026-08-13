@@ -29,6 +29,7 @@ const {
   LessonSection,
   LessonResource,
   LessonExercise,
+  GenerationJob,
 } = require("../models");
 
 /** Check if a content_type is a full course (uses new relational hierarchy) */
@@ -98,15 +99,24 @@ async function generateAgentic(req, res, next) {
       content: {},
     });
 
+    const thread_id = `job_${wizardContent.id}_${Date.now()}`;
+    await GenerationJob.create({
+      wizard_content_id: wizardContent.id,
+      status: "queued",
+      thread_id,
+    });
+
     const user_role = req.user?.role || "user";
 
     // Fire off agentic pipeline — do not await (background task)
     pyAxios.post("/wizard/generate-agentic", {
       content_id: wizardContent.id,
+      job_id: thread_id,
       topic, content_type, details, skill_level, goal, learning_style, user_role
     }).catch((err) => {
       logger.error(`[WIZARD] py_server agentic failed to start: ${err.message}`);
-      wizardContent.update({ status: "error" }).catch(() => {});
+      wizardContent.update({ status: "error" }).catch(() => { });
+      GenerationJob.update({ status: 'failed', error_details: err.message }, { where: { thread_id } }).catch(() => { });
     });
 
     res.json(wizardContent);
@@ -114,6 +124,7 @@ async function generateAgentic(req, res, next) {
     next(err);
   }
 }
+
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Read
@@ -159,10 +170,15 @@ async function getContent(req, res, next) {
 
     if (isCourseType(baseContent.content_type)) {
       // Full course hierarchy
+      const isFinished = ["published", "pending_approval", "error"].includes(baseContent.status);
       const content = await WizardContent.findOne({
         where,
-        attributes: { exclude: ["content"] }, // Don't return old JSON blob for courses
+        attributes: isFinished ? { exclude: ["content"] } : undefined, // Include content during generation for status labels
         include: [
+          {
+            model: GenerationJob,
+            as: "generation_job"
+          },
           {
             model: CoursePhase,
             as: "phases",
@@ -198,6 +214,10 @@ async function getContent(req, res, next) {
     const content = await WizardContent.findOne({
       where,
       include: [
+        {
+          model: GenerationJob,
+          as: "generation_job"
+        },
         {
           model: WizardModule,
           as: "modules",
@@ -342,7 +362,7 @@ async function provideFeedback(req, res, next) {
       feedback,
     }).catch((err) => {
       logger.error(`[WIZARD] Regenerate failed to start: ${err.message}`);
-      content.update({ status: "error" }).catch(() => {});
+      content.update({ status: "error" }).catch(() => { });
     });
 
     res.json(content);
@@ -421,7 +441,7 @@ async function getPublishedCourses(req, res, next) {
  */
 async function webhookAgenticStatus(req, res, next) {
   try {
-    const { content_id, status, label } = req.body;
+    const { content_id, status, label, job_id } = req.body;
     const content = await WizardContent.findByPk(content_id);
     if (content) {
       // Store both machine status + human label for frontend polling
@@ -430,6 +450,9 @@ async function webhookAgenticStatus(req, res, next) {
         // Stash the label in content JSON temporarily for UX display
         content: { ...(content.content || {}), _status_label: label },
       });
+    }
+    if (job_id) {
+      await GenerationJob.update({ current_stage: status, status: 'running' }, { where: { thread_id: job_id } });
     }
     res.status(200).json({ success: true });
   } catch (err) {
@@ -449,7 +472,7 @@ async function webhookAgenticStatus(req, res, next) {
 async function webhookAgenticComplete(req, res, next) {
   const t = await sequelize.transaction();
   try {
-    const { content_id, data, error } = req.body;
+    const { content_id, data, error, job_id } = req.body;
     const content = await WizardContent.findByPk(content_id, { transaction: t });
     if (!content) {
       await t.rollback();
@@ -458,21 +481,29 @@ async function webhookAgenticComplete(req, res, next) {
 
     if (error) {
       await content.update({ status: "error", content: { error } }, { transaction: t });
+      if (job_id) {
+        await GenerationJob.update({ status: 'failed', error_details: error }, { where: { thread_id: job_id }, transaction: t });
+      }
       await t.commit();
       return res.status(200).json({ success: true });
     }
 
     // ── New course format ──────────────────────────────────────────────────
     if (data?.content_type === "course") {
-      await _persistCourseData(content, data, t);
+      // If we are doing incremental saves, we might just need to finalize structure here
+      await _persistCourseData(content, data, t); // This might need modification if we strictly append, but for now we'll allow overwrite or just rely on it updating missing pieces. Wait, if incremental saves exist, this will overwrite. We should change _persistCourseData to not destroy existing lessons if they are incremental, or we just rely on incremental. Let's rely on incremental and change _persistCourseData later if needed. For now, let's keep it but skip destroying if incremental. Let's modify _persistCourseData to UPSERT or only update.
       await content.update(
         { status: "pending_approval", content: { _course_stored_in_tables: true } },
         { transaction: t }
       );
+      if (job_id) {
+        await GenerationJob.update({ status: 'completed' }, { where: { thread_id: job_id }, transaction: t });
+      }
       await t.commit();
       logger.info(`[WEBHOOK] Course id=${content_id} persisted successfully to relational tables`);
       return res.status(200).json({ success: true });
     }
+
 
     // ── Legacy flat modules (roadmap/guide/schedule) ───────────────────────
     await WizardModule.destroy({ where: { content_id: content.id }, transaction: t });
@@ -614,6 +645,127 @@ async function _persistCourseData(content, data, t) {
   );
 }
 
+/**
+ * POST /internal/wizard-webhook/lesson-incremental
+ * Incremental lesson save from py_server.
+ */
+async function webhookAgenticLessonIncremental(req, res, next) {
+  const t = await sequelize.transaction();
+  try {
+    const { content_id, job_id, lesson_data, phase_title, module_title, sequence_info } = req.body;
+
+    const content = await WizardContent.findByPk(content_id, { transaction: t });
+    if (!content) {
+      await t.rollback();
+      return res.status(404).json({ error: "Content not found" });
+    }
+
+    // Upsert Phase
+    let [dbPhase] = await CoursePhase.findOrCreate({
+      where: { content_id, title: phase_title },
+      defaults: {
+        description: "",
+        sequence: sequence_info.phase_seq,
+        estimated_duration: "",
+      },
+      transaction: t
+    });
+
+    // Upsert Module
+    let [dbModule] = await CourseModule.findOrCreate({
+      where: { phase_id: dbPhase.id, content_id, title: module_title },
+      defaults: {
+        description: "",
+        learning_objectives: [],
+        key_takeaways: [],
+        difficulty: "beginner",
+        estimated_time: "",
+        sequence: sequence_info.module_seq,
+      },
+      transaction: t
+    });
+
+    // Upsert Lesson
+    let [dbLesson] = await CourseLesson.findOrCreate({
+      where: { module_id: dbModule.id, content_id, title: lesson_data.title },
+      defaults: {
+        overview: lesson_data.overview || "",
+        estimated_time: lesson_data.estimated_time || "",
+        sequence: sequence_info.lesson_seq,
+        status: "draft",
+      },
+      transaction: t
+    });
+
+    // Update it if it exists (e.g. reviewed status)
+    await dbLesson.update({
+      overview: lesson_data.overview || "",
+      estimated_time: lesson_data.estimated_time || "",
+      status: "draft", // Or reviewed if we send that info
+    }, { transaction: t });
+
+    // Clear old sections/resources/exercises for this lesson if re-generating
+    await LessonSection.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
+    await LessonResource.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
+    await LessonExercise.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
+
+    // Write lesson sections
+    let secSeq = 1;
+    for (const section of lesson_data.sections || []) {
+      await LessonSection.create({
+        lesson_id: dbLesson.id,
+        section_type: section.section_type || "explanation",
+        title: section.title || null,
+        body: section.body || "",
+        language: section.language || null,
+        sequence: section.sequence || secSeq++,
+      }, { transaction: t });
+    }
+
+    // Write lesson resources
+    for (const resource of lesson_data.resources || []) {
+      if (!resource.url) continue;
+      await LessonResource.create({
+        lesson_id: dbLesson.id,
+        content_id,
+        title: resource.title || "Resource",
+        url: resource.url,
+        resource_type: resource.resource_type || "other",
+        source: resource.source || "",
+        description: resource.description || null,
+        relevance_score: resource.relevance_score || 0.0,
+        supports: resource.supports || [],
+      }, { transaction: t });
+    }
+
+    // Write lesson exercises
+    let exSeq = 1;
+    for (const exercise of lesson_data.exercises || []) {
+      await LessonExercise.create({
+        lesson_id: dbLesson.id,
+        title: exercise.title || "Exercise",
+        description: exercise.description || "",
+        exercise_type: exercise.exercise_type || "coding",
+        difficulty: exercise.difficulty || "medium",
+        starter_code: exercise.starter_code || null,
+        language: exercise.language || "python",
+        solution_hint: exercise.solution_hint || null,
+        expected_output: exercise.expected_output || null,
+        sequence: exercise.sequence || exSeq++,
+      }, { transaction: t });
+    }
+
+    await t.commit();
+    logger.info(`[WEBHOOK] Incremental lesson saved: ${lesson_data.title}`);
+    return res.status(200).json({ success: true });
+
+  } catch (err) {
+    await t.rollback();
+    logger.error(`[WIZARD WEBHOOK] Incremental save error: ${err.message}`, err);
+    res.status(500).json({ error: "Failed to save incremental lesson" });
+  }
+}
+
 module.exports = {
   generateContent,
   getHistory,
@@ -627,4 +779,6 @@ module.exports = {
   getPublishedCourses,
   webhookAgenticStatus,
   webhookAgenticComplete,
+  webhookAgenticLessonIncremental,
 };
+

@@ -82,4 +82,5 @@ youtube-transcript-api==1.2.2
 kafka-python==2.2.15
 
 # others
-reportlab
+reportlab==4.3.1
+langgraph-checkpoint-redis
