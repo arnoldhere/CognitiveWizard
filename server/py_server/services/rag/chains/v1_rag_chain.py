@@ -51,9 +51,6 @@ def _format_docs(docs: List[Any]) -> str:
     )
 
 
-format_docs = _format_docs
-
-
 def _extract_query(x: Any) -> str:
     return x.get("input", x) if isinstance(x, dict) else str(x)
 
@@ -61,42 +58,6 @@ def _extract_query(x: Any) -> str:
 def _extract_history(x: Any) -> list:
     history = x.get("chat_history", []) if isinstance(x, dict) else []
     return history if isinstance(history, list) else []
-
-
-def build_v1_rag_chain(
-    retriever,
-    prompt: Optional[PromptTemplate] = None,
-    provider: Optional[str] = None,
-):
-    """
-    Minimal RAG chain — query in, answer string out.
-
-    Args:
-        retriever : any LangChain-compatible retriever
-        prompt    : optional override (defaults to RAG_PROMPT)
-        provider  : optional provider override e.g. "openai", "anthropic"
-
-    Returns:
-        Runnable: accepts {"input": str, "chat_history": list} or plain str
-    """
-    llm = _get_default_llm(provider)
-    prompt = prompt or RAG_PROMPT
-
-    chain = (
-        {
-            # retriever.invoke() — not deprecated get_relevant_documents()
-            "context": RunnableLambda(_extract_query)
-            | retriever
-            | RunnableLambda(_format_docs),
-            "input": RunnableLambda(_extract_query),
-            "chat_history": RunnableLambda(_extract_history),
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-
-    return chain
 
 
 def build_retrieval_qa_chain(
