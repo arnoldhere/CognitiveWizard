@@ -27,7 +27,6 @@ import logging
 from typing import Literal
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 
 from agents.states.course_agent_state import CourseAgentState
 from agents.nodes.learning_architect_node import learning_architect_node
@@ -109,5 +108,5 @@ def get_compiled_course_graph(checkpointer=None):
     return graph
 
 # For backward compatibility (if any other part uses it synchronously)
-compiled_course_graph = get_compiled_course_graph(MemorySaver())
+compiled_course_graph = get_compiled_course_graph(None)
 

@@ -38,7 +38,7 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 # Max concurrent lesson generation tasks (balance speed vs rate limits)
-_LESSON_BATCH_SIZE = 3
+_LESSON_BATCH_SIZE = 1
 
 
 async def _send_status_webhook(content_id: int | None, status: str, label: str) -> None:
@@ -82,11 +82,12 @@ async def _send_incremental_lesson_webhook(content_id: int | None, job_id: str |
 
 async def _generate_single_lesson(
     lesson_blueprint: Dict[str, Any],
-    module_context: Dict[str, str],
+    module_context: Dict[str, Any],
     evidence: List[Dict[str, Any]],
-    learner_profile: Dict[str, str],
-    reviewer_suggestions: Optional[List[str]] = None,
-) -> Optional[Dict[str, Any]]:
+    learner_profile: Dict[str, Any],
+    reviewer_suggestions: List[str] | None,
+    job_id: str,
+) -> Dict[str, Any] | None:
     """
     Generate full content for a single lesson.
 
@@ -127,7 +128,7 @@ async def _generate_single_lesson(
         llm = await get_llm_for_course_task(TaskType.COURSE_LESSON)
     except AllProvidersFailedError as exc:
         logger.error(
-            "[LessonGen] All LLM providers failed for '%s': %s", lesson_title, exc
+            "[LessonGen|%s] All LLM providers failed for '%s': %s", job_id, lesson_title, exc
         )
         return None  # Soft-fail: lesson placeholder will be used; pipeline continues
 
@@ -146,7 +147,7 @@ async def _generate_single_lesson(
 
         if not success:
             logger.error(
-                "[LessonGen] Failed JSON extraction for lesson='%s'", lesson_title
+                "[LessonGen|%s] Failed JSON extraction for lesson='%s'", job_id, lesson_title
             )
             return None
 
@@ -165,12 +166,13 @@ async def _generate_single_lesson(
             lesson = CourseLessonSchema(**raw_data)
             lesson_dict = lesson.model_dump()
             logger.info(
-                "[LessonGen] ✓ Lesson generated + validated: '%s'", lesson_title
+                "[LessonGen|%s] ✓ Lesson generated + validated: '%s'", job_id, lesson_title
             )
             return lesson_dict
         except Exception as validation_err:
             logger.warning(
-                "[LessonGen] Pydantic validation failed for '%s': %s — using raw",
+                "[LessonGen|%s] Pydantic validation failed for '%s': %s — using raw",
+                job_id,
                 lesson_title,
                 validation_err,
             )
@@ -179,7 +181,7 @@ async def _generate_single_lesson(
 
     except Exception as exc:
         logger.exception(
-            "[LessonGen] Error generating lesson '%s': %s", lesson_title, exc
+            "[LessonGen|%s] Error generating lesson '%s': %s", job_id, lesson_title, exc
         )
         return None
 
@@ -230,20 +232,21 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
     lesson_evidence = state.get("lesson_evidence", {})
     reviewer_results = state.get("reviewer_results", {})  # populated on retry
     retry_count = state.get("retry_count", 0)
+    job_id = state.get("job_id", "unknown")
 
     if not blueprint:
-        logger.error("[LessonGen] No blueprint — cannot generate lessons")
+        logger.error("[LessonGen|%s] No blueprint — cannot generate lessons", job_id)
         return {
             "generated_lessons": [],
             "pipeline_status": "error",
             "warnings": state.get("warnings", []) + ["Lesson generator: no blueprint."],
         }
-    job_id = state.get("job_id")
 
     all_lesson_tasks = _collect_all_lessons(blueprint)
     total = len(all_lesson_tasks)
     logger.info(
-        "[LessonGen] Generating %d lessons (batch=%d, retry=%d)",
+        "[LessonGen|%s] Generating %d lessons (batch=%d, retry=%d)",
+        job_id,
         total,
         _LESSON_BATCH_SIZE,
         retry_count,
@@ -293,11 +296,14 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
                 evidence=lesson_evidence.get(task["blueprint"].get("title", ""), []),
                 learner_profile=learner_profile,
                 reviewer_suggestions=suggestions if retry_count > 0 else None,
+                job_id=job_id,
             )
             for _, task, suggestions in batch
         ]
 
         results = await asyncio.gather(*coroutines, return_exceptions=False)
+        
+        webhook_tasks = []
 
         for (list_idx, task, _), result in zip(batch, results):
             lesson_title = task["blueprint"].get("title", "?")
@@ -314,14 +320,19 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
                 }
             else:
                 generated_lessons[list_idx] = result
-                # Send incremental save for successfully generated lesson
-                asyncio.create_task(_send_incremental_lesson_webhook(
-                    content_id=content_id,
-                    job_id=job_id,
-                    lesson_data=result,
-                    module_context=task["module_context"],
-                    lesson_idx=task["lesson_idx"]
-                ))
+                # Queue incremental save for successfully generated lesson
+                webhook_tasks.append(
+                    _send_incremental_lesson_webhook(
+                        content_id=content_id,
+                        job_id=job_id,
+                        lesson_data=result,
+                        module_context=task["module_context"],
+                        lesson_idx=task["lesson_idx"]
+                    )
+                )
+
+        if webhook_tasks:
+            await asyncio.gather(*webhook_tasks, return_exceptions=True)
 
         batch_num = batch_start // _LESSON_BATCH_SIZE + 1
         total_batches = (
@@ -334,7 +345,8 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
         )
 
     logger.info(
-        "[LessonGen] Done. %d/%d lessons generated successfully.",
+        "[LessonGen|%s] Done. %d/%d lessons generated successfully.",
+        job_id,
         sum(1 for l in generated_lessons if l and not l.get("_generation_failed")),
         total,
     )

@@ -5,8 +5,8 @@ gunicorn==23.0.0
 python-multipart==0.0.20
 
 # Task Queue
-celery==5.5.3
 redis==6.2.0
+celery==5.4.0
 
 # Environment
 python-dotenv==1.1.1

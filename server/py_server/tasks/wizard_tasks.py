@@ -1,11 +1,10 @@
 import asyncio
 import httpx
-from core.celery_app import celery_app
 from agents.graphs.course_generation_graph import get_compiled_course_graph
 from agents.states.course_agent_state import CourseAgentState
-
 from langgraph.checkpoint.redis import AsyncRedisSaver
 from config.settings import settings
+from core.celery_app import celery_app
 
 redis_url = settings.REDIS_URL
 js_server_url = settings.JS_SERVER_URL
@@ -41,10 +40,19 @@ async def _run_agentic_workflow_async(
             }
         }
 
+        # If the graph was already started (and crashed), aget_state will show it.
+        # ainvoke with the exact thread_id will resume it from the checkpoint natively.
+        state = await graph.aget_state(config)
+        if state.next:
+            print(
+                f"Resuming interrupted course generation: {job_id} (Next: {state.next})"
+            )
+            return await graph.ainvoke(None, config)
+
         return await graph.ainvoke(initial_state, config)
 
 
-@celery_app.task(bind=True, name="tasks.wizard_tasks.run_agentic_workflow_task")
+@celery_app.task(bind=True, name="wizard.generate_course")
 def run_agentic_workflow_task(
     self,
     content_id: int,
@@ -59,11 +67,11 @@ def run_agentic_workflow_task(
 ):
     """
     Celery task that orchestrates the durable LangGraph pipeline.
-    If the graph crashes, the checkpointer (RedisSaver) will have saved the state,
+    If the worker crashes, acks_late=True ensures it is picked up again.
+    The checkpointer (AsyncRedisSaver) will have saved the state,
     and upon restarting the task with the same `job_id`, it will resume where it left off.
     """
 
-    # Initialize the input state
     initial_state = CourseAgentState(
         topic=topic,
         content_id=content_id,
@@ -80,17 +88,19 @@ def run_agentic_workflow_task(
         pipeline_status="generating",
     )
 
-    try:
-        final_state = asyncio.run(_run_agentic_workflow_async(initial_state, job_id))
-        asyncio.run(
-            _send_complete_webhook(
+    async def _runner():
+        try:
+            final_state = await _run_agentic_workflow_async(initial_state, job_id)
+            await _send_complete_webhook(
                 content_id, job_id, data=final_state.get("course_draft", {})
             )
-        )
-        return {"status": "success", "content_id": content_id}
-    except Exception as e:
-        import traceback
+            return {"status": "success", "content_id": content_id}
+        except Exception as e:
+            import traceback
 
-        traceback.print_exc()
-        asyncio.run(_send_complete_webhook(content_id, job_id, error=str(e)))
-        raise e
+            traceback.print_exc()
+            await _send_complete_webhook(content_id, job_id, error=str(e))
+            raise e
+
+    # Run the async graph synchronously since celery workers run synchronous by default
+    return asyncio.run(_runner())

@@ -15,10 +15,8 @@ import asyncio
 import logging
 from collections import defaultdict
 from typing import Any, Dict, List
-from fastapi import APIRouter, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response
-import httpx
-from config.settings import settings
 from agents.graphs.refr_retr_graph import compiled_reference_graph
 from schemas.wizard import *
 from services.wizard_service import generate_wizard_content
@@ -252,11 +250,11 @@ async def export_roadmap_pdf(request: WizardPdfExportRequest):
 @router.post("/generate-agentic", response_model=WizardRawResponse)
 async def generate_agentic_content(request: WizardAgenticRequest):
     """
-    Start the advanced course generation pipeline via Celery worker.
+    Start the advanced course generation pipeline via FastAPI native BackgroundTasks.
     Returns immediately — JS server polls for status via the webhook updates.
     """
     from tasks.wizard_tasks import run_agentic_workflow_task
-    
+
     run_agentic_workflow_task.delay(
         content_id=request.content_id,
         job_id=request.job_id,
@@ -266,24 +264,24 @@ async def generate_agentic_content(request: WizardAgenticRequest):
         skill_level=request.skill_level or "",
         goal=request.goal or "",
         learning_style=request.learning_style or "",
-        user_role=request.user_role or "user"
+        user_role=request.user_role or "user",
     )
 
     return WizardRawResponse(content={"status": "generating"}, warnings=[])
 
 
-
 @router.post("/regenerate-agentic", response_model=WizardRawResponse)
 async def regenerate_agentic_content(request: WizardAgenticRegenerateRequest):
     """
-    Regenerate course draft based on tutor feedback via Celery worker.
+    Regenerate course draft based on tutor feedback via native background task.
     """
     # Note: We need a job_id for regenerate as well if we want it to be durable.
     # We can default to generating a new job_id or expect one. Let's just create a transient one for now or add job_id to the schema later.
     from tasks.wizard_tasks import run_agentic_workflow_task
     import time
+
     job_id = f"regen_{request.content_id}_{int(time.time())}"
-    
+
     run_agentic_workflow_task.delay(
         content_id=request.content_id,
         job_id=job_id,

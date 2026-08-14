@@ -33,7 +33,7 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 # How many lessons to research in parallel per batch
-_BATCH_SIZE = 5
+_BATCH_SIZE = 10
 
 
 async def _send_status_webhook(content_id: int | None, status: str, label: str) -> None:
@@ -79,6 +79,7 @@ async def _fetch_lesson_evidence(
     lesson_info: Dict[str, str],
     skill_level: str,
     goal: str,
+    job_id: str,
 ) -> tuple[str, List[Dict[str, Any]]]:
     """
     Fetch references for a single lesson.
@@ -97,15 +98,15 @@ async def _fetch_lesson_evidence(
         result = await reference_retriever.fetch_references(query_input)
         resources = [r.model_dump() for r in result.resources]
         logger.info(
-            "[Research] Lesson '%s': fetched %d resources",
-            lesson_title, len(resources)
+            "[Research|%s] Lesson '%s': fetched %d resources",
+            job_id, lesson_title, len(resources)
         )
         return lesson_title, resources
 
     except Exception as exc:
         logger.warning(
-            "[Research] Failed to fetch evidence for lesson '%s': %s",
-            lesson_title, exc
+            "[Research|%s] Failed to fetch evidence for lesson '%s': %s",
+            job_id, lesson_title, exc
         )
         return lesson_title, []  # Soft fail — lesson still gets generated
 
@@ -124,9 +125,10 @@ async def research_agent_node(state: CourseAgentState) -> Dict[str, Any]:
     """
     content_id = state.get("content_id")
     blueprint = state.get("course_blueprint", {})
+    job_id = state.get("job_id", "unknown")
 
     if not blueprint:
-        logger.warning("[Research] No blueprint in state — skipping evidence gathering")
+        logger.warning("[Research|%s] No blueprint in state — skipping evidence gathering", job_id)
         return {
             "lesson_evidence": {},
             "pipeline_status": "generating_evidence",
@@ -135,7 +137,7 @@ async def research_agent_node(state: CourseAgentState) -> Dict[str, Any]:
 
     all_lessons = _extract_lesson_titles(blueprint)
     total = len(all_lessons)
-    logger.info("[Research] Gathering evidence for %d lessons (batch_size=%d)", total, _BATCH_SIZE)
+    logger.info("[Research|%s] Gathering evidence for %d lessons (batch_size=%d)", job_id, total, _BATCH_SIZE)
 
     await _send_status_webhook(
         content_id,
@@ -153,7 +155,7 @@ async def research_agent_node(state: CourseAgentState) -> Dict[str, Any]:
         batch = all_lessons[batch_start: batch_start + _BATCH_SIZE]
 
         tasks = [
-            _fetch_lesson_evidence(lesson_info, skill_level, goal)
+            _fetch_lesson_evidence(lesson_info, skill_level, goal, job_id)
             for lesson_info in batch
         ]
 
@@ -163,12 +165,12 @@ async def research_agent_node(state: CourseAgentState) -> Dict[str, Any]:
             evidence_map[lesson_title] = resources
 
         logger.info(
-            "[Research] Batch %d/%d complete",
+            "[Research|%s] Evidence gathered %d/%d...", job_id,
             min(batch_start + _BATCH_SIZE, total), total
         )
 
     logger.info(
-        "[Research] Evidence gathering complete. %d lessons with resources.",
+        "[Research|%s] Completed gathering evidence for %d lessons.", job_id,
         sum(1 for v in evidence_map.values() if v)
     )
 

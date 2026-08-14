@@ -59,7 +59,8 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
       - warnings: any non-fatal issues
     """
     content_id = state.get("content_id")
-    logger.info("[Architect] Building blueprint for topic=%s", state.get("topic"))
+    job_id = state.get("job_id", "unknown")
+    logger.info("[Architect|%s] Building blueprint for topic=%s", job_id, state.get("topic"))
 
     await _send_status_webhook(
         content_id,
@@ -94,7 +95,7 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
     try:
         llm = await get_llm_for_course_task(TaskType.COURSE_ARCHITECT)
     except AllProvidersFailedError as exc:
-        logger.error("[Architect] All LLM providers failed: %s", exc)
+        logger.error("[Architect|%s] All LLM providers failed: %s", job_id, exc)
         return {
             "warnings": state.get("warnings", []) + [f"Architect: all providers failed — {exc}"],
             "pipeline_status": "error",
@@ -118,7 +119,7 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
         success, json_str = extract_json(response_text)
 
         if not success:
-            logger.error("[Architect] Failed to extract JSON from LLM response")
+            logger.error("[Architect|%s] Failed to extract JSON from LLM response", job_id)
             return {
                 "warnings": state.get("warnings", [])
                 + ["Architect node: failed to extract blueprint JSON."],
@@ -132,13 +133,15 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
             blueprint = CourseBlueprintSchema(**raw_data)
             validated_data = blueprint.model_dump()
             logger.info(
-                "[Architect] Blueprint validated: %d phases, topic=%s",
+                "[Architect|%s] Blueprint validated: %d phases, topic=%s",
+                job_id,
                 len(blueprint.phases),
                 state["topic"],
             )
         except Exception as validation_err:
             logger.warning(
-                "[Architect] Blueprint validation failed (using raw): %s",
+                "[Architect|%s] Blueprint validation failed (using raw): %s",
+                job_id,
                 validation_err,
             )
             # Use raw data but warn — downstream nodes are more resilient
@@ -150,7 +153,7 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
         }
 
     except Exception as exc:
-        logger.exception("[Architect] Unexpected error during LLM invocation: %s", exc)
+        logger.exception("[Architect|%s] Unexpected error during LLM invocation: %s", job_id, exc)
         return {
             "warnings": state.get("warnings", []) + [f"Architect node error: {exc}"],
             "pipeline_status": "error",

@@ -210,9 +210,10 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
     generated_lessons = state.get("generated_lessons", []) or []
     reviewer_results = state.get("reviewer_results", {}) or {}
     warnings = list(state.get("warnings", []))
+    job_id = state.get("job_id", "unknown")
 
     logger.info(
-        "[QualityGate] Running quality checks on %d lessons", len(generated_lessons)
+        "[QualityGate|%s] Running quality checks on %d lessons", job_id, len(generated_lessons)
     )
 
     await _send_status_webhook(
@@ -260,15 +261,16 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
     warnings.extend(gate_warnings)
 
     logger.info(
-        "[QualityGate] Result: passed=%s, lessons=%d/%d valid",
-        quality_result.passed,
+        "[QualityGate|%s] Quality pass=%s. Passed: %d/%d",
+        job_id,
+        quality_passed,
         lessons_passed,
         total_lessons,
     )
 
     # ── Hard block: no valid lessons at all ───────────────────────────────────
     if lessons_passed == 0 and total_lessons > 0:
-        logger.error("[QualityGate] 0 valid lessons — cannot publish this course")
+        logger.error("[QualityGate|%s] 0 valid lessons — cannot publish this course", job_id)
         return {
             "quality_gate_result": quality_result.model_dump(),
             "course_draft": {
@@ -287,15 +289,17 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
         )
         course_draft = package.model_dump()
     except Exception as exc:
-        logger.exception("[QualityGate] Course assembly failed: %s", exc)
-        course_draft = {
-            "type": "course",
+        logger.exception("[QualityGate|%s] Course assembly failed: %s", job_id, exc)
+        return {
+            "pipeline_status": "error",
             "error": f"Assembly failed: {exc}",
             "raw_blueprint": blueprint,
         }
-        warnings.append(f"Quality Gate: course assembly failed: {exc}")
 
-    logger.info("[QualityGate] Course package assembled. Sending to JS server.")
+    logger.info("[QualityGate|%s] Course package assembled. Sending to JS server.", job_id)
+    await _send_complete_webhook(
+        content_id=content_id, job_id=job_id, course_draft=course_draft
+    )
 
     return {
         "course_draft": course_draft,

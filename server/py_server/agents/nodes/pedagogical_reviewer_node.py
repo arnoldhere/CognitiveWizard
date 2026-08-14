@@ -39,7 +39,7 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-_REVIEW_BATCH_SIZE = 5
+_REVIEW_BATCH_SIZE = 2
 _MAX_RETRY_COUNT = 2
 
 # Pedagogical checklist from AgentResponsibilities.md
@@ -83,6 +83,7 @@ async def _send_status_webhook(content_id: int | None, status: str, label: str) 
 async def _review_single_lesson(
     lesson: Dict[str, Any],
     blueprint_lesson: Dict[str, Any],
+    job_id: str,
 ) -> Dict[str, Any]:
     """
     Review a single lesson against the pedagogical checklist.
@@ -131,8 +132,8 @@ Output ONLY this JSON (no markdown, no extra text):
         llm = await get_llm_for_course_task(TaskType.COURSE_REVIEWER)
     except AllProvidersFailedError as exc:
         logger.warning(
-            "[Reviewer] All LLM providers failed for '%s' — defaulting to PASS: %s",
-            lesson_title, exc
+            "[Reviewer|%s] All LLM providers failed for '%s' — defaulting to PASS: %s",
+            job_id, lesson_title, exc
         )
         # Non-blocking: reviewer failure should not abort the pipeline
         return {"lesson_title": lesson_title, "passed": True, "issues": [], "suggestions": [], "bloom_levels_covered": []}
@@ -151,7 +152,7 @@ Output ONLY this JSON (no markdown, no extra text):
         success, json_str = extract_json(response_text)
 
         if not success:
-            logger.warning("[Reviewer] JSON extraction failed for '%s' — defaulting to PASS", lesson_title)
+            logger.warning("[Reviewer|%s] JSON extraction failed for '%s' — defaulting to PASS", job_id, lesson_title)
             return {"lesson_title": lesson_title, "passed": True, "issues": [], "suggestions": [], "bloom_levels_covered": []}
 
         raw = json.loads(json_str)
@@ -159,15 +160,14 @@ Output ONLY this JSON (no markdown, no extra text):
         # Validate with Pydantic
         try:
             review = LessonReviewSchema(**raw)
-            result = review.model_dump()
-            status = "✓ PASS" if review.passed else "✗ FAIL"
-            logger.info("[Reviewer] %s lesson='%s' issues=%d", status, lesson_title, len(review.issues))
-            return result
+            status = "✓ PASSED" if review.passed else "✗ REJECTED"
+            logger.info("[Reviewer|%s] %s lesson='%s' issues=%d", job_id, status, lesson_title, len(review.issues))
+            return review.model_dump()
         except Exception:
             return raw  # Use raw if Pydantic fails
 
     except Exception as exc:
-        logger.warning("[Reviewer] Review failed for '%s' (defaulting to PASS): %s", lesson_title, exc)
+        logger.warning("[Reviewer|%s] Review failed for '%s' (defaulting to PASS): %s", job_id, lesson_title, exc)
         return {"lesson_title": lesson_title, "passed": True, "issues": [], "suggestions": [], "bloom_levels_covered": []}
 
 
@@ -201,13 +201,20 @@ async def pedagogical_reviewer_node(state: CourseAgentState) -> Dict[str, Any]:
     generated_lessons = state.get("generated_lessons", []) or []
     blueprint = state.get("course_blueprint", {})
     retry_count = state.get("retry_count", 0)
+    job_id = state.get("job_id", "unknown")
 
-    if not generated_lessons:
-        logger.warning("[Reviewer] No lessons to review — skipping")
-        return {"reviewer_results": {}, "pipeline_status": "reviewing_content"}
+    # Filter out empty placeholders from failed generations
+    valid_lessons = [l for l in generated_lessons if l and not l.get("_generation_failed")]
 
-    total = len(generated_lessons)
-    logger.info("[Reviewer] Reviewing %d lessons (retry=%d)", total, retry_count)
+    if not valid_lessons:
+        logger.warning("[Reviewer|%s] No lessons to review — skipping", job_id)
+        return {
+            "pipeline_status": "error",
+            "warnings": list(state.get("warnings", [])) + ["Reviewer: No valid lessons found to review."]
+        }
+
+    total = len(valid_lessons)
+    logger.info("[Reviewer|%s] Reviewing %d lessons (retry=%d)", job_id, total, retry_count)
 
     await _send_status_webhook(
         content_id,
@@ -217,7 +224,7 @@ async def pedagogical_reviewer_node(state: CourseAgentState) -> Dict[str, Any]:
 
     # If max retries reached: skip review and pass everything through
     if retry_count >= _MAX_RETRY_COUNT:
-        logger.warning("[Reviewer] Max retries reached — passing all lessons to quality gate")
+        logger.warning("[Reviewer|%s] Max retries reached — passing all lessons to quality gate", job_id)
         forced_results = {
             (l.get("title", f"lesson_{i}") if l else f"lesson_{i}"): {
                 "lesson_title": l.get("title", "") if l else "",
@@ -226,20 +233,19 @@ async def pedagogical_reviewer_node(state: CourseAgentState) -> Dict[str, Any]:
                 "suggestions": [],
                 "bloom_levels_covered": [],
             }
-            for i, l in enumerate(generated_lessons)
+            for i, l in enumerate(valid_lessons)
         }
         return {
             "reviewer_results": forced_results,
-            "pipeline_status": "reviewing_content",
+            "pipeline_status": "quality_gate",
             "warnings": state.get("warnings", []) + ["Reviewer: max retries reached — forced pass on all lessons"],
         }
 
     blueprint_index = _build_lesson_blueprint_index(blueprint)
-    reviewer_results: Dict[str, Any] = {}
+    current_results: Dict[str, Any] = {}
     warnings = list(state.get("warnings", []))
 
     # Review in parallel batches
-    valid_lessons = [(i, l) for i, l in enumerate(generated_lessons) if l]
     for batch_start in range(0, len(valid_lessons), _REVIEW_BATCH_SIZE):
         batch = valid_lessons[batch_start: batch_start + _REVIEW_BATCH_SIZE]
 
@@ -247,40 +253,40 @@ async def pedagogical_reviewer_node(state: CourseAgentState) -> Dict[str, Any]:
             _review_single_lesson(
                 lesson=lesson,
                 blueprint_lesson=blueprint_index.get(lesson.get("title", ""), {}),
+                job_id=job_id
             )
-            for _, lesson in batch
+            for lesson in batch
         ]
 
         results = await asyncio.gather(*coroutines, return_exceptions=False)
 
-        for (_, lesson), review in zip(batch, results):
+        for lesson, review in zip(batch, results):
             title = lesson.get("title", "unknown")
-            reviewer_results[title] = review
+            current_results[title] = review
 
-    # Count failures
-    failed_titles = [
-        title for title, review in reviewer_results.items()
-        if not review.get("passed", True)
-    ]
-    failure_count = len(failed_titles)
+    # Check for failures
+    any_failed = any(not r.get("passed", True) for r in current_results.values())
 
-    if failure_count > 0 and retry_count < _MAX_RETRY_COUNT:
+    if any_failed:
         logger.info(
-            "[Reviewer] %d lessons failed review — scheduling retry %d",
-            failure_count, retry_count + 1
+            "[Reviewer|%s] ✗ %d/%d lessons failed review. Routing back to generator (retry %d).",
+            job_id,
+            sum(1 for r in current_results.values() if not r.get("passed")),
+            total,
+            retry_count + 1,
         )
-        warnings.append(f"Reviewer: {failure_count} lessons need regeneration (retry {retry_count + 1})")
+        warnings.append(f"Reviewer: lessons need regeneration (retry {retry_count + 1})")
         return {
-            "reviewer_results": reviewer_results,
+            "reviewer_results": current_results,
             "retry_count": retry_count + 1,
             "pipeline_status": "reviewing_content",
             "warnings": warnings,
         }
 
-    logger.info("[Reviewer] All lessons passed (or max retries). Proceeding to quality gate.")
+    logger.info("[Reviewer|%s] All lessons passed (or max retries). Proceeding to quality gate.", job_id)
     return {
-        "reviewer_results": reviewer_results,
+        "reviewer_results": current_results,
         "retry_count": retry_count,
-        "pipeline_status": "reviewing_content",
+        "pipeline_status": "quality_gate",
         "warnings": warnings,
     }
