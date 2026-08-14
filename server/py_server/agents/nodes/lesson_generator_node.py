@@ -55,26 +55,30 @@ async def _send_status_webhook(content_id: int | None, status: str, label: str) 
         logger.warning("Status webhook failed (non-critical): %s", exc)
 
 
-async def _send_incremental_lesson_webhook(content_id: int | None, job_id: str | None, lesson_data: dict, module_context: dict, lesson_idx: int) -> None:
+async def _send_incremental_lesson_webhook(content_id: int | None, job_id: str | None, lesson_data: dict, module_context: dict, lesson_idx: int, state_cache: dict = None) -> None:
     """Send an incremental save of a generated lesson to JS server."""
     if not content_id:
         return
     try:
+        payload = {
+            "content_id": content_id,
+            "job_id": job_id,
+            "lesson_data": lesson_data,
+            "phase_title": module_context.get("phase_title", ""),
+            "module_title": module_context.get("module_title", ""),
+            "sequence_info": {
+                "phase_seq": module_context.get("phase_idx", 0) + 1,
+                "module_seq": module_context.get("mod_idx", 0) + 1,
+                "lesson_seq": lesson_idx + 1
+            }
+        }
+        if state_cache:
+            payload["state_cache"] = state_cache
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             await client.post(
                 f"{settings.JS_SERVER_URL}/internal/wizard-webhook/lesson-incremental",
-                json={
-                    "content_id": content_id,
-                    "job_id": job_id,
-                    "lesson_data": lesson_data,
-                    "phase_title": module_context.get("phase_title", ""),
-                    "module_title": module_context.get("module_title", ""),
-                    "sequence_info": {
-                        "phase_seq": module_context.get("phase_idx", 0) + 1,
-                        "module_seq": module_context.get("mod_idx", 0) + 1,
-                        "lesson_seq": lesson_idx + 1
-                    }
-                },
+                json=payload,
             )
     except Exception as exc:
         logger.warning("Incremental lesson webhook failed: %s", exc)
@@ -281,6 +285,11 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
         if retry_count > 0 and already_passed:
             continue
 
+        # Skip lessons that were successfully generated on a previous run (resume from MySQL state)
+        if retry_count == 0 and len(existing_lessons) > i and existing_lessons[i] is not None:
+            logger.info("[LessonGen|%s] Found existing generation for '%s' (Resume). Skipping.", job_id, lesson_title)
+            continue
+
         tasks_to_run.append((i, task, review.get("suggestions", [])))
 
     warnings = list(state.get("warnings", []))
@@ -321,13 +330,18 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
             else:
                 generated_lessons[list_idx] = result
                 # Queue incremental save for successfully generated lesson
+                state_cache = {
+                    "course_blueprint": blueprint,
+                    "generated_lessons": generated_lessons
+                }
                 webhook_tasks.append(
                     _send_incremental_lesson_webhook(
                         content_id=content_id,
                         job_id=job_id,
                         lesson_data=result,
                         module_context=task["module_context"],
-                        lesson_idx=task["lesson_idx"]
+                        lesson_idx=task["lesson_idx"],
+                        state_cache=state_cache
                     )
                 )
 

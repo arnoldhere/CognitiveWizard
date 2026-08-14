@@ -35,15 +35,21 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 
-async def _send_status_webhook(content_id: int | None, status: str, label: str) -> None:
+async def _send_status_webhook(content_id: int | None, job_id: str | None, status: str, label: str, state_cache: dict = None) -> None:
     """Fire-and-forget status webhook to JS server for real-time UX updates."""
     if not content_id:
         return
     try:
+        payload = {"content_id": content_id, "status": status, "label": label}
+        if job_id:
+            payload["job_id"] = job_id
+        if state_cache:
+            payload["state_cache"] = state_cache
+
         async with httpx.AsyncClient(timeout=5.0) as client:
             await client.post(
                 f"{settings.JS_SERVER_URL}/internal/wizard-webhook/status",
-                json={"content_id": content_id, "status": status, "label": label},
+                json=payload,
             )
     except Exception as exc:
         logger.warning("Status webhook failed (non-critical): %s", exc)
@@ -62,8 +68,22 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
     job_id = state.get("job_id", "unknown")
     logger.info("[Architect|%s] Building blueprint for topic=%s", job_id, state.get("topic"))
 
+    if state.get("pipeline_status") == "resuming" and state.get("course_blueprint"):
+        logger.info("[Architect|%s] Found existing blueprint during resume. Skipping generation.", job_id)
+        # Just notify the webhook so UI knows we are running
+        await _send_status_webhook(
+            content_id,
+            job_id,
+            status="generating_blueprint",
+            label="🏗️ Resuming course generation...",
+        )
+        return {
+            "pipeline_status": "generating_evidence",
+        }
+
     await _send_status_webhook(
         content_id,
+        job_id,
         status="generating_blueprint",
         label="🏗️ Designing your course structure...",
     )
@@ -147,9 +167,16 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
             # Use raw data but warn — downstream nodes are more resilient
             validated_data = raw_data
 
+        # Cache state into MySQL for crash resilience
+        state_cache = {
+            "course_blueprint": validated_data,
+            "generated_lessons": []
+        }
+        await _send_status_webhook(content_id, job_id, "blueprint_ready", "✅ Blueprint ready", state_cache)
+
         return {
             "course_blueprint": validated_data,
-            "pipeline_status": "generating_blueprint",
+            "pipeline_status": "generating_evidence",
         }
 
     except Exception as exc:

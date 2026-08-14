@@ -66,8 +66,8 @@ async def startup_event():
     await _validate_langgraph_redis(settings.REDIS_URL)
 
     # Auto-resume any interrupted agentic workflows
-    # from tasks.wizard_tasks import resume_incomplete_workflows
-    # import asyncio
-    # asyncio.create_task(resume_incomplete_workflows())
+    from tasks.wizard_tasks import resume_incomplete_workflows
+    import asyncio
+    asyncio.create_task(resume_incomplete_workflows())
 
     logger.info("FastAPI startup complete")

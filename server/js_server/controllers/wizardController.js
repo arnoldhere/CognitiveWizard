@@ -18,6 +18,7 @@
 const { pyAxios } = require("../utils/apiProxy");
 const logger = require("../utils/logger");
 const { sequelize } = require("../config/db");
+const { Op } = require("sequelize");
 const {
   WizardContent,
   WizardModule,
@@ -441,14 +442,17 @@ async function getPublishedCourses(req, res, next) {
  */
 async function webhookAgenticStatus(req, res, next) {
   try {
-    const { content_id, status, label, job_id } = req.body;
+    const { content_id, status, label, job_id, state_cache } = req.body;
     const content = await WizardContent.findByPk(content_id);
     if (content) {
       // Store both machine status + human label for frontend polling
+      const updatedContent = { ...(content.content || {}), _status_label: label };
+      if (state_cache) {
+        updatedContent.langgraph_state = state_cache;
+      }
       await content.update({
         status,
-        // Stash the label in content JSON temporarily for UX display
-        content: { ...(content.content || {}), _status_label: label },
+        content: updatedContent,
       });
     }
     if (job_id) {
@@ -458,6 +462,40 @@ async function webhookAgenticStatus(req, res, next) {
   } catch (err) {
     logger.error(`[WIZARD WEBHOOK] Status update error: ${err.message}`);
     res.status(500).json({ error: "Failed to update status" });
+  }
+}
+
+/**
+ * GET /internal/wizard-webhook/incomplete
+ * Retrieves jobs that were abandoned mid-generation (e.g. server crash).
+ */
+async function getIncompleteGenerations(req, res, next) {
+  try {
+    const jobs = await GenerationJob.findAll({
+      where: { status: { [Op.in]: ['queued', 'running'] } },
+      include: [{ model: WizardContent, as: 'wizard_content' }]
+    });
+
+    const result = jobs.map(j => {
+      const wc = j.wizard_content;
+      return {
+        content_id: wc.id,
+        job_id: j.thread_id,
+        topic: wc.topic,
+        content_type: wc.content_type,
+        details: wc.details,
+        skill_level: wc.skill_level,
+        goal: wc.goal,
+        learning_style: wc.learning_style,
+        user_role: wc.user_role,
+        state_cache: wc.content?.langgraph_state || null
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    logger.error(`[WIZARD WEBHOOK] Failed to fetch incomplete generations: ${err.message}`);
+    res.status(500).json({ error: "Failed to fetch incomplete generations" });
   }
 }
 
@@ -652,12 +690,18 @@ async function _persistCourseData(content, data, t) {
 async function webhookAgenticLessonIncremental(req, res, next) {
   const t = await sequelize.transaction();
   try {
-    const { content_id, job_id, lesson_data, phase_title, module_title, sequence_info } = req.body;
+    const { content_id, job_id, lesson_data, phase_title, module_title, sequence_info, state_cache } = req.body;
 
     const content = await WizardContent.findByPk(content_id, { transaction: t });
     if (!content) {
       await t.rollback();
       return res.status(404).json({ error: "Content not found" });
+    }
+
+    if (state_cache) {
+      await content.update({
+        content: { ...(content.content || {}), langgraph_state: state_cache }
+      }, { transaction: t });
     }
 
     // Upsert Phase
@@ -780,5 +824,6 @@ module.exports = {
   webhookAgenticStatus,
   webhookAgenticComplete,
   webhookAgenticLessonIncremental,
+  getIncompleteGenerations,
 };
 
