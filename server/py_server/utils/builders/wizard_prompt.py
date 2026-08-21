@@ -19,10 +19,10 @@ Design notes:
 from typing import Optional, List, Dict, Any
 from utils.builders.System_Prompt import sys_prompt
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # EXISTING BUILDER — preserved unchanged for Roadmap/Guide/Schedule
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def build_wizard_prompt(
     topic: str,
@@ -91,7 +91,9 @@ def build_wizard_prompt(
         learner_ctx_parts.append(f"Preferred Learning Style: {learning_style}")
 
     if learner_ctx_parts:
-        prompt += "\n    Learner Context:\n    " + "\n    ".join(learner_ctx_parts) + "\n"
+        prompt += (
+            "\n    Learner Context:\n    " + "\n    ".join(learner_ctx_parts) + "\n"
+        )
 
     if details:
         prompt += f"""
@@ -137,6 +139,7 @@ def build_wizard_prompt(
 # NEW: LEARNING ARCHITECT PROMPT — structure only, no lesson prose
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def build_learning_architect_prompt(
     topic: str,
     content_type: str,
@@ -176,7 +179,9 @@ def build_learning_architect_prompt(
     if details:
         learner_ctx.append(f"- Additional Requirements: {details}")
 
-    learner_ctx_str = "\n".join(learner_ctx) if learner_ctx else "- No additional context"
+    learner_ctx_str = (
+        "\n".join(learner_ctx) if learner_ctx else "- No additional context"
+    )
 
     # Feedback-aware modification mode
     if feedback and existing_blueprint:
@@ -202,9 +207,9 @@ IMPORTANT RULES:
 - Do NOT write any lesson content, explanations, or prose.
 - Each lesson should have 2-4 specific, measurable learning objectives.
 - Lesson titles should be concrete and descriptive (e.g. "Variables and Data Types in Python").
-- Group logically related lessons into modules (2-6 lessons per module).
+- Group logically related lessons into modules (2-5 lessons per module).
 - Group logically related modules into phases (2-4 modules per phase).
-- Total phases: 2-6 depending on course breadth.
+- Total phases: 2-5 depending on course breadth.
 
 JSON OUTPUT SCHEMA:
 {_BLUEPRINT_JSON_SCHEMA}
@@ -233,9 +238,9 @@ IMPORTANT RULES — READ CAREFULLY:
 - Each lesson must have 2-4 measurable learning objectives starting with action verbs
   (e.g. "Define...", "Implement...", "Compare...", "Analyze...").
 - Difficulty progression: early phases = beginner, later phases = intermediate/advanced.
-- Group lessons into modules (2-6 lessons per module, related by theme).
+- Group lessons into modules (2-5 lessons per module, related by theme).
 - Group modules into phases (2-4 modules per phase, related by learning stage).
-- Total course: 2-6 phases covering the full topic comprehensively.
+- Total course: 2-5 phases covering the full topic comprehensively.
 - Do not repeat the same concept in multiple lessons.
 
 JSON OUTPUT SCHEMA:
@@ -248,6 +253,7 @@ Return ONLY the JSON. No markdown, no explanation, no extra text.
 # ═══════════════════════════════════════════════════════════════════════════════
 # NEW: LESSON CONTENT PROMPT — generates full deep lesson
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def build_lesson_content_prompt(
     lesson_title: str,
@@ -272,7 +278,10 @@ def build_lesson_content_prompt(
     """
     import json as _json
 
-    objectives_str = "\n".join(f"  - {obj}" for obj in learning_objectives) or "  - Understand this lesson's core concepts"
+    objectives_str = (
+        "\n".join(f"  - {obj}" for obj in learning_objectives)
+        or "  - Understand this lesson's core concepts"
+    )
 
     # Format evidence compactly to avoid huge prompts
     evidence_str = ""
@@ -282,7 +291,10 @@ def build_lesson_content_prompt(
             evidence_items.append(
                 f"  [{i}] {res.get('title', 'Resource')} ({res.get('resource_type', 'article')}) — {res.get('url', '')}"
             )
-        evidence_str = "Available References (cite these in your examples where relevant):\n" + "\n".join(evidence_items)
+        evidence_str = (
+            "Available References (cite these in your examples where relevant):\n"
+            + "\n".join(evidence_items)
+        )
     else:
         evidence_str = "No external references available — use general knowledge."
 
@@ -298,7 +310,9 @@ def build_lesson_content_prompt(
     style_note = ""
     if learning_style and "visual" in learning_style.lower():
         style_note = "Include visual_description sections explaining what diagrams or charts would look like."
-    elif learning_style and ("coding" in learning_style.lower() or "interactive" in learning_style.lower()):
+    elif learning_style and (
+        "coding" in learning_style.lower() or "interactive" in learning_style.lower()
+    ):
         style_note = "Emphasize code sections and include at least 2 coding exercises with starter code."
     elif learning_style and "theoretical" in learning_style.lower():
         style_note = "Emphasize explanations and analogies. Include at least one research-backed claim."
@@ -356,6 +370,7 @@ Return ONLY the JSON.
 # ═══════════════════════════════════════════════════════════════════════════════
 # Existing content type helpers (unchanged — used by build_wizard_prompt)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def _get_content_type_instruction(content_type: str) -> str:
     instructions = {
