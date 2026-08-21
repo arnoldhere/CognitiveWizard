@@ -1,90 +1,96 @@
 import time
-from providers.llm.llm_provider import Provider
-from providers.llm.tasks import TaskType
-from config.settings import settings
 import requests
 import logging
 from functools import lru_cache
+from providers.llm.llm_provider import Provider
+from providers.llm.tasks import TaskType
+from config.settings import settings
+from providers.llm.llm_task_profiles import TASK_PROFILES
+
 logger = logging.getLogger(__name__)
 
-# Cache for task profiles to avoid DB hit every time (cache for 60 seconds)
-_profile_cache = {}
-_cache_timestamp = {}
+# Synchronous health cache for non-course tasks to avoid blocking for 2s on every request
+_health_cache = {}
+HEALTH_CACHE_TTL = 30.0
+
+def check_ollama_health_sync() -> bool:
+    if not getattr(settings, "OLLAMA_ENABLED", True):
+        return False
+        
+    now = time.monotonic()
+    cached = _health_cache.get("ollama")
+    if cached:
+        ts, healthy = cached
+        if now - ts < HEALTH_CACHE_TTL:
+            return healthy
+
+    # Cache miss
+    try:
+        url = f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags"
+        resp = requests.get(url, timeout=2.0)
+        healthy = resp.status_code == 200
+    except requests.RequestException:
+        healthy = False
+        
+    _health_cache["ollama"] = (now, healthy)
+    return healthy
+
 
 def get_task_profile(task_name: str):
-    now = time.time()
-    if task_name in _profile_cache and (now - _cache_timestamp.get(task_name, 0) < 60):
-        return _profile_cache[task_name]
-
-    try:
-        url = f"{settings.JS_SERVER_URL.rstrip('/')}/internal/llm-configs/{task_name}"
-        response = requests.get(url, timeout=5)
-        
-        if response.status_code == 200:
-            config = response.json()
-            profile = {
-                "temperature": config.get("temperature", 0.5),
-                "max_new_tokens": config.get("max_new_tokens", 512),
-                "top_p": config.get("top_p"),
-                "top_k": config.get("top_k"),
-                "model_override": config.get("model_override"),
-                "use_chat": config.get("use_chat", True),
-            }
-        else:
-            logger.warning(f"No LLM config found in JS server for {task_name}, using fallback defaults. Status: {response.status_code}")
-            profile = {
-                "temperature": 0.5,
-                "max_new_tokens": 512,
-                "top_p": None,
-                "top_k": None,
-                "model_override": None,
-                "use_chat": True,
-            }
-        
-        _profile_cache[task_name] = profile
-        _cache_timestamp[task_name] = now
-        return profile
-    except Exception as e:
-        logger.error(f"Error fetching LLM config for {task_name} from JS Server: {e}")
-        return _profile_cache.get(task_name, {
-            "temperature": 0.5,
-            "max_new_tokens": 512,
-            "top_p": None,
-            "top_k": None,
-            "model_override": None,
-            "use_chat": True,
-        })
+    """Retrieve profile from local registry instead of HTTP fetch for efficiency."""
+    profile = TASK_PROFILES.get(task_name) or TASK_PROFILES.get("wizard", {})
+    return {
+        "temperature": profile.get("temperature", 0.5),
+        "max_new_tokens": profile.get("max_new_tokens", 512),
+        "top_p": profile.get("top_p"),
+        "top_k": profile.get("top_k"),
+        "model_override": profile.get("model_override"),
+        "use_chat": profile.get("use_chat", True),
+    }
 
 
 def get_llm_for_task(task: TaskType, provider: str = None):
     """
     Returns a LangChain-compatible LLM configured for the given task.
     Used by: chat, rag, summarize, quiz, wizard (non-course features).
-    NOT used for course generation — see get_llm_for_course_task().
+    Dynamically routes to Ollama first (if available), then falls back to DEF_LLM_PROVIDER.
     """
     profile = get_task_profile(task.value)
     hf_task = "conversational" if task.value == "quiz" else None
 
-    p = Provider(
-        provider=provider or settings.DEF_LLM_PROVIDER,
-        model_name=profile["model_override"],
-        temperature=profile["temperature"],
-        max_new_tokens=profile["max_new_tokens"],
-        hf_task=hf_task,
-        top_p=profile.get("top_p"),
-        top_k=profile.get("top_k"),
-    )
-    return p.get_llm(use_chat=profile.get("use_chat", True))
+    chosen_provider = provider
+    
+    if not chosen_provider:
+        if check_ollama_health_sync():
+            chosen_provider = "ollama"
+        else:
+            chosen_provider = getattr(settings, "DEF_LLM_PROVIDER", "huggingface")
+            
+    if chosen_provider == "ollama":
+        from providers.llm.ollama_provider import OllamaProvider
+        p = OllamaProvider()
+        return p.get_llm(profile)
+    else:
+        p = Provider(
+            provider=chosen_provider,
+            model_name=profile["model_override"],
+            temperature=profile["temperature"],
+            max_new_tokens=profile["max_new_tokens"],
+            hf_task=hf_task,
+            top_p=profile.get("top_p"),
+            top_k=profile.get("top_k"),
+        )
+        return p.get_llm(use_chat=profile.get("use_chat", True))
 
 @lru_cache(maxsize=8)
-def get_cached_llm(task_value: str, provider: str):
+def get_cached_llm(task_value: str, provider: str = None):
     return get_llm_for_task(TaskType(task_value), provider)
 
 
 async def get_llm_for_course_task(task: TaskType):
     """
     Returns a LangChain-compatible LLM for course generation tasks, using
-    the LLMRouter (Ollama → HuggingFace fallback).
+    the LLMRouter (Ollama → fallback).
 
     This is the ONLY entry point for course agent nodes. They should NOT
     call get_llm_for_task() directly — the router handles provider selection,
@@ -94,7 +100,7 @@ async def get_llm_for_course_task(task: TaskType):
         task: One of COURSE_ARCHITECT, COURSE_LESSON, COURSE_REVIEWER, COURSE_QUALITY
 
     Returns:
-        A LangChain-compatible LLM object (ChatOllama or ChatHuggingFace)
+        A LangChain-compatible LLM object (ChatOllama or remote ChatModel)
 
     Raises:
         AllProvidersFailedError: If every configured provider is unavailable.

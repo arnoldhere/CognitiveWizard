@@ -83,8 +83,8 @@ def _build_ollama_llm(task_profile: Dict[str, Any]) -> Any:
     return provider.get_llm(task_profile)
 
 
-def _build_huggingface_llm(task_profile: Dict[str, Any]) -> Any:
-    """Build and return a ChatHuggingFace LLM using the existing Provider class."""
+def _build_remote_llm(provider_name: str, task_profile: Dict[str, Any]) -> Any:
+    """Build and return a remote LLM using the existing Provider class."""
     from providers.llm.llm_provider import Provider
     from providers.llm.provider_errors import ProviderUnavailableError, ModelError
 
@@ -93,7 +93,7 @@ def _build_huggingface_llm(task_profile: Dict[str, Any]) -> Any:
 
     try:
         p = Provider(
-            provider="huggingface",
+            provider=provider_name,
             model_name=model_override,
             temperature=task_profile.get("temperature", 0.5),
             max_new_tokens=task_profile.get("max_new_tokens", 2048),
@@ -103,19 +103,18 @@ def _build_huggingface_llm(task_profile: Dict[str, Any]) -> Any:
         )
         return p.get_llm(use_chat=task_profile.get("use_chat", True))
     except Exception as exc:
-        # Distinguish: if token is missing → treat as unavailable
         err_str = str(exc).lower()
         if any(
             kw in err_str for kw in ("token", "api key", "unauthorized", "401", "403")
         ):
             raise ProviderUnavailableError(
-                f"HuggingFace auth failed: {exc}",
-                provider="huggingface",
+                f"{provider_name} auth failed: {exc}",
+                provider=provider_name,
                 cause=exc,
             ) from exc
         raise ModelError(
-            f"HuggingFace LLM construction failed: {exc}",
-            provider="huggingface",
+            f"{provider_name} LLM construction failed: {exc}",
+            provider=provider_name,
             cause=exc,
         ) from exc
 
@@ -191,28 +190,29 @@ class LLMRouter:
                 self._health_cache["ollama"] = (time.monotonic(), True)
             return True
 
-        elif provider_name == "huggingface":
-            # HF health check: just verify the API key is set
-            hf_token = getattr(settings, "HF_API_KEY", "") or getattr(
-                settings, "HUGGINGFACEHUB_API_TOKEN", ""
-            )
-            if not hf_token:
-                async with self._lock:
-                    self._health_cache["huggingface"] = (time.monotonic(), False)
-                raise ProviderUnavailableError(
-                    "HuggingFace API token not configured (HF_API_KEY is empty)",
-                    provider="huggingface",
-                )
-            async with self._lock:
-                self._health_cache["huggingface"] = (time.monotonic(), True)
-            return True
-
         else:
-            # Unknown provider — treat as unavailable
-            raise ProviderUnavailableError(
-                f"Unknown provider '{provider_name}' in COURSE_PROVIDER_ORDER",
-                provider=provider_name,
-            )
+            # Generic health check for remote providers (ensure API key is set)
+            token = ""
+            if provider_name == "huggingface":
+                token = getattr(settings, "HF_API_KEY", "") or getattr(
+                    settings, "HUGGINGFACEHUB_API_TOKEN", ""
+                )
+            elif provider_name == "openai":
+                token = getattr(settings, "OPENAI_API_KEY", "")
+            elif provider_name == "anthropic":
+                token = getattr(settings, "ANTHROPIC_API_KEY", "")
+                
+            if not token and provider_name in ["huggingface", "openai", "anthropic"]:
+                async with self._lock:
+                    self._health_cache[provider_name] = (time.monotonic(), False)
+                raise ProviderUnavailableError(
+                    f"{provider_name} API token not configured",
+                    provider=provider_name,
+                )
+                
+            async with self._lock:
+                self._health_cache[provider_name] = (time.monotonic(), True)
+            return True
 
     def _invalidate_cache(self, provider_name: str) -> None:
         """Invalidate health cache for a provider (e.g. after a model error)."""
@@ -232,13 +232,8 @@ class LLMRouter:
         logger.info("[LLMRouter] Provider: %s | task: %s", provider_name, task.value)
         if provider_name == "ollama":
             return _build_ollama_llm(task_profile)
-        elif provider_name == "huggingface":
-            return _build_huggingface_llm(task_profile)
         else:
-            raise ProviderUnavailableError(
-                f"No builder for provider '{provider_name}'",
-                provider=provider_name,
-            )
+            return _build_remote_llm(provider_name, task_profile)
 
     async def select(self, task: TaskType):
         """

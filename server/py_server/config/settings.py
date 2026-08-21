@@ -136,8 +136,9 @@ class Settings:
 
     # Provider order for course generation (comma-separated).
     # First healthy provider wins. Supported values: ollama, huggingface, openai, anthropic
-    COURSE_PROVIDER_ORDER: str = os.getenv(
-        "COURSE_PROVIDER_ORDER", "ollama,huggingface"
+    LLM_PROVIDER_ORDER: str = os.getenv(
+        "LLM_PROVIDER_ORDER",
+        f"ollama,{os.getenv('DEF_LLM_PROVIDER', 'huggingface')}",
     )
 
     # ===========
