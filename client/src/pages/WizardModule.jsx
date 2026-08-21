@@ -385,12 +385,12 @@ const PIPELINE_STEPS = [
 
 function GeneratingState({ contentType, isTutor, generatedData }) {
   const isCourse = contentType === "Course/Syllabus";
-  
+
   let currentStatus = generatedData?.status || "generating";
   if (currentStatus === "generating" && generatedData?.generation_job?.status === "queued") {
     currentStatus = "queued";
   }
-  
+
   const statusConfig = PIPELINE_STATUS_CONFIG[currentStatus] || PIPELINE_STATUS_CONFIG.generating;
   // Dynamic label from webhook (e.g. '✍️ Writing lessons... (3/4 batches done)')
   const dynamicLabel = generatedData?.content?._status_label || null;
@@ -440,13 +440,12 @@ function GeneratingState({ contentType, isTutor, generatedData }) {
               <div
                 key={step}
                 title={PIPELINE_STATUS_CONFIG[step]?.label}
-                className={`rounded-full transition-all duration-500 ${
-                  isDone
+                className={`rounded-full transition-all duration-500 ${isDone
                     ? "h-2 w-8 bg-emerald-500"
                     : isActive
-                    ? "h-2 w-10 bg-blue-500 animate-pulse"
-                    : "h-2 w-3 bg-slate-200"
-                }`}
+                      ? "h-2 w-10 bg-blue-500 animate-pulse"
+                      : "h-2 w-3 bg-slate-200"
+                  }`}
               />
             );
           })}
@@ -613,6 +612,10 @@ export default function WizardModule() {
 
   const handleDeleteHistory = async (id, e) => {
     e.stopPropagation();
+
+    if (!window.confirm("Are you sure you want to delete this content?")) {
+      return;
+    }
 
     try {
       await deleteWizardContent(id);

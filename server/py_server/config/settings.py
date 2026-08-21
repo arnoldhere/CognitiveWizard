@@ -64,7 +64,10 @@ class Settings:
 
     @property
     def REDIS_URL(self):
-        url = os.getenv("REDIS_URL", f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB_INDEX}")
+        url = os.getenv(
+            "REDIS_URL",
+            f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB_INDEX}",
+        )
         if url.startswith("rediss://") and "ssl_cert_reqs" not in url:
             separator = "&" if "?" in url else "?"
             url += f"{separator}ssl_cert_reqs=CERT_REQUIRED"
@@ -116,19 +119,26 @@ class Settings:
     RAG_EVAL_LLM: str = os.getenv("RAG_EVAL_LLM")
     DEF_EMBEDD_MODEL: str = os.getenv("DEF_EMBEDD_MODEL", "")
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-    ANTHROPIC_DEF_MODEL: str = os.getenv("ANTHROPIC_DEF_MODEL", "claude-3-5-sonnet-20241022")
+    ANTHROPIC_DEF_MODEL: str = os.getenv(
+        "ANTHROPIC_DEF_MODEL", "claude-3-5-sonnet-20241022"
+    )
 
     # ===========
     # Ollama local provider
     # ===========
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
-    OLLAMA_ENABLED: bool = os.getenv("OLLAMA_ENABLED", "true").lower() in ("true", "1", "yes")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", None)
+    OLLAMA_ENABLED: bool = os.getenv("OLLAMA_ENABLED", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
 
     # Provider order for course generation (comma-separated).
     # First healthy provider wins. Supported values: ollama, huggingface, openai, anthropic
-    COURSE_PROVIDER_ORDER: str = os.getenv("COURSE_PROVIDER_ORDER", "ollama,huggingface")
-
+    COURSE_PROVIDER_ORDER: str = os.getenv(
+        "COURSE_PROVIDER_ORDER", "ollama,huggingface"
+    )
 
     # ===========
     # AUTH Configs
@@ -148,7 +158,7 @@ class Settings:
     @property
     def SQLALCHEMY_DATABASE_URL(self):
         return self.DATABASE_URL
-    
+
     JS_SERVER_URL: str = os.getenv("JS_SERVER_URL", "http://localhost:3000")
 
 

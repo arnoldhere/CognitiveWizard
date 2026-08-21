@@ -22,9 +22,7 @@ Status: 'quality_check' → triggers JS server to persist to DB
 from __future__ import annotations
 import logging
 from typing import Dict, Any, List, Optional
-
 import httpx
-
 from agents.states.course_agent_state import CourseAgentState
 from schemas.course_generation import (
     CoursePackageSchema,
@@ -296,10 +294,7 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
             "raw_blueprint": blueprint,
         }
 
-    logger.info("[QualityGate|%s] Course package assembled. Sending to JS server.", job_id)
-    await _send_complete_webhook(
-        content_id=content_id, job_id=job_id, course_draft=course_draft
-    )
+    logger.info("[QualityGate|%s] Course package assembled.", job_id)
 
     return {
         "course_draft": course_draft,

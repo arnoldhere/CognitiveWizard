@@ -111,20 +111,28 @@ def run_agentic_workflow_task(
     # Run the async graph synchronously since celery workers run synchronous by default
     return asyncio.run(_runner())
 
+
 async def resume_incomplete_workflows():
     import logging
+
     logger = logging.getLogger(__name__)
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{js_server_url}/internal/wizard-webhook/incomplete")
+            response = await client.get(
+                f"{js_server_url}/internal/wizard-webhook/incomplete"
+            )
             response.raise_for_status()
             jobs = response.json()
 
             if jobs:
-                logger.info(f"Found {len(jobs)} incomplete course generation jobs. Resuming...")
+                logger.info(
+                    f"Found {len(jobs)} incomplete course generation jobs. Resuming..."
+                )
                 for job in jobs:
-                    logger.info(f"Resuming generation for course: '{job.get('topic')}' (Job ID: {job.get('job_id')})")
+                    logger.info(
+                        f"Resuming generation for course: '{job.get('topic')}' (Job ID: {job.get('job_id')})"
+                    )
                     run_agentic_workflow_task.delay(
                         content_id=job["content_id"],
                         job_id=job["job_id"],

@@ -5,7 +5,6 @@ from config.settings import settings
 import requests
 import logging
 from functools import lru_cache
-
 logger = logging.getLogger(__name__)
 
 # Cache for task profiles to avoid DB hit every time (cache for 60 seconds)
