@@ -112,6 +112,7 @@ class Settings:
     # ===========
     # LLM & Models - API configs
     # ===========
+    DEF_LLM_MODEL: str = os.getenv("DEF_LLM_MODEL", None)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
     OPENAI_DEF_MODEL: str = os.getenv("OPENAI_DEF_MODEL")
     HF_DEF_MODEL: str = os.getenv("HF_DEF_MODEL")
@@ -132,7 +133,7 @@ class Settings:
     # First healthy provider wins. Supported values: huggingface, openai, anthropic and more
     LLM_PROVIDER_ORDER: str = os.getenv(
         "LLM_PROVIDER_ORDER",
-        os.getenv('DEF_LLM_PROVIDER', 'huggingface'),
+        os.getenv("DEF_LLM_PROVIDER", "huggingface"),
     )
 
     # ===========

@@ -54,7 +54,7 @@ class LangChainRAGService:
 
     def _ensure_user_vectordb_loaded(self, user_id: str):
         """Ensure a per-user Chroma vector store, retriever, and chain are ready."""
-        if user_id in self._vectordbs:
+        if user_id in self._rag_chains:
             return
 
         index_path = self._get_user_index_path(user_id)

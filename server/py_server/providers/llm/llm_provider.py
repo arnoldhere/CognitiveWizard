@@ -17,7 +17,7 @@ class Provider:
         top_k: Optional[int] = None,
     ):
         self.provider = provider.lower()
-        self.model_name = model_name or settings.HF_DEF_MODEL
+        self.model_name = model_name or settings.DEF_LLM_MODEL
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
         self.hf_task = hf_task
