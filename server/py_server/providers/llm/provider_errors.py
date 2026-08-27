@@ -9,7 +9,7 @@ Using distinct exception types lets the router and callers distinguish between:
 - Every configured provider having failed (total failure → surface to user)
 
 This separation is critical so the pipeline can:
-- Silently fall back on ProviderUnavailableError (Ollama down → try HF)
+- Silently fall back on ProviderUnavailableError (Primary down → try Fallback)
 - Also fall back on ModelError (model timeout / bad JSON)
 - Only surface AllProvidersFailedError to the user as a hard failure
 """
@@ -40,7 +40,7 @@ class ProviderUnavailableError(LLMProviderError):
     Raised when a provider is unreachable at the infrastructure level.
 
     Examples:
-    - Ollama is not running (connection refused on localhost:11434)
+    - Provider server is not running (connection refused)
     - HuggingFace API gateway returns 5xx
     - Network timeout during health check
 
@@ -56,7 +56,7 @@ class ModelError(LLMProviderError):
 
     Examples:
     - Model returns empty / malformed response
-    - OOM error during inference (Ollama: model too large for VRAM)
+    - OOM error during inference
     - Request timeout during generation (model too slow)
     - HF API returns 400/422 (bad request to model endpoint)
 

@@ -52,7 +52,7 @@ CognitiveWizard is a **full-stack AI learning platform** designed for tutors and
 | **Frontend**      | React 18 + Vite, Vanilla CSS, MUI, React Router                                             |
 | **API Gateway**   | Node.js / Express, Sequelize ORM, JWT Auth, Helmet, Rate Limiting                           |
 | **AI Backend**    | Python / FastAPI, LangGraph, Pydantic v2                                                    |
-| **LLM Providers** | Ollama (local, preferred) → HuggingFace Inference API (fallback)                            |
+| **LLM Providers** | HuggingFace Inference API                                                                   |
 | **Research**      | Tavily Search API                                                                           |
 | **Databases**     | MySQL (relational data), MongoDB (RAG documents), Redis (sessions, LangGraph checkpointing) |
 | **Vector DB**     | ChromaDB / in-process vector store                                                          |
@@ -79,11 +79,11 @@ CognitiveWizard is a **full-stack AI learning platform** designed for tutors and
 ┌────────────────────────────────────────────────────────────────────┐
 │           py_server  —  FastAPI AI Engine  (port 8000)             │
 │  /wizard  ·  /rag  ·  /quiz  ·  /summarize  ·  /subscription      │
-│  LangGraph Agents · LLMRouter · VectorDB · Tavily                  │
+│  LangGraph Agents · VectorDB · Tavily                              │
 └──────────────────────────────────────────────────────────────────┘
-       │                │               │
-  Ollama (local)   HuggingFace      Tavily API
-  llama3.1:8b      Inference API    (web research)
+                        │               │
+                   HuggingFace      Tavily API
+                   Inference API    (web research)
 ```
 
 ---
@@ -346,25 +346,9 @@ Full platform management for admins.
 
 ## LLM Provider System
 
-A **provider-agnostic LLMRouter** selects the best available LLM via health-check-based priority ordering.
+## LLM Provider System
 
-```
-LLMRouter
-    │
-    ├── OllamaProvider  (local, preferred)
-    │      · Model: llama3.1:8b (configurable)
-    │      · Health check: GET http://localhost:11434/api/tags (2s timeout)
-    │
-    └── HuggingFaceProvider  (remote fallback)
-           · HF Inference API / Novita
-           · Model: meta-llama/Llama-3.1-8B-Instruct
-
-Fallback:  Ollama healthy? → use Ollama
-                   NO ↓
-           HuggingFace healthy? → use HF
-                   NO ↓
-           AllProvidersFailedError → pipeline sets status=error
-```
+The pipeline configures the LLM provider directly from settings, defaulting to HuggingFace.
 
 > Note: Current flow is to test the current features other modern features will be improved soon.
 
@@ -381,7 +365,6 @@ Fallback:  Ollama healthy? → use Ollama
 
 - `ProviderUnavailableError` — unreachable (network/connection)
 - `ModelError` — reachable but inference failed (OOM, timeout, bad output)
-- `AllProvidersFailedError` — all configured providers exhausted
 
 ---
 
@@ -394,14 +377,7 @@ Fallback:  Ollama healthy? → use Ollama
 - **MySQL** running with `cognitive_wizard` database
 - **MongoDB** running (for RAG chat history)
 - **Redis** with RedisJSON + RediSearch modules (for LangGraph checkpointing)
-- **Ollama** with `llama3.1:8b` pulled (or configure HuggingFace fallback)
 - **Tavily API key** for the research agent
-
-```bash
-# Start Ollama
-ollama serve
-ollama pull llama3.1:8b
-```
 
 ### Local Development
 
@@ -429,7 +405,7 @@ npm run dev              # http://localhost:5173
 
 `Coming soon`
 
-> **Note:** External services (MySQL, MongoDB, Redis, Ollama) must be running on the host. The `ai-backend` container uses `host.docker.internal` to reach Ollama.
+> **Note:** External services (MySQL, MongoDB, Redis) must be running on the host.
 
 ---
 
@@ -503,7 +479,7 @@ CognitiveWizard/
 │       │   ├── nodes/         # Pipeline stage implementations
 │       │   └── states/        # Shared agent state schemas
 │       ├── providers/
-│       │   └── llm/           # LLMRouter, Ollama/HF providers
+│       │   └── llm/           # HF providers
 │       ├── schemas/           # Pydantic v2 data models
 │       ├── services/          # Shared business logic
 │       ├── tasks/             # Background task runner
@@ -524,7 +500,7 @@ CognitiveWizard/
 
 - [1] Improve course generation workflow
 - [1] enhance other content type generation
-- [1] shorter course generation time (ollama taking too much)
+- [1] shorter course generation time
 - [3] Adaptive learning path based on performance
 - [5] Auto scheduling & time blocking with deadline awareness
 - [3] Pomodoro / break-aware study scheduling

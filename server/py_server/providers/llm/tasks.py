@@ -9,8 +9,8 @@ class TaskType(str, Enum):
     RAG = "rag"              # retrieval-augmented generation → RetrievalQA
     WIZARD = "wizard"        # generating structured plan, roadmap, syllabus
 
-    # ── Course generation pipeline tasks (routed via LLMRouter) ─────────────
-    # These use the provider-agnostic LLMRouter (Ollama → HF fallback)
+    # ── Course generation pipeline tasks ─────────────
+    # These use the provider-agnostic get_llm_for_course_task
     # and have their own task profiles tuned for deep content generation.
     COURSE_ARCHITECT = "course_architect"  # Blueprint-only structural pass
     COURSE_LESSON    = "course_lesson"     # Full lesson content generation

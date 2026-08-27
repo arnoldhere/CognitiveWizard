@@ -120,28 +120,7 @@ py_server  (FastAPI + LangGraph)
 
 ## LLM Provider System
 
-The pipeline uses a **provider-agnostic LLMRouter** that tries providers in priority order with health-check-based fallback.
-
-```
-LLMRouter
-    │
-    ├── OllamaProvider  (local, preferred — llama3.1:8b)
-    │        └── health check: GET http://localhost:11434/api/tags (2s timeout)
-    │
-    └── HuggingFaceProvider  (remote, fallback)
-             └── HF Inference API / Novita
-
-Future slots: OpenAIProvider, AnthropicProvider (add to COURSE_PROVIDER_ORDER env var)
-```
-
-**Fallback logic:**
-```
-try Ollama  →  healthy?  →  use Ollama
-                 NO
-try HuggingFace  →  healthy?  →  use HF
-                      NO
-raise AllProvidersFailedError  →  pipeline sets status=error
-```
+The pipeline configures the LLM provider directly from settings, defaulting to HuggingFace.
 
 **Task profiles** (temperature / max_tokens) are tuned per stage:
 | Task | Temperature | Max Tokens | Purpose |
@@ -154,7 +133,6 @@ raise AllProvidersFailedError  →  pipeline sets status=error
 **Error types** (distinct for clean handling):
 - `ProviderUnavailableError` — provider unreachable (connection refused, network down)
 - `ModelError` — provider reachable but inference failed (OOM, timeout, bad output)
-- `AllProvidersFailedError` — all configured providers exhausted
 
 ---
 
@@ -253,8 +231,6 @@ CodeSandbox.jsx
 | `agents/nodes/lesson_generator_node.py` | Stage 3 |
 | `agents/nodes/pedagogical_reviewer_node.py` | Stage 4 |
 | `agents/nodes/quality_gate_node.py` | Stage 5 |
-| `providers/llm/router.py` | LLMRouter — provider selection + fallback |
-| `providers/llm/ollama_provider.py` | Ollama local provider |
 | `providers/llm/provider_errors.py` | Error type hierarchy |
 | `providers/llm/tasks.py` | TaskType enum (incl. COURSE_* variants) |
 | `providers/llm/llm_task_profiles.py` | Per-task temperature/token params |
@@ -295,12 +271,7 @@ CodeSandbox.jsx
 
 1. **MySQL** running with `cognitive_wizard` database
 2. **Redis** running (for session/cache)
-3. **Ollama** running locally with `llama3.1:8b`:
-   ```bash
-   ollama serve          # start the Ollama server
-   ollama pull llama3.1:8b   # if not already pulled
-   ```
-4. **Tavily API key** set in `server/.env`
+3. **Tavily API key** set in `server/.env`
 
 ### Start the Servers
 
@@ -323,16 +294,7 @@ npm run dev
 ### Environment Variables (`server/.env`)
 
 ```env
-# LLM Provider — Ollama (local, preferred)
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.1:8b
-OLLAMA_ENABLED=true
-
-# Provider order for course generation
-# First healthy wins: try Ollama first, fall back to HuggingFace
-COURSE_PROVIDER_ORDER=ollama,huggingface
-
-# HuggingFace (fallback)
+# HuggingFace (default)
 HF_API_KEY=hf_...
 HF_DEF_MODEL=meta-llama/Llama-3.1-8B-Instruct
 
@@ -385,10 +347,7 @@ curl http://localhost:3000/api/wizard/42/lesson/7 \
 
 | Setting | Effect |
 |---|---|
-| `OLLAMA_ENABLED=false` | Skips Ollama, goes straight to HuggingFace |
-| `COURSE_PROVIDER_ORDER=huggingface,ollama` | Prefer HF, use Ollama as fallback |
-| `OLLAMA_MODEL=llama3.2:3b` | Switch to a lighter/faster local model |
-| `COURSE_PROVIDER_ORDER=openai,ollama` | Use OpenAI when added as a provider |
+| `DEF_LLM_PROVIDER=openai` | Use OpenAI when configured |
 
 ### Scaling the Pipeline
 

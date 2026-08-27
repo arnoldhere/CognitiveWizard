@@ -45,7 +45,7 @@ TASK_PROFILES = {
     },
 
     # ── Course generation pipeline task profiles ───────────────────────────
-    # These are used exclusively via LLMRouter (Ollama → HF fallback).
+    # These are used exclusively via get_llm_for_course_task.
     # Tuned for deep content generation; larger max_new_tokens than wizard.
 
     "course_architect": {

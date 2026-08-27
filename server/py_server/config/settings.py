@@ -122,23 +122,17 @@ class Settings:
     ANTHROPIC_DEF_MODEL: str = os.getenv(
         "ANTHROPIC_DEF_MODEL", "claude-3-5-sonnet-20241022"
     )
-
     # ===========
-    # Ollama local provider
+    # GROQ provider
     # ===========
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", None)
-    OLLAMA_ENABLED: bool = os.getenv("OLLAMA_ENABLED", "true").lower() in (
-        "true",
-        "1",
-        "yes",
-    )
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", None)
+    GROQ_DEF_MODEL: str = os.getenv("GROQ_DEF_MODEL", None)
 
     # Provider order for course generation (comma-separated).
-    # First healthy provider wins. Supported values: ollama, huggingface, openai, anthropic
+    # First healthy provider wins. Supported values: huggingface, openai, anthropic and more
     LLM_PROVIDER_ORDER: str = os.getenv(
         "LLM_PROVIDER_ORDER",
-        f"ollama,{os.getenv('DEF_LLM_PROVIDER', 'huggingface')}",
+        os.getenv('DEF_LLM_PROVIDER', 'huggingface'),
     )
 
     # ===========

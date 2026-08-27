@@ -1,10 +1,8 @@
 from typing import Optional
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from huggingface_hub import InferenceClient
 from config.settings import settings
 import os
+from huggingface_hub import InferenceClient
+from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 
 
 class Provider:
@@ -37,7 +35,18 @@ class Provider:
     def get_llm(self, use_chat: bool = True):
         match self.provider:
 
+            case "groq":
+                from langchain_groq import ChatGroq
+
+                return ChatGroq(
+                    model=self.model_name or settings.GROQ_DEF_MODEL,
+                    temperature=self.temperature,
+                    api_key=settings.GROQ_API_KEY,
+                    max_tokens=self.max_new_tokens,
+                )
             case "openai":
+                from langchain_openai import ChatOpenAI
+
                 return ChatOpenAI(
                     model=self.model_name or settings.OPENAI_DEF_MODEL,
                     temperature=self.temperature,
@@ -46,6 +55,8 @@ class Provider:
                 )
 
             case "anthropic":
+                from langchain_anthropic import ChatAnthropic
+
                 return ChatAnthropic(
                     model=self.model_name or settings.ANTHROPIC_DEF_MODEL,
                     temperature=self.temperature,
@@ -54,6 +65,7 @@ class Provider:
                 )
 
             case "huggingface":
+
                 # Route conversational tasks directly through HF's chat endpoint
                 # This ensures all chat-style tasks use a chat-compatible model client.
                 if self.hf_task == "conversational" or use_chat:
