@@ -2,7 +2,7 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const User = require('./User');
 
-const Grade = sequelize.define('Grade', {
+const Quiz = sequelize.define('Quiz', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -81,10 +81,10 @@ const Grade = sequelize.define('Grade', {
     allowNull: true,
   }
 }, {
-  tableName: 'grades',
+  tableName: 'quiz',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
 
-module.exports = Grade;
+module.exports = Quiz;

@@ -1,4 +1,4 @@
-const { Grade } = require('../models');
+const { Quiz } = require('../models');
 
 const PASS_THRESHOLD = 60.0;
 

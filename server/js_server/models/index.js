@@ -21,7 +21,7 @@ const { sequelize } = require('../config/db');
 const User = require('./User');
 const ChatSession = require('./ChatSession');
 const WizardContent = require('./WizardContent');
-const Grade = require('./Grade');
+const Quiz = require('./Quiz');
 const PaymentTransaction = require('./PaymentTransaction');
 const RAGDocument = require('./RAGDocument');
 const RAGQueryLog = require('./RAGLog');
@@ -45,8 +45,8 @@ const GenerationJob = require('./GenerationJob');
 
 
 // User relationships
-User.hasMany(Grade, { foreignKey: 'user_id', as: 'grades' });
-Grade.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(Quiz, { foreignKey: 'user_id', as: 'quizzes' });
+Quiz.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 User.hasMany(PaymentTransaction, { foreignKey: 'user_id', as: 'payment_transactions' });
 PaymentTransaction.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -148,7 +148,7 @@ module.exports = {
   User,
   ChatSession,
   WizardContent,
-  Grade,
+  Quiz,
   PaymentTransaction,
   RAGDocument,
   RAGQueryLog,

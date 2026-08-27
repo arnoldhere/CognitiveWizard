@@ -1,6 +1,6 @@
 const { pyAxios } = require("../utils/apiProxy");
 const logger = require("../utils/logger");
-const { Grade } = require("../models");
+const { Quiz } = require("../models");
 const {
   getTimeLimitSeconds,
   normalizeAnswer,
@@ -17,6 +17,10 @@ async function generateQuiz(req, res, next) {
     const { topic, difficulty, num_questions, mode } = req.body || {};
     logger.info(`[QUIZ] Generate: topic="${topic}", difficulty="${difficulty}", count=${num_questions} by ${req.user?.email}`);
 
+    if (num_questions > 50) {
+      return res.status(400).json({ detail: "too much questions to generate" });
+    }
+
     // Call py_server to generate raw quiz content
     const aiResponse = await pyAxios.post("/quiz/generate-raw", {
       topic,
@@ -26,7 +30,7 @@ async function generateQuiz(req, res, next) {
     });
 
     const generatedQuestions = aiResponse.data.data;
-    
+
     // Process and Save in JS MySQL
     const question_set = [];
     const answer_key = [];
@@ -46,7 +50,7 @@ async function generateQuiz(req, res, next) {
 
     const total_questions = question_set.length;
 
-    const grade = await Grade.create({
+    const grade = await Quiz.create({
       user_id: req.user.id,
       quiz_topic: String(topic).trim(),
       difficulty: String(difficulty).trim(),
@@ -73,7 +77,7 @@ async function generateQuiz(req, res, next) {
 
   } catch (err) {
     if (err.response) {
-       return res.status(err.response.status).json(err.response.data);
+      return res.status(err.response.status).json(err.response.data);
     }
     next(err);
   }
@@ -88,7 +92,7 @@ async function submitQuiz(req, res, next) {
     const { quiz_id, is_auto_submitted, answers } = req.body || {};
     logger.info(`[QUIZ] Submit: quiz_id=${quiz_id}, auto=${is_auto_submitted} by ${req.user?.email}`);
 
-    const grade = await Grade.findOne({
+    const grade = await Quiz.findOne({
       where: { id: quiz_id, user_id: req.user.id }
     });
 
@@ -101,7 +105,7 @@ async function submitQuiz(req, res, next) {
     }
 
     const submittedAnswers = answers || [];
-    
+
     // Evaluate in JS
     const answerLookup = {};
     (grade.answer_key || []).forEach(item => {
@@ -155,16 +159,16 @@ async function submitQuiz(req, res, next) {
       });
     });
 
-    const score_percentage = grade.total_questions > 0 
-      ? parseFloat(((correct_answers / grade.total_questions) * 100).toFixed(2)) 
+    const score_percentage = grade.total_questions > 0
+      ? parseFloat(((correct_answers / grade.total_questions) * 100).toFixed(2))
       : 0.0;
-    
+
     const result = score_percentage >= grade.pass_threshold ? "pass" : "fail";
 
     grade.correct_answers = correct_answers;
     grade.score_percentage = score_percentage;
     grade.result = result;
-    
+
     grade.user_answers = expectedIds.map(question_id => ({
       question_id: parseInt(question_id, 10),
       selected_option: submittedLookup[question_id] || ""
@@ -228,7 +232,7 @@ async function getResults(req, res, next) {
       where.quiz_topic = { [Op.like]: `%${topic_search}%` };
     }
 
-    const { count, rows } = await Grade.findAndCountAll({
+    const { count, rows } = await Quiz.findAndCountAll({
       where,
       order: [[sort_by, sort_order]],
       offset: skip,
@@ -266,7 +270,7 @@ async function getResults(req, res, next) {
  */
 async function getResultDetail(req, res, next) {
   try {
-    const grade = await Grade.findOne({
+    const grade = await Quiz.findOne({
       where: { id: req.params.quiz_id, user_id: req.user.id }
     });
 

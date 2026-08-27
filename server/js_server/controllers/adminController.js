@@ -10,10 +10,10 @@ const { User, ChatSession, LLMConfig } = require("../models");
 const logger = require("../utils/logger");
 
 // Lazy-load optional models to avoid crashes if tables don't exist yet
-let Grade, RAGQueryLog, WizardContent;
-try { Grade = require("../models/Grade"); } catch (_) {}
-try { RAGQueryLog = require("../models/RAGLog"); } catch (_) {}
-try { WizardContent = require("../models/WizardContent"); } catch (_) {}
+let Quiz, RAGQueryLog, WizardContent;
+try { Quiz = require("../models/Quiz"); } catch (_) { }
+try { RAGQueryLog = require("../models/RAGLog"); } catch (_) { }
+try { WizardContent = require("../models/WizardContent"); } catch (_) { }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -118,10 +118,10 @@ async function getStats(req, res, next) {
     let avgScore = null;
     let passRate = null;
 
-    if (Grade) {
+    if (Quiz) {
       const [quizCount, gradeAgg] = await Promise.all([
-        Grade.count(),
-        Grade.findOne({
+        Quiz.count(),
+        Quiz.findOne({
           attributes: [
             [fn("AVG", col("score_percentage")), "avg_score"],
             [fn("SUM", literal("CASE WHEN result = 'pass' THEN 1 ELSE 0 END")), "passes"],
@@ -274,10 +274,10 @@ async function getCourses(req, res, next) {
         { '$user.full_name$': { [Op.like]: `%${search}%` } },
       ];
     }
-    
+
     // Add user role filter if provided
     if (userRole) {
-        where['$user.role$'] = userRole;
+      where['$user.role$'] = userRole;
     }
 
     const { count, rows } = await WizardContent.findAndCountAll({

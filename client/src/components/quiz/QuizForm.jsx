@@ -49,7 +49,7 @@ export default function QuizForm({ onSubmit, disabled = false }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-slate-700">Questions (1-20)</label>
+          <label className="text-sm font-semibold text-slate-700">Questions</label>
           <input
             type="number"
             min="1"
