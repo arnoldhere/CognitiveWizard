@@ -2,11 +2,10 @@ import asyncio
 import httpx
 from agents.graphs.course_generation_graph import get_compiled_course_graph
 from agents.states.course_agent_state import CourseAgentState
-from langgraph.checkpoint.redis import AsyncRedisSaver
+from langgraph.checkpoint.memory import MemorySaver
 from config.settings import settings
-from core.celery_app import celery_app
+import traceback
 
-redis_url = settings.REDIS_URL
 js_server_url = settings.JS_SERVER_URL
 
 
@@ -31,30 +30,26 @@ async def _run_agentic_workflow_async(
     initial_state: CourseAgentState,
     job_id: str,
 ):
-    async with AsyncRedisSaver.from_conn_string(redis_url) as checkpointer:
-        graph = get_compiled_course_graph(checkpointer=checkpointer)
+    checkpointer = MemorySaver()
+    graph = get_compiled_course_graph(checkpointer=checkpointer)
 
-        config = {
-            "configurable": {
-                "thread_id": job_id,
-            }
+    config = {
+        "configurable": {
+            "thread_id": job_id,
         }
+    }
 
-        # If the graph was already started (and crashed), aget_state will show it.
-        # ainvoke with the exact thread_id will resume it from the checkpoint natively.
-        state = await graph.aget_state(config)
-        if state.next:
-            print(
-                f"Resuming interrupted course generation: {job_id} (Next: {state.next})"
-            )
-            return await graph.ainvoke(None, config)
+    state = await graph.aget_state(config)
+    if state.next:
+        print(
+            f"Resuming interrupted course generation: {job_id} (Next: {state.next})"
+        )
+        return await graph.ainvoke(None, config)
 
-        return await graph.ainvoke(initial_state, config)
+    return await graph.ainvoke(initial_state, config)
 
 
-@celery_app.task(bind=True, name="wizard.generate_course")
-def run_agentic_workflow_task(
-    self,
+async def run_agentic_workflow_task(
     content_id: int,
     job_id: str,
     topic: str,
@@ -67,12 +62,8 @@ def run_agentic_workflow_task(
     state_cache: dict = None,
 ):
     """
-    Celery task that orchestrates the durable LangGraph pipeline.
-    If the worker crashes, acks_late=True ensures it is picked up again.
-    The checkpointer (AsyncRedisSaver) will have saved the state,
-    and upon restarting the task with the same `job_id`, it will resume where it left off.
+    Async background task that orchestrates the LangGraph pipeline natively without Celery.
     """
-
     initial_state = CourseAgentState(
         topic=topic,
         content_id=content_id,
@@ -94,22 +85,16 @@ def run_agentic_workflow_task(
         initial_state["generated_lessons"] = state_cache.get("generated_lessons", [])
         initial_state["pipeline_status"] = "resuming"
 
-    async def _runner():
-        try:
-            final_state = await _run_agentic_workflow_async(initial_state, job_id)
-            await _send_complete_webhook(
-                content_id, job_id, data=final_state.get("course_draft", {})
-            )
-            return {"status": "success", "content_id": content_id}
-        except Exception as e:
-            import traceback
-
-            traceback.print_exc()
-            await _send_complete_webhook(content_id, job_id, error=str(e))
-            raise e
-
-    # Run the async graph synchronously since celery workers run synchronous by default
-    return asyncio.run(_runner())
+    try:
+        final_state = await _run_agentic_workflow_async(initial_state, job_id)
+        await _send_complete_webhook(
+            content_id, job_id, data=final_state.get("course_draft", {})
+        )
+        return {"status": "success", "content_id": content_id}
+    except Exception as e:
+        traceback.print_exc()
+        await _send_complete_webhook(content_id, job_id, error=str(e))
+        raise e
 
 
 async def resume_incomplete_workflows():
@@ -133,17 +118,20 @@ async def resume_incomplete_workflows():
                     logger.info(
                         f"Resuming generation for course: '{job.get('topic')}' (Job ID: {job.get('job_id')})"
                     )
-                    run_agentic_workflow_task.delay(
-                        content_id=job["content_id"],
-                        job_id=job["job_id"],
-                        topic=job["topic"],
-                        content_type=job["content_type"],
-                        details=job.get("details", ""),
-                        skill_level=job["skill_level"],
-                        goal=job["goal"],
-                        learning_style=job["learning_style"],
-                        user_role=job["user_role"],
-                        state_cache=job.get("state_cache"),
+                    # Use asyncio.create_task for fire-and-forget native async execution
+                    asyncio.create_task(
+                        run_agentic_workflow_task(
+                            content_id=job["content_id"],
+                            job_id=job["job_id"],
+                            topic=job["topic"],
+                            content_type=job["content_type"],
+                            details=job.get("details", ""),
+                            skill_level=job["skill_level"],
+                            goal=job["goal"],
+                            learning_style=job["learning_style"],
+                            user_role=job["user_role"],
+                            state_cache=job.get("state_cache"),
+                        )
                     )
             else:
                 logger.info("No incomplete course generations found.")

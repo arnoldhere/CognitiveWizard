@@ -15,7 +15,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from typing import Any, Dict, List
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 from fastapi.responses import Response
 from agents.graphs.refr_retr_graph import compiled_reference_graph
 from schemas.wizard import *
@@ -248,14 +248,17 @@ async def export_roadmap_pdf(request: WizardPdfExportRequest):
 
 
 @router.post("/generate-agentic", response_model=WizardRawResponse)
-async def generate_agentic_content(request: WizardAgenticRequest):
+async def generate_agentic_content(
+    request: WizardAgenticRequest, background_tasks: BackgroundTasks
+):
     """
     Start the advanced course generation pipeline via FastAPI native BackgroundTasks.
     Returns immediately — JS server polls for status via the webhook updates.
     """
     from tasks.wizard_tasks import run_agentic_workflow_task
 
-    run_agentic_workflow_task.delay(
+    background_tasks.add_task(
+        run_agentic_workflow_task,
         content_id=request.content_id,
         job_id=request.job_id,
         topic=request.topic,
@@ -271,7 +274,9 @@ async def generate_agentic_content(request: WizardAgenticRequest):
 
 
 @router.post("/regenerate-agentic", response_model=WizardRawResponse)
-async def regenerate_agentic_content(request: WizardAgenticRegenerateRequest):
+async def regenerate_agentic_content(
+    request: WizardAgenticRegenerateRequest, background_tasks: BackgroundTasks
+):
     """
     Regenerate course draft based on tutor feedback via native background task.
     """
@@ -282,7 +287,8 @@ async def regenerate_agentic_content(request: WizardAgenticRegenerateRequest):
 
     job_id = f"regen_{request.content_id}_{int(time.time())}"
 
-    run_agentic_workflow_task.delay(
+    background_tasks.add_task(
+        run_agentic_workflow_task,
         content_id=request.content_id,
         job_id=job_id,
         topic=request.topic,

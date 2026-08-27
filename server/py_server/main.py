@@ -7,7 +7,6 @@ from api.summarization_api import router as summarization_router
 from api.subscription_api import router as subscription_router
 from api.wizard_api import router as wizard_router
 import logging
-from redis.asyncio import Redis
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -40,34 +39,12 @@ def health():
     return {"message": "Hello from Wizard !!! 🚀"}
 
 
-async def _validate_langgraph_redis(redis_url: str) -> None:
-    client = Redis.from_url(redis_url)
-
-    try:
-        await client.ping()
-
-        # LangGraph Redis checkpointer requires Redis Query/Search.
-        await client.execute_command("FT._LIST")
-
-        # RedisJSON capability check.
-        await client.execute_command(
-            "JSON.GET",
-            "__cognitivewizard_capability_check__",
-            "$",
-        )
-
-    finally:
-        await client.aclose()
-
-
 @app.on_event("startup")
 async def startup_event():
-    # check the redis connection
-    await _validate_langgraph_redis(settings.REDIS_URL)
-
     # Auto-resume any interrupted agentic workflows
     from tasks.wizard_tasks import resume_incomplete_workflows
     import asyncio
+
     asyncio.create_task(resume_incomplete_workflows())
 
     logger.info("FastAPI startup complete")

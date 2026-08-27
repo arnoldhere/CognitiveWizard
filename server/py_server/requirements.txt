@@ -5,8 +5,6 @@ gunicorn==23.0.0
 python-multipart==0.0.20
 
 # Task Queue
-redis==6.2.0
-celery==5.4.0
 
 # Environment
 python-dotenv==1.1.1
@@ -83,4 +81,3 @@ kafka-python==2.2.15
 
 # others
 reportlab==4.3.1
-langgraph-checkpoint-redis

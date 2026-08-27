@@ -56,28 +56,12 @@ class Settings:
     MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "")
 
     # ===========
-    # Redis Configs
     # ===========
-    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-    REDIS_PORT: int = os.getenv("REDIS_PORT", 6379)
-    REDIS_DB_INDEX: int = os.getenv("REDIS_DB_INDEX", 0)
-
-    @property
-    def REDIS_URL(self):
-        url = os.getenv(
-            "REDIS_URL",
-            f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB_INDEX}",
-        )
-        if url.startswith("rediss://") and "ssl_cert_reqs" not in url:
-            separator = "&" if "?" in url else "?"
-            url += f"{separator}ssl_cert_reqs=CERT_REQUIRED"
-        return url
 
     # ===========
     # Middlewares & Authentication configurations
     # ===========
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY")
-    JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
         os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
     )
