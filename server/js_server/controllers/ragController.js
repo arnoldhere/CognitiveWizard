@@ -114,7 +114,17 @@ async function getRagStatusLangchain(req, res, next) {
 
 async function handleChat(req, res, next, endpoint) {
   try {
-    const { query, session_id } = req.body || {};
+    req.body = req.body || {};
+    let { query, session_id } = req.body;
+    let isNewSession = false;
+    let newSession = null;
+
+    if (!session_id) {
+      newSession = await chatSessionService.createChatSession(req.user.id, "New Chat");
+      session_id = newSession.session_id;
+      req.body.session_id = session_id;
+      isNewSession = true;
+    }
 
     // 1. Check Limits in Express
     const limitCheck = await chatLimitService.checkLimit(req.user);

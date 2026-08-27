@@ -75,8 +75,8 @@ function MessageBubble({ message }) {
     <div className={`flex flex-col gap-1 w-full max-w-3xl mx-auto px-4 ${isBot ? 'items-start' : 'items-end'}`}>
       <div className={`
         relative px-5 py-4 rounded-2xl max-w-[90%] md:max-w-[85%]
-        ${isBot 
-          ? 'bg-slate-50 border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm' 
+        ${isBot
+          ? 'bg-slate-50 border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm'
           : 'bg-primary text-slate-900 font-medium rounded-tr-sm shadow-md'
         }
       `}>
@@ -87,14 +87,14 @@ function MessageBubble({ message }) {
         ) : (
           <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
         )}
-        
+
         {message.warning ? (
           <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
             {message.warning}
           </div>
         ) : null}
       </div>
-      
+
       <div className={`flex items-center gap-3 text-[11px] font-medium text-slate-400 mt-1 px-1 ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
         <span className="flex items-center gap-1"><Clock size={12} /> {time}</span>
         {showTokens ? (
@@ -427,13 +427,13 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
 
       <div className="flex-1 overflow-y-auto pt-6 pb-24 scroll-smooth" ref={chatContainerRef}>
         <UploadedHistory documents={uploadedDocuments} />
-        
+
         {sessionError ? (
           <div className="px-4 mb-6">
             <ErrorMessage message={sessionError} />
           </div>
         ) : null}
-        
+
         <div className={`mx-4 mb-8 px-4 py-3 rounded-xl text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 border ${chatLimitReached ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-50 text-blue-700 border-blue-200"}`}>
           <div className="flex items-center gap-2">
             <strong>Daily limit:</strong> 5 chat requests per day.
@@ -501,8 +501,8 @@ export default function ChatWindow({ ragReady, status, selectedSession, onSessio
               disabled={loading || chatLimitReached}
               className="w-full pl-6 pr-16 py-4 rounded-2xl border-2 border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-white shadow-inner font-medium"
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading || !input.trim() || chatLimitReached}
               className="absolute right-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-primary hover:bg-opacity-90 disabled:bg-slate-300 text-slate-900 rounded-xl transition-all shadow-sm"
             >

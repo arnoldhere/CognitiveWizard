@@ -103,7 +103,7 @@ export default function ChatbotPage() {
   return (
     <div className="min-h-screen bg-light flex flex-col pt-16">
       <section className="bg-white border-b border-slate-200 py-10 px-4 sm:px-6 lg:px-8">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-7xl mx-auto"

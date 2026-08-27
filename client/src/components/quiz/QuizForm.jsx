@@ -52,8 +52,8 @@ export default function QuizForm({ onSubmit, disabled = false }) {
           <label className="text-sm font-semibold text-slate-700">Questions</label>
           <input
             type="number"
-            min="1"
-            max="20"
+            min="5"
+            max="50"
             className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
             value={numQuestions}
             onChange={(e) => setNumQuestions(e.target.value)}

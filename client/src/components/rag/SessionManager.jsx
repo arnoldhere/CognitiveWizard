@@ -47,9 +47,9 @@ export default function SessionManager({
                 <p className="text-sm text-slate-500">Start a new chat, reopen a saved session, or archive conversations.</p>
             </div>
 
-            <button 
-                type="button" 
-                onClick={onCreateSession} 
+            <button
+                type="button"
+                onClick={onCreateSession}
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-opacity-90 text-slate-900 py-2.5 px-4 rounded-xl font-semibold transition-colors disabled:opacity-50"
             >
@@ -67,8 +67,8 @@ export default function SessionManager({
                                 key={session.session_id}
                                 className={`
                                     group flex flex-col p-3 rounded-xl border transition-all
-                                    ${selectedSession?.session_id === session.session_id 
-                                        ? "bg-primary/5 border-primary/20" 
+                                    ${selectedSession?.session_id === session.session_id
+                                        ? "bg-primary/5 border-primary/20"
                                         : "bg-white border-transparent hover:border-slate-200 hover:bg-slate-50"}
                                 `}
                             >
@@ -113,7 +113,7 @@ export default function SessionManager({
                                                 {session.title}
                                             </span>
                                             <span className="text-xs text-slate-400 truncate w-full mt-0.5">
-                                                {session.message_count ?? 0} msgs • {session.last_message_at ? new Date(session.last_message_at).toLocaleDateString() : "new"}
+                                                {session.message_count ?? 0} Messages • {session.last_message_at ? new Date(session.last_message_at).toLocaleDateString() : "new"}
                                             </span>
                                         </button>
                                         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
