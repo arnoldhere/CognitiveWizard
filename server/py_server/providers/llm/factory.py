@@ -32,10 +32,8 @@ def get_llm_for_task(task: TaskType, provider: str = None):
     profile = get_task_profile(task.value)
     hf_task = "conversational" if task.value == "quiz" else None
 
-    chosen_provider = provider or getattr(settings, "DEF_LLM_PROVIDER", "huggingface")
-    
     p = Provider(
-        provider=chosen_provider,
+        provider=settings.DEF_LLM_PROVIDER,
         model_name=profile["model_override"],
         temperature=profile["temperature"],
         max_new_tokens=profile["max_new_tokens"],
@@ -45,6 +43,7 @@ def get_llm_for_task(task: TaskType, provider: str = None):
     )
     return p.get_llm(use_chat=profile.get("use_chat", True))
 
+
 @lru_cache(maxsize=8)
 def get_cached_llm(task_value: str, provider: str = None):
     return get_llm_for_task(TaskType(task_value), provider)
@@ -53,12 +52,11 @@ def get_cached_llm(task_value: str, provider: str = None):
 async def get_llm_for_course_task(task: TaskType):
     """
     Returns a LangChain-compatible LLM for course generation tasks.
-    
+
     Args:
         task: One of COURSE_ARCHITECT, COURSE_LESSON, COURSE_REVIEWER, COURSE_QUALITY
-        
+
     Returns:
         A LangChain-compatible LLM object (remote ChatModel)
     """
     return get_llm_for_task(task)
-
