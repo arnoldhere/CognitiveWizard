@@ -25,9 +25,7 @@ Node responsibilities:
 
 import logging
 from typing import Literal
-
 from langgraph.graph import StateGraph, END
-
 from agents.states.course_agent_state import CourseAgentState
 from agents.nodes.learning_architect_node import learning_architect_node
 from agents.nodes.research_agent_node import research_agent_node
@@ -40,7 +38,9 @@ logger = logging.getLogger(__name__)
 _MAX_RETRY_COUNT = 2
 
 
-def _should_retry_or_gate(state: CourseAgentState) -> Literal["lesson_generator", "quality_gate"]:
+def _should_retry_or_gate(
+    state: CourseAgentState,
+) -> Literal["lesson_generator", "quality_gate"]:
     """
     Conditional edge after pedagogical reviewer.
 
@@ -55,14 +55,14 @@ def _should_retry_or_gate(state: CourseAgentState) -> Literal["lesson_generator"
 
     # Check if any lesson failed review
     has_failures = any(
-        not review.get("passed", True)
-        for review in reviewer_results.values()
+        review.get("review_status") != "passed" for review in reviewer_results.values()
     )
 
     if has_failures and retry_count < _MAX_RETRY_COUNT:
         logger.info(
             "[Graph] Reviewer found failures — routing to lesson_generator (retry %d/%d)",
-            retry_count, _MAX_RETRY_COUNT
+            retry_count,
+            _MAX_RETRY_COUNT,
         )
         return "lesson_generator"
 
@@ -93,10 +93,11 @@ builder.add_conditional_edges(
     {
         "lesson_generator": "lesson_generator",
         "quality_gate": "quality_gate",
-    }
+    },
 )
 
 builder.add_edge("quality_gate", END)
+
 
 def get_compiled_course_graph(checkpointer=None):
     """
@@ -107,6 +108,6 @@ def get_compiled_course_graph(checkpointer=None):
     logger.info("[Graph] Advanced course generation graph compiled successfully.")
     return graph
 
+
 # For backward compatibility (if any other part uses it synchronously)
 compiled_course_graph = get_compiled_course_graph(None)
-

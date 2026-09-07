@@ -248,17 +248,14 @@ async def export_roadmap_pdf(request: WizardPdfExportRequest):
 
 
 @router.post("/generate-agentic", response_model=WizardRawResponse)
-async def generate_agentic_content(
-    request: WizardAgenticRequest, background_tasks: BackgroundTasks
-):
+async def generate_agentic_content(request: WizardAgenticRequest):
     """
-    Start the advanced course generation pipeline via FastAPI native BackgroundTasks.
+    Start the advanced course generation pipeline via Celery.
     Returns immediately — JS server polls for status via the webhook updates.
     """
     from tasks.wizard_tasks import run_agentic_workflow_task
 
-    background_tasks.add_task(
-        run_agentic_workflow_task,
+    run_agentic_workflow_task.delay(
         content_id=request.content_id,
         job_id=request.job_id,
         topic=request.topic,
@@ -274,21 +271,16 @@ async def generate_agentic_content(
 
 
 @router.post("/regenerate-agentic", response_model=WizardRawResponse)
-async def regenerate_agentic_content(
-    request: WizardAgenticRegenerateRequest, background_tasks: BackgroundTasks
-):
+async def regenerate_agentic_content(request: WizardAgenticRegenerateRequest):
     """
-    Regenerate course draft based on tutor feedback via native background task.
+    Regenerate course draft based on tutor feedback via Celery.
     """
-    # Note: We need a job_id for regenerate as well if we want it to be durable.
-    # We can default to generating a new job_id or expect one. Let's just create a transient one for now or add job_id to the schema later.
     from tasks.wizard_tasks import run_agentic_workflow_task
     import time
 
     job_id = f"regen_{request.content_id}_{int(time.time())}"
 
-    background_tasks.add_task(
-        run_agentic_workflow_task,
+    run_agentic_workflow_task.delay(
         content_id=request.content_id,
         job_id=job_id,
         topic=request.topic,
@@ -301,3 +293,18 @@ async def regenerate_agentic_content(
     )
 
     return WizardRawResponse(content={"status": "generating_planning"}, warnings=[])
+
+@router.post("/generation/{job_id}/retry")
+async def retry_generation_job(job_id: str):
+    # Enqueue a celery task for retry
+    from tasks.wizard_tasks import resume_job_task
+    resume_job_task.delay(job_id=job_id)
+    return {"status": "pending"}
+
+@router.post("/generation/{job_id}/cancel")
+async def cancel_generation_job(job_id: str):
+    # For now, cancellation logic will just be marked in the DB on JS server side
+    # If we want to revoke the celery task, we can use celery's revoke
+    from core.celery_app import celery_app
+    celery_app.control.revoke(job_id, terminate=True)
+    return {"status": "cancelled"}

@@ -36,10 +36,6 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Minimum acceptable word count for an explanation section
-_MIN_EXPLANATION_WORDS = 50
-# Minimum sections per lesson for it to be considered valid
-_MIN_SECTIONS_PER_LESSON = 1
 
 
 async def _send_status_webhook(content_id: int | None, status: str, label: str) -> None:
@@ -56,7 +52,7 @@ async def _send_status_webhook(content_id: int | None, status: str, label: str) 
 
 
 def _validate_lesson(
-    lesson: Optional[Dict[str, Any]],
+    wrapper: Optional[Dict[str, Any]],
     reviewer_results: Dict[str, Any],
 ) -> tuple[bool, List[str]]:
     """
@@ -64,38 +60,19 @@ def _validate_lesson(
 
     Returns: (is_valid, list_of_issues)
     """
-    if lesson is None or lesson.get("_generation_failed"):
+    if not wrapper or wrapper.get("generation_status") != "generated":
         return False, ["Lesson generation completely failed"]
 
-    issues: List[str] = []
-    title = lesson.get("title", "Untitled")
+    lesson = wrapper.get("lesson")
+    if not lesson:
+        return False, ["Lesson content is missing"]
 
-    # Schema check: required fields
-    if not lesson.get("overview", "").strip():
-        issues.append(f"'{title}': missing overview")
-
-    sections = lesson.get("sections", [])
-    if len(sections) < _MIN_SECTIONS_PER_LESSON:
-        issues.append(f"'{title}': has < {_MIN_SECTIONS_PER_LESSON} sections")
-
-    # Content check: at least one explanation with meaningful content
-    explanation_sections = [
-        s for s in sections if s.get("section_type") == "explanation"
-    ]
-    if not explanation_sections:
-        issues.append(f"'{title}': missing explanation section")
-    else:
-        word_count = len((explanation_sections[0].get("body") or "").split())
-        if word_count < _MIN_EXPLANATION_WORDS:
-            issues.append(
-                f"'{title}': explanation too short ({word_count} words, min {_MIN_EXPLANATION_WORDS})"
-            )
-
-    # Citation check: at least 1 resource
-    if not lesson.get("resources"):
-        issues.append(f"'{title}': no references attached")
-
-    return len(issues) == 0, issues
+    from pydantic import ValidationError
+    try:
+        CourseLessonSchema(**lesson)
+        return True, []
+    except ValidationError as exc:
+        return False, [f"{e.get('loc', [])}: {e.get('msg', 'Invalid')}" for e in exc.errors()]
 
 
 def _build_lesson_index(
@@ -103,9 +80,11 @@ def _build_lesson_index(
 ) -> Dict[str, Dict[str, Any]]:
     """Index generated lessons by title for O(1) lookup during assembly."""
     index = {}
-    for lesson in generated_lessons:
-        if lesson and lesson.get("title"):
-            index[lesson["title"]] = lesson
+    for wrapper in generated_lessons:
+        if wrapper and wrapper.get("lesson"):
+            lesson = wrapper["lesson"]
+            if lesson.get("title"):
+                index[lesson["title"]] = wrapper
     return index
 
 
@@ -127,35 +106,22 @@ def _assemble_course_package(
             lessons_full = []
             for lesson_bp in module.get("lessons", []):
                 lesson_title = lesson_bp.get("title", "")
-                generated = lesson_index.get(lesson_title)
+                wrapper = lesson_index.get(lesson_title)
 
-                if generated and not generated.get("_generation_failed"):
-                    try:
-                        lesson_obj = CourseLessonSchema(**generated)
-                        lessons_full.append(lesson_obj)
-                    except Exception:
-                        # Best-effort: build a minimal valid lesson
-                        lessons_full.append(
-                            CourseLessonSchema(
-                                title=lesson_title,
-                                overview=generated.get("overview", ""),
-                                sections=generated.get("sections", []),
-                                exercises=generated.get("exercises", []),
-                                resources=generated.get("resources", []),
-                            )
-                        )
-                else:
-                    # Placeholder for failed lesson — keeps course structure intact
-                    lessons_full.append(
-                        CourseLessonSchema(
-                            title=lesson_title,
-                            overview="This lesson content is being prepared.",
-                            sections=[],
-                            exercises=[],
-                            resources=[],
-                        )
-                    )
+                if not wrapper or wrapper.get("generation_status") != "generated":
+                    warnings.append(f"Lesson '{lesson_title}' excluded")
+                    continue
+                
+                lesson_data = wrapper.get("lesson")
+                if not lesson_data:
+                    warnings.append(f"Lesson '{lesson_title}' excluded (missing content)")
+                    continue
 
+                try:
+                    lesson_obj = CourseLessonSchema(**lesson_data)
+                    lessons_full.append(lesson_obj)
+                except Exception as exc:
+                    warnings.append(f"Lesson '{lesson_title}' excluded due to schema validation failure: {exc}")
             modules_full.append(
                 CourseModuleFullSchema(
                     title=module.get("title", ""),
@@ -198,10 +164,10 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
     complete webhook to the JS server for DB persistence.
 
     Returns:
-      - course_draft: CoursePackageSchema dict (sent to JS server)
-      - quality_gate_result: QualityGateResultSchema dict
-      - pipeline_status: 'quality_check'
-      - warnings: accumulated issues
+    - course_draft: CoursePackageSchema dict (sent to JS server)
+    - quality_gate_result: QualityGateResultSchema dict
+    - pipeline_status: 'quality_check'
+    - warnings: accumulated issues
     """
     content_id = state.get("content_id")
     blueprint = state.get("course_blueprint", {})
@@ -211,7 +177,9 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
     job_id = state.get("job_id", "unknown")
 
     logger.info(
-        "[QualityGate|%s] Running quality checks on %d lessons", job_id, len(generated_lessons)
+        "[QualityGate|%s] Running quality checks on %d lessons",
+        job_id,
+        len(generated_lessons),
     )
 
     await _send_status_webhook(
@@ -243,9 +211,17 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
                     gate_warnings.append(issue)
 
     total_lessons = len(generated_lessons)
-    quality_passed = (
-        lessons_failed == 0 or (lessons_passed / max(total_lessons, 1)) >= 0.7
-    )
+    pass_ratio = lessons_passed / max(total_lessons, 1)
+    
+    if pass_ratio >= 0.8:
+        quality_passed = True
+    else:
+        quality_passed = False
+        
+        if pass_ratio >= 0.5:
+            gate_warnings.append("Course is incomplete (50-79% valid lessons). Cannot publish.")
+        else:
+            gate_warnings.append("Generation failure (< 50% valid lessons). Cannot publish.")
 
     quality_result = QualityGateResultSchema(
         passed=quality_passed,
@@ -268,7 +244,12 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
 
     # ── Hard block: no valid lessons at all ───────────────────────────────────
     if lessons_passed == 0 and total_lessons > 0:
-        logger.error("[QualityGate|%s] 0 valid lessons — cannot publish this course", job_id)
+        logger.error(
+            "[QualityGate|%s] 0 valid lessons — cannot publish this course", job_id
+        )
+        from utils.webhook_helpers import _send_checkpoint_webhook
+        await _send_checkpoint_webhook(job_id, stage="quality_gate", node="quality_gate", status="failed")
+
         return {
             "quality_gate_result": quality_result.model_dump(),
             "course_draft": {
@@ -295,6 +276,9 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
         }
 
     logger.info("[QualityGate|%s] Course package assembled.", job_id)
+    
+    from utils.webhook_helpers import _send_checkpoint_webhook
+    await _send_checkpoint_webhook(job_id, stage="quality_gate", node="quality_gate", status="completed")
 
     return {
         "course_draft": course_draft,

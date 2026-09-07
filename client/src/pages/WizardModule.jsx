@@ -441,10 +441,10 @@ function GeneratingState({ contentType, isTutor, generatedData }) {
                 key={step}
                 title={PIPELINE_STATUS_CONFIG[step]?.label}
                 className={`rounded-full transition-all duration-500 ${isDone
-                    ? "h-2 w-8 bg-emerald-500"
-                    : isActive
-                      ? "h-2 w-10 bg-blue-500 animate-pulse"
-                      : "h-2 w-3 bg-slate-200"
+                  ? "h-2 w-8 bg-emerald-500"
+                  : isActive
+                    ? "h-2 w-10 bg-blue-500 animate-pulse"
+                    : "h-2 w-3 bg-slate-200"
                   }`}
               />
             );
@@ -1140,7 +1140,7 @@ export default function WizardModule() {
         >
           <SectionHeader
             eyebrow="Step 2 · Define"
-            title="What are you learning?"
+            title="Main title..."
             description="Give your AI wizard a clear topic. You can be broad or specific."
             icon={Target}
           />

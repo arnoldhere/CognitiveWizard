@@ -43,6 +43,7 @@ const {
   provideFeedback,
   publishContent,
   getPublishedCourses,
+  getGenerationStatus,
 } = require("../../controllers/wizardController");
 
 const { getActiveQuestionSets } = require("../../controllers/wizardQuestionSetController");
@@ -75,6 +76,9 @@ router.get("/question-sets", getActiveQuestionSets);
 
 /** Marketplace: all published content */
 router.get("/published", getPublishedCourses);
+
+/** Poll generation status (checkpoint progress) */
+router.get("/generation/:content_id", getGenerationStatus);
 
 /** Full content (course hierarchy or legacy modules) */
 router.get("/:content_id", getContent);

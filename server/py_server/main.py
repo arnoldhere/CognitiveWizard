@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Note: auth_api (facial recognition endpoints) deprecated → server/py_server/deprecated/
+# Note: auth_api (facial recognition endpoints) deprecated/currently unavailable → server/py_server/deprecated/
 app.include_router(quiz_router)
 app.include_router(summarization_router)
 app.include_router(rag_router)
@@ -41,10 +41,4 @@ def health():
 
 @app.on_event("startup")
 async def startup_event():
-    # Auto-resume any interrupted agentic workflows
-    from tasks.wizard_tasks import resume_incomplete_workflows
-    import asyncio
-
-    asyncio.create_task(resume_incomplete_workflows())
-
     logger.info("FastAPI startup complete")

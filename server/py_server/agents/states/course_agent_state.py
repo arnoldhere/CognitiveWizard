@@ -19,6 +19,7 @@ from typing import Annotated, TypedDict, Dict, Any, List, Optional
 class CourseAgentState(TypedDict):
     # ── Inputs (set once at graph entry) ─────────────────────────────────────
     content_id: Optional[int]      # WizardContent.id — used for webhook callbacks
+    job_id: str
     topic: str
     content_type: str
     details: str

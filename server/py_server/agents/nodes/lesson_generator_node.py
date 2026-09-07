@@ -134,7 +134,12 @@ async def _generate_single_lesson(
         logger.error(
             "[LessonGen|%s] All LLM providers failed for '%s': %s", job_id, lesson_title, exc
         )
-        return None  # Soft-fail: lesson placeholder will be used; pipeline continues
+        return {
+            "lesson": None,
+            "generation_status": "failed",
+            "review_status": "pending",
+            "error": "All LLM providers failed"
+        }
 
     messages = [SystemMessage(content=system_msg), HumanMessage(content=prompt_text)]
 
@@ -153,7 +158,12 @@ async def _generate_single_lesson(
             logger.error(
                 "[LessonGen|%s] Failed JSON extraction for lesson='%s'", job_id, lesson_title
             )
-            return None
+            return {
+                "lesson": None,
+                "generation_status": "failed",
+                "review_status": "pending",
+                "error": "Failed JSON extraction"
+            }
 
         raw_data = json.loads(json_str)
 
@@ -172,7 +182,12 @@ async def _generate_single_lesson(
             logger.info(
                 "[LessonGen|%s] ✓ Lesson generated + validated: '%s'", job_id, lesson_title
             )
-            return lesson_dict
+            return {
+                "lesson": lesson_dict,
+                "generation_status": "generated",
+                "review_status": "pending",
+                "error": None
+            }
         except Exception as validation_err:
             logger.warning(
                 "[LessonGen|%s] Pydantic validation failed for '%s': %s — using raw",
@@ -180,14 +195,23 @@ async def _generate_single_lesson(
                 lesson_title,
                 validation_err,
             )
-            raw_data["_validation_failed"] = True
-            return raw_data
+            return {
+                "lesson": None,
+                "generation_status": "failed",
+                "review_status": "pending",
+                "error": f"Schema validation failed: {validation_err}"
+            }
 
     except Exception as exc:
         logger.exception(
             "[LessonGen|%s] Error generating lesson '%s': %s", job_id, lesson_title, exc
         )
-        return None
+        return {
+            "lesson": None,
+            "generation_status": "failed",
+            "review_status": "pending",
+            "error": str(exc)
+        }
 
 
 def _collect_all_lessons(blueprint: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -279,7 +303,7 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
     for i, task in enumerate(all_lesson_tasks):
         lesson_title = task["blueprint"].get("title", "")
         review = (reviewer_results or {}).get(lesson_title, {})
-        already_passed = review.get("passed", False)
+        already_passed = review.get("review_status") == "passed"
 
         # Skip lessons that already passed the reviewer on a previous attempt
         if retry_count > 0 and already_passed:
@@ -316,19 +340,13 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
 
         for (list_idx, task, _), result in zip(batch, results):
             lesson_title = task["blueprint"].get("title", "?")
-            if result is None:
-                warnings.append(f"Lesson generation failed: '{lesson_title}'")
-                # Keep a minimal placeholder so course structure isn't broken
-                generated_lessons[list_idx] = {
-                    "title": lesson_title,
-                    "overview": "Content could not be generated for this lesson.",
-                    "sections": [],
-                    "exercises": [],
-                    "resources": [],
-                    "_generation_failed": True,
-                }
+            
+            # Result is now a wrapper dict
+            generated_lessons[list_idx] = result
+            
+            if result.get("generation_status") != "generated":
+                warnings.append(f"Lesson generation failed: '{lesson_title}' - {result.get('error')}")
             else:
-                generated_lessons[list_idx] = result
                 # Queue incremental save for successfully generated lesson
                 state_cache = {
                     "course_blueprint": blueprint,
@@ -338,7 +356,7 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
                     _send_incremental_lesson_webhook(
                         content_id=content_id,
                         job_id=job_id,
-                        lesson_data=result,
+                        lesson_data=result.get("lesson"),
                         module_context=task["module_context"],
                         lesson_idx=task["lesson_idx"],
                         state_cache=state_cache
@@ -361,9 +379,12 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
     logger.info(
         "[LessonGen|%s] Done. %d/%d lessons generated successfully.",
         job_id,
-        sum(1 for l in generated_lessons if l and not l.get("_generation_failed")),
+        sum(1 for wrapper in generated_lessons if wrapper and wrapper.get("generation_status") == "generated"),
         total,
     )
+    
+    from utils.webhook_helpers import _send_checkpoint_webhook
+    await _send_checkpoint_webhook(job_id, stage=f"lessons_retry_{retry_count}", node="lesson_generator", status="completed")
 
     return {
         "generated_lessons": generated_lessons,

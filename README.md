@@ -1,516 +1,284 @@
 # 🧙‍♂️ CognitiveWizard
 
-> **AI-powered intelligent learning platform** for turning learning material and goals into useful, adaptive study experiences. It combines structured learning tools with conversational retrieval so learners can understand, practise, revise, and plan from anywhere.
+> **AI-Powered Adaptive Learning Platform** — Transforms topics, goals, and source materials into structured, interactive, and pedagogically sound courses. Featuring multi-agent content generation, durable checkpoint & resume execution, grounded RAG tutoring, and interactive in-browser code execution.
 
 ---
 
 ## 📋 Table of Contents
 
 - [Platform Overview](#platform-overview)
+- [Key Features](#key-features)
 - [Tech Stack](#tech-stack)
 - [System Architecture](#system-architecture)
-- [Modules & Workflows](#modules--workflows)
-  - [1. Course Generation (Wizard)](#1-course-generation-wizard)
-  - [2. RAG Chatbot (Ask Tutor)](#2-rag-chatbot-ask-tutor)
-  - [3. Quiz Engine](#3-quiz-engine)
-  - [4. Content Summarizer](#4-content-summarizer)
-  - [5. Course Viewer & Lesson Reader](#5-course-viewer--lesson-reader)
-  - [6. Subscription & Payments](#6-subscription--payments)
-  - [7. Admin Panel](#7-admin-panel)
-- [Database Schema](#database-schema)
-- [LLM Provider System](#llm-provider-system)
-- [Getting Started](#getting-started)
-- [Docker Deployment](#docker-deployment)
+- [Multi-Agent Course Generation & Resilient Checkpointing](#multi-agent-course-generation--resilient-checkpointing)
+- [Getting Started & Startup Guide](#getting-started--startup-guide)
 - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
+- [Project Structure](#project-structure)
+- [Roadmap](#roadmap)
 
 ---
 
-## Platform Overview
+## Platform Overview (7 Sep. 2026)
 
-CognitiveWizard is a **full-stack AI learning platform** designed for tutors and learners. Tutors define topics and the platform handles everything: it designs a course structure, researches real web sources, generates deep lesson content, performs automated pedagogical review, and delivers an interactive learning experience to students.
+CognitiveWizard empowers tutors and self-directed learners with an end-to-end intelligent curriculum engine. Rather than relying on simple one-shot LLM prompts, CognitiveWizard orchestrates a **AI-driven multi-agent pipeline** that designs curricula, gathers verified web sources, drafts deep modular lessons, conducts pedagogical reviews, and applies strict quality gates.
 
-**Core capabilities at a glance:**
+---
 
-| Capability                | Description                                                                      |
-| ------------------------- | -------------------------------------------------------------------------------- |
-| 🏗️ Course Generation      | Multi-agent AI pipeline (LangGraph) builds complete courses from a single prompt |
-| 🔍 Web Research           | Tavily-powered research agent fetches curated sources per lesson                 |
-| 🧐 Pedagogical Review     | Automated QA loop checks educational quality before publishing                   |
-| 💬 RAG Chatbot            | Ask Tutor chatbot with lesson context injected for grounded answers              |
-| 🧪 Interactive Exercises  | Coding challenges, quizzes, and reflection prompts per lesson                    |
-| 💻 In-Browser Code Runner | Python (Pyodide/WASM) and JavaScript sandbox — zero server round-trip            |
-| 📝 Summarizer             | Paste any content to get instant structured summaries                            |
-| 📊 Admin Dashboard        | User management, LLM config, generation job monitoring                           |
+## Key Features
+
+| Capability                              | Description                                                                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🏗️ **Multi-Agent Course Generation**    | 5-stage LangGraph workflow: Architect → Research → Generator → Pedagogical Reviewer → Quality Gate.                                                            |
+| 🔄 **Durable Checkpoint & Resume**      | Celery + Redis task queue with native MySQL checkpointing (`MySQLSaver`). Server restarts or worker crashes resume from the last completed stage.              |
+| 🛡️ **Pedagogical QA & Quality Gate**    | Validates lesson structure, Bloom's taxonomy alignment, and enforces an 80% pass ratio threshold. Distinguishes between `passed`, `failed`, and `unavailable`. |
+| ⚡ **Multi-Provider LLM Fallbacks**     | Resilient provider orchestration with automatic retry and fallback order (Groq → HuggingFace → OpenAI → Anthropic).                                            |
+| 🔍 **Live Web Research**                | Tavily-powered research agent fetches curated documentation, articles, and video resources per lesson.                                                         |
+| 💬 **Grounded RAG Chatbot (Ask Tutor)** | In-context tutoring assistant grounded in lesson content using ChromaDB vector search and MongoDB session history.                                             |
+| 💻 **In-Browser Code Execution**        | Zero-server round-trip sandbox running Python (Pyodide / WASM) and JavaScript directly in the browser.                                                         |
+| 🧪 **Adaptive Exercises & Quizzes**     | Automated generation of interactive quizzes, coding challenges, and conceptual reflection questions.                                                           |
+| 📊 **Real-Time Progress & Monitoring**  | Live stage-by-stage generation progress polling (`/wizard/generation/:content_id`) and admin control over jobs.                                                |
 
 ---
 
 ## Tech Stack
 
-| Layer             | Technology                                                                                  |
-| ----------------- | ------------------------------------------------------------------------------------------- |
-| **Frontend**      | React 18 + Vite, Vanilla CSS, MUI, React Router                                             |
-| **API Gateway**   | Node.js / Express, Sequelize ORM, JWT Auth, Helmet, Rate Limiting                           |
-| **AI Backend**    | Python / FastAPI, LangGraph, Pydantic v2                                                    |
-| **LLM Providers** | HuggingFace Inference API                                                                   |
-| **Research**      | Tavily Search API                                                                           |
-| **Databases**     | MySQL (relational data), MongoDB (RAG documents), Redis (sessions, LangGraph checkpointing) |
-| **Vector DB**     | ChromaDB / in-process vector store                                                          |
-| **Deployment**    | Docker Compose (3 containers: ai-backend, api-gateway, frontend)                            |
+| Layer                     | Technology                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| **Frontend**              | React 19, Vite, Tailwind CSS v4, Lucide Icons, Framer Motion, GSAP                    |
+| **API Gateway**           | Node.js / Express, Sequelize ORM, JWT Authentication, Rate Limiting                   |
+| **AI Backend**            | Python 3.11+, FastAPI, LangGraph, Pydantic v2                                         |
+| **Task Queue & Broker**   | Celery, Redis                                                                         |
+| **Checkpointing & State** | MySQL (`langgraph_checkpoints`, `langgraph_writes`, `generation_checkpoints`)         |
+| **Databases**             | MySQL (relational content/jobs), MongoDB (chat history), ChromaDB (vector embeddings) |
+| **LLM Providers**         | Groq, HuggingFace Inference API, OpenAI, Anthropic (with automatic failover)          |
+| **Search & Research**     | Tavily Search API                                                                     |
 
 ---
 
 ## System Architecture
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                        Browser (React)                             │
-│    Home · Login · Wizard · CourseViewer · Quiz · Summarize · RAG  │
-└────────────────────────┬───────────────────────────────────────────┘
-                         │  HTTP / REST  (port 80 in prod)
-                         ▼
-┌────────────────────────────────────────────────────────────────────┐
-│               js_server  —  Express API Gateway  (port 3000)       │
-│  Auth · Wizard · Quiz · RAG · Summary · Subscription · Admin       │
-│  MySQL  ·  MongoDB  ·  Redis                                       │
-└──────────────────────────┬─────────────────────────────────────────┘
-                           │  Internal HTTP calls
-                           ▼
-┌────────────────────────────────────────────────────────────────────┐
-│           py_server  —  FastAPI AI Engine  (port 8000)             │
-│  /wizard  ·  /rag  ·  /quiz  ·  /summarize  ·  /subscription      │
-│  LangGraph Agents · VectorDB · Tavily                              │
-└──────────────────────────────────────────────────────────────────┘
-                        │               │
-                   HuggingFace      Tavily API
-                   Inference API    (web research)
-```
-
----
-
-## Modules & Workflows
-
----
-
-### 1. Course Generation (Wizard)
-
-The flagship module. A **5-stage multi-agent LangGraph pipeline** converts a topic + preferences into a fully structured, content-rich course.
-
-#### End-to-End Flow
-
-```
-User Input (topic, skill level, goal, learning style)
-      │
-      ▼  POST /api/wizard/generate
-js_server  →  creates WizardContent row (status: "generating")
-           →  calls py_server POST /wizard/generate-agentic  (returns 202)
-                    │
-                    ▼  Background LangGraph pipeline
-         ┌──────────────────────────────────────────────┐
-         │  Stage 1 — Learning Architect                │
-         │    · Designs phases → modules → lesson titles │
-         │    · No content yet (cheap, fast pass)        │
-         └──────────────────┬───────────────────────────┘
-                            │
-         ┌──────────────────▼───────────────────────────┐
-         │  Stage 2 — Research Agent                    │
-         │    · Tavily: fetches URLs/YT per lesson       │
-         │    · Parallel batches of 5 lessons            │
-         │    · No LLM call — pure search                │
-         └──────────────────┬───────────────────────────┘
-                            │
-         ┌──────────────────▼───────────────────────────┐
-         │  Stage 3 — Lesson Generator                  │
-         │    · Generates full content per lesson        │
-         │    · Concurrent batches of 3                  │
-         │    · Sections: explanation · analogy ·        │
-         │      code example · mistakes · summary        │
-         │    · Injects research evidence as resources   │
-         └──────────────────┬───────────────────────────┘
-                            │
-         ┌──────────────────▼───────────────────────────┐
-         │  Stage 4 — Pedagogical Reviewer              │
-         │    · QA against educational checklist         │
-         │    · Bloom's taxonomy, objective coverage     │
-         │    · PASS / FAIL per lesson                   │
-         │    · FAIL + retry < 2 → back to Stage 3       │
-         └──────────────────┬───────────────────────────┘
-                            │
-         ┌──────────────────▼───────────────────────────┐
-         │  Stage 5 — Quality Gate                      │
-         │    · Final validation (word count, citations) │
-         │    · Assembles CoursePackageSchema            │
-         │    · POSTs to webhook → SQL transaction       │
-         └──────────────────┬───────────────────────────┘
-                            │
-         js_server persists course to MySQL (6 tables)
-                            │
-         Frontend polls for completion → opens CourseViewer
-```
-
-#### Real-Time Status Updates
-
-Each stage fires a webhook to the JS server. The React frontend polls every 4 seconds and shows a live 5-step progress bar:
-
-| Stage                | Status message                          |
-| -------------------- | --------------------------------------- |
-| Learning Architect   | 🏗️ Designing your course structure...   |
-| Research Agent       | 🔍 Researching sources for N lessons... |
-| Lesson Generator     | ✍️ Writing content for N lessons...     |
-| Pedagogical Reviewer | 🧐 Reviewing N lessons for quality...   |
-| Quality Gate         | ✅ Running quality checks...            |
-
-#### Content Lifecycle
-
-```
-generating  →  pending_approval  →  published
-```
-
-Lessons: `draft` → `reviewed` → `published` (tutor approval required)
-
-#### Supported Content Types
-
-- **Course / Syllabus** — full multi-phase course with exercises and resources
-- **Roadmap** — milestone-based learning roadmap
-- **Learning Guide** — structured guide without phase breakdown
-- **Study Schedule** — time-blocked learning plan
-
----
-
-### 2. RAG Chatbot (Ask Tutor)
-
-A **Retrieval-Augmented Generation** chatbot that answers questions grounded in lesson content or user-uploaded documents.
-
-#### Flow
-
-```
-User message
-      │
-      ▼  POST /api/rag/chat
-js_server  →  forwards to py_server  POST /rag/chat
-                    │
+```txt
+┌────────────────────────────────────────────────────────────────────────┐
+│                        Client: React 19 (Vite)                         │
+│       CourseViewer · LessonReader · CodeSandbox · AskTutor · Quiz      │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ HTTP / REST (port 5173 / 80)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│              Express API Gateway (js_server — port 3000)               │
+│      Auth · Content CRUD · Checkpoint Webhooks · Rate Limiting         │
+│               MySQL  ·  MongoDB (Chat)  ·  Redis (Cache)               │
+└───────────────────┬────────────────────────────────┬───────────────────┘
+                    │ REST                           │ Webhooks
+                    ▼                                ▲
+┌────────────────────────────────────────────────────┴───────────────────┐
+│                 FastAPI AI Engine (py_server — port 8000)              │
+│       /wizard/generate-agentic  ·  /rag/chat  ·  /quiz/generate        │
+└───────────────────┬────────────────────────────────────────────────────┘
+                    │ Enqueues Task (.delay)
                     ▼
-          Embed query → vector similarity search (ChromaDB)
-                    │
-          Retrieve top-k relevant chunks
-                    │
-          Build prompt: [context chunks] + [chat history] + [user message]
-                    │
-          LLM generates grounded answer
-                    │
-          Response + source references
-                    ▼
-          js_server stores ChatSession → returns to frontend
-```
-
-#### Features
-
-- Lesson context auto-injected when opened from within `LessonReader` ("💬 Ask Tutor" tab)
-- Persistent chat history per session (MongoDB)
-- Source document references surfaced alongside answers
-- RAG documents can be uploaded via admin or tutor interface
-
----
-
-### 3. Quiz Engine
-
-AI-generated quizzes based on course content or any custom topic.
-
-#### Flow
-
-```
-User triggers quiz (topic / lesson_id)
-      │
-      ▼  POST /api/quiz/generate
-js_server  →  py_server  POST /quiz/generate
-                    │
-          LLM generates MCQ / True-False / Short Answer set
-                    │
-          Pydantic validation of question schema
-                    │
-          Returns JSON question set  →  js_server stores (WizardQuestionSet)
-                    │
-          Frontend (QuizPage.jsx) renders interactive quiz
-                    │
-          On submit: grade against answer key
-                    │
-          Score + per-question feedback → Grade stored in DB
-```
-
-#### Features
-
-- Multiple question types: MCQ, true/false, short answer
-- Per-question explanations for wrong answers
-- Grade stored for performance tracking
-- Accessible from lesson Practice tab or standalone `QuizPage`
-
----
-
-### 4. Content Summarizer
-
-Paste any text, URL, or document and receive a structured AI summary.
-
-#### Flow
-
-```
-User inputs content (text / URL)
-      │
-      ▼  POST /api/summary/generate
-js_server  →  py_server  POST /summarize
-                    │
-          Content extracted (URL scraping if needed)
-                    │
-          LLM produces structured summary:
-            · Key points  · Main concepts  · Takeaways
-                    │
-          Returns summary → displayed in Summarize.jsx
+┌────────────────────────────────────────────────────────────────────────┐
+│              Celery Distributed Worker (py_server background)          │
+│                Redis Broker  ◄───►  MySQL LangGraph Saver              │
+│                                                                        │
+│  [Architect Node] ──► [Research Node] ──► [Generator Node]            │
+│                              ▲                     │                   │
+│                              │ (Retry on Fail)     ▼                   │
+│                       [Quality Gate] ◄── [Reviewer Node]               │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ External APIs
+                                    ▼
+                Groq / HuggingFace / OpenAI / Anthropic  ·  Tavily Search
 ```
 
 ---
 
-### 5. Course Viewer & Lesson Reader
+## Multi-Agent Course Generation & Resilient Checkpointing
 
-The full interactive learning experience delivered to learners.
+### 1. The 5-Stage Agent Pipeline
 
-#### Component Hierarchy
+1. **Learning Architect**: Generates the modular blueprint (Phases → Modules → Lessons).
+2. **Research Agent**: Queries Tavily in parallel batches to gather verified URLs and reference material.
+3. **Lesson Generator**: Generates full lesson content (theory, analogies, code snippets, misconceptions, practice exercises) in concurrent batches.
+4. **Pedagogical Reviewer**: Audits lesson depth, clarity, and objectives. Outputs explicit statuses: `passed`, `failed`, or `unavailable`. Retries failed lessons up to 2 times.
+5. **Quality Gate**: Validates complete course completeness against an 80% passing threshold before packaging the syllabus for publication.
 
-```
-WizardModule.jsx          — Tutor: generate, monitor status, Publish
-  └── WizardContentView.jsx    — Routes: course vs. roadmap vs. guide
-        └── CourseViewer.jsx         — Full course shell
-              │
-              ├── Collapsible sidebar (phases → modules → lessons)
-              ├── Progress tracking (localStorage per lesson_id)
-              ├── Prev / Next lesson navigation
-              ├── DraftReviewUI.jsx — Tutor lesson review before publish
-              ├── PdfExportModal.jsx — Export lesson as PDF
-              └── LessonReader.jsx        — 5-tab lesson experience
-                    │
-                    ├── 📖 Read      → Lesson sections (explanation, code, analogy…)
-                    ├── 🎥 Watch     → YouTube resources per lesson
-                    ├── 💻 Code      → CodeSandbox (Python/JS in-browser runner)
-                    ├── 🧪 Practice  → Exercises (coding / quiz / reflection)
-                    └── 💬 Ask Tutor → RAG chatbot with lesson context injected
-```
+### 2. Checkpoint & Resume Architecture
 
-#### CodeSandbox
-
-| Language   | Runtime                       | Notes                                   |
-| ---------- | ----------------------------- | --------------------------------------- |
-| Python     | Pyodide (WebAssembly)         | Fully client-side, no server round-trip |
-| JavaScript | `eval()` in sandboxed context | Output captured and displayed           |
+- **Durable Queuing**: FastAPI endpoints push jobs to Celery via Redis broker. Worker crashes or service restarts do not drop jobs.
+- **MySQL Checkpointer**: Graph state is persisted using a custom `MySQLSaver` connected to MySQL (`langgraph_checkpoints` & `langgraph_writes`).
+- **Incremental Progress**: Each completed lesson and stage triggers an internal webhook (`/internal/wizard-webhook/checkpoint` and `/lesson-incremental`), allowing frontend polling via `GET /wizard/generation/:content_id`.
+- **Fault Tolerance**: If execution is interrupted, the job picks up from the latest checkpoint without re-running completed LLM calls.
 
 ---
 
-### 6. Subscription & Payments
-
-Manages user subscription tiers and payment transactions.
-
-#### Flow
-
-```
-User selects a plan  →  POST /api/subscription/checkout
-                              │
-                    py_server /subscription/create-session
-                              │
-                    Payment gateway integration
-                              │
-                    Webhook confirms payment
-                              │
-                    js_server updates user subscription tier
-                              │
-                    Features unlocked based on tier
-```
-
----
-
-### 7. Admin Panel
-
-Full platform management for admins.
-
-#### Capabilities
-
-- **User Management** — view, block/unblock, role assignment
-- **LLM Configuration** — set active models, provider order (`LLMConfig` model)
-- **Generation Jobs** — monitor `GenerationJob` records, status, errors
-- **RAG Documents** — upload/manage knowledge base documents
-- **Content Moderation** — review and approve/reject generated courses
-
----
-
-## Database & Storage Schema
-
-> coming soon...
-
----
-
-## LLM Provider System
-
-## LLM Provider System
-
-The pipeline configures the LLM provider directly from settings, defaulting to HuggingFace.
-
-> Note: Current flow is to test the current features other modern features will be improved soon.
-
-**Per-task profiles** (tuned independently):
-
-| Task               | Temp | Max Tokens | Purpose              |
-| ------------------ | ---- | ---------- | -------------------- |
-| `course_architect` | 0.4  | 4096       | Structured blueprint |
-| `course_lesson`    | 0.6  | 6144       | Rich lesson prose    |
-| `course_reviewer`  | 0.2  | 2048       | Deterministic QA     |
-| `course_quality`   | 0.1  | 1024       | Tight validation     |
-
-**Error types:**
-
-- `ProviderUnavailableError` — unreachable (network/connection)
-- `ModelError` — reachable but inference failed (OOM, timeout, bad output)
-
----
-
-## Getting Started
+## Getting Started & Startup Guide
 
 ### Prerequisites
 
-- **Node.js** >= 18
+Ensure the following services and runtimes are installed and running:
+
+- **Node.js** >= 18.0
 - **Python** >= 3.11
-- **MySQL** running with `cognitive_wizard` database
-- **MongoDB** running (for RAG chat history)
-- **Redis** with RedisJSON + RediSearch modules (for LangGraph checkpointing)
-- **Tavily API key** for the research agent
+- **MySQL Server** (running with your configured database, e.g., `cogntivewizard_db`)
+- **Redis Server** (running on `localhost:6379`)
+- **MongoDB** (running locally or cloud connection string)
 
-### Local Development
+---
 
-```bash
-# Terminal 1 — Express API Gateway
-cd server/js_server
-npm install
-npm run dev              # http://localhost:3000
+### Step 1: Environment Setup
 
-# Terminal 2 — FastAPI AI Backend
-cd server/py_server
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+Create `.env` inside `server/` (shared by `js_server` and `py_server`), or verify the existing environment file:
 
-# Terminal 3 — React Frontend
-cd client
-npm install
-npm run dev              # http://localhost:5173
+```env
+# Application Ports
+JS_SERVER_PORT=3000
+JS_SERVER_URL=http://localhost:3000
+PY_SERVER_URL=http://localhost:8000
+
+# Databases
+DATABASE_URL=mysql+pymysql://root:password@localhost:3306/cogntivewizard_db
+DATABASE_NAME=cogntivewizard_db
+DATABASE_USER=root
+DATABASE_PASSWORD=password
+MONGO_URI=mongodb://localhost:27017/cognitivewizard_chat
+REDIS_URL=redis://localhost:6379/0
+
+# Security
+JWT_SECRET_KEY=your_jwt_secret_key
+
+# LLM & Search Providers
+GROQ_API_KEY=your_groq_api_key
+GROQ_DEF_MODEL=llama-3.3-70b-versatile
+HF_API_KEY=your_huggingface_key
+TAVILY_API_KEY=your_tavily_api_key
+LLM_PROVIDER_ORDER=groq,huggingface,openai
 ```
 
 ---
 
-## Docker Deployment
+### Step 2: Running the Services
 
-`Coming soon`
+To run CognitiveWizard locally, start the following **4 terminal processes**:
 
-> **Note:** External services (MySQL, MongoDB, Redis) must be running on the host.
+#### Terminal 1 — Express API Gateway
+
+```bash
+cd server/js_server
+npm install
+npm run dev
+# Running on http://localhost:3000
+```
+
+#### Terminal 2 — FastAPI AI Engine
+
+```bash
+cd server/py_server
+# Activate virtual environment
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+# Running on http://localhost:8000
+```
+
+#### Terminal 3 — Celery Background Worker
+
+```bash
+cd server/py_server
+# Activate the same virtual environment
+source .venv/bin/activate
+celery -A core.celery_app worker --loglevel=info
+# Listens for agentic course generation and resume tasks
+```
+
+#### Terminal 4 — React Frontend
+
+```bash
+cd client
+npm install
+npm run dev
+# Running on http://localhost:5173
+```
 
 ---
 
 ## API Reference
 
-### Express Gateway (`js_server` — port 3000)
+### Express Gateway (`js_server` — Port 3000)
 
-| Method | Endpoint                                    | Description                       |
-| ------ | ------------------------------------------- | --------------------------------- |
-| POST   | `/api/auth/register`                        | User registration                 |
-| POST   | `/api/auth/login`                           | User login (JWT)                  |
-| POST   | `/api/wizard/generate`                      | Trigger course/content generation |
-| GET    | `/api/wizard/:content_id`                   | Get generated content             |
-| GET    | `/api/wizard/:content_id/lesson/:lesson_id` | Fetch a single lesson             |
-| POST   | `/api/wizard/:content_id/publish`           | Publish course (tutor)            |
-| POST   | `/api/rag/chat`                             | Send RAG chatbot message          |
-| POST   | `/api/quiz/generate`                        | Generate quiz for a topic         |
-| POST   | `/api/summary/generate`                     | Summarize content                 |
-| GET    | `/api/admin/*`                              | Admin routes (role-protected)     |
+| Method | Endpoint                              | Description                                                 |
+| ------ | ------------------------------------- | ----------------------------------------------------------- |
+| `POST` | `/api/auth/register`                  | Register a new user                                         |
+| `POST` | `/api/auth/login`                     | Authenticate user and receive JWT                           |
+| `POST` | `/api/wizard/generate`                | Generate roadmap / guide / single-prompt content            |
+| `POST` | `/api/wizard/generate-agentic`        | Dispatch multi-agent course generation to Celery            |
+| `GET`  | `/api/wizard/generation/:content_id`  | **New**: Poll realtime checkpoint progress & stage statuses |
+| `GET`  | `/api/wizard/:content_id`             | Fetch full course hierarchy or generated content            |
+| `GET`  | `/api/wizard/:content_id/lesson/:lid` | Fetch individual lesson with sections & resources           |
+| `POST` | `/api/wizard/:content_id/publish`     | Approve and publish generated course draft                  |
+| `POST` | `/api/rag/chat`                       | Query RAG assistant with grounded lesson context            |
+| `POST` | `/api/quiz/generate`                  | Generate topic- or lesson-based quiz                        |
+| `POST` | `/api/summary/generate`               | Generate structured summary of text or URL                  |
 
-### FastAPI AI Backend (`py_server` — port 8000)
+### Internal Webhooks & Job Control
 
-| Method | Endpoint                            | Description                     |
-| ------ | ----------------------------------- | ------------------------------- |
-| POST   | `/wizard/generate-agentic`          | Start LangGraph course pipeline |
-| POST   | `/internal/wizard-webhook/status`   | Pipeline stage status update    |
-| POST   | `/internal/wizard-webhook/complete` | Pipeline completion + DB write  |
-| POST   | `/rag/chat`                         | RAG query + answer              |
-| POST   | `/quiz/generate`                    | AI quiz generation              |
-| POST   | `/summarize`                        | Content summarization           |
-| GET    | `/health`                           | Service health check            |
+| Method | Endpoint                                      | Handler                                           |
+| ------ | --------------------------------------------- | ------------------------------------------------- |
+| `POST` | `/internal/wizard-webhook/checkpoint`         | Records granular stage checkpoint in MySQL        |
+| `POST` | `/internal/wizard-webhook/lesson-incremental` | Saves lesson as soon as it is generated           |
+| `POST` | `/internal/wizard-webhook/complete`           | Finalizes complete course persistence transaction |
+| `GET`  | `/internal/wizard-webhook/job/:job_id`        | Fetches generation job metadata                   |
+| `POST` | `/internal/wizard-webhook/job/:job_id/retry`  | Re-enqueues failed job for resumption             |
+| `POST` | `/internal/wizard-webhook/job/:job_id/cancel` | Marks job cancelled and revokes task              |
 
 ---
 
 ## Project Structure
 
-```
+```text
 CognitiveWizard/
-├── client/                    # React frontend (Vite)
+├── client/                     # React 19 Frontend (Vite + Tailwind CSS v4)
 │   └── src/
-│       ├── pages/             # Route-level page components
-│       │   ├── WizardModule.jsx
-│       │   ├── WizardContentView.jsx
-│       │   ├── QuizPage.jsx
-│       │   ├── Summarize.jsx
-│       │   ├── ChatbotPage.jsx
-│       │   ├── Marketplace.jsx
-│       │   └── Profile.jsx
-│       └── components/
-│           └── wizard/        # Course viewer components
-│               ├── CourseViewer.jsx
-│               ├── LessonReader.jsx
-│               ├── CodeSandbox.jsx
-│               ├── DraftReviewUI.jsx
-│               └── PdfExportModal.jsx
+│       ├── components/wizard/  # CourseViewer, LessonReader, CodeSandbox
+│       └── pages/              # WizardModule, QuizPage, Summarize, ChatbotPage
 │
 ├── server/
-│   ├── js_server/             # Express API Gateway
-│   │   ├── index.js           # Entry point
-│   │   ├── routes/            # auth / user / admin routes
-│   │   ├── controllers/       # Business logic
-│   │   ├── models/            # Sequelize ORM models
-│   │   ├── middlewares/       # Auth, rate limiting, error handling
-│   │   └── config/            # DB, Redis, Mongo connections
+│   ├── js_server/              # Express API Gateway
+│   │   ├── controllers/        # Request handling & webhook receivers
+│   │   ├── models/             # Sequelize models (WizardContent, GenerationJob, GenerationCheckpoint)
+│   │   ├── routes/             # User and admin route definitions
+│   │   └── index.js            # Gateway entrypoint & webhook routing
 │   │
-│   └── py_server/             # FastAPI AI Engine
-│       ├── main.py            # Entry point
-│       ├── api/               # Route handlers (wizard, rag, quiz…)
+│   └── py_server/              # FastAPI AI & Multi-Agent Engine
 │       ├── agents/
-│       │   ├── graphs/        # LangGraph pipeline definitions
-│       │   ├── nodes/         # Pipeline stage implementations
-│       │   └── states/        # Shared agent state schemas
-│       ├── providers/
-│       │   └── llm/           # HF providers
-│       ├── schemas/           # Pydantic v2 data models
-│       ├── services/          # Shared business logic
-│       ├── tasks/             # Background task runner
-│       ├── utils/             # Prompt builders, helpers
-│       └── vectorDB/          # ChromaDB / vector store
+│       │   ├── graphs/         # LangGraph course generation workflow
+│       │   ├── nodes/          # Architect, Research, Lesson Generator, Reviewer, Quality Gate
+│       │   └── states/         # TypedDict pipeline states
+│       ├── core/
+│       │   ├── celery_app.py   # Celery app configured with Redis
+│       │   ├── db.py           # PyMySQL database connection helper
+│       │   └── mysql_checkpointer.py # Custom LangGraph MySQLSaver implementation
+│       ├── providers/llm/      # Multi-provider client factory with fallback backoff
+│       ├── tasks/              # Celery background tasks (run_agentic_workflow_task, resume_job_task)
+│       └── main.py             # FastAPI entrypoint
 │
-├── docker-compose.yml         # 3-container deployment
-└── Course_Gen_flow.md         # Detailed course generation guide
+└── README.md
 ```
 
 ---
 
-## Roadmap (Proposed Features)
+## Roadmap
 
-- [P] Content
-
----
-
-- [1] Improve course generation workflow
-- [1] enhance other content type generation
-- [1] shorter course generation time
-- [3] Adaptive learning path based on performance
-- [5] Auto scheduling & time blocking with deadline awareness
-- [3] Pomodoro / break-aware study scheduling
-- [3] Progress tracking & analytics dashboard
-- [2] Shareable / sellable course content (Marketplace)
-- [3] Weak area detection with personalized recommendations
-- [4] Smart reminders & notifications
-- [4] Reduced burnout risk (fatigue & exhaustion pattern detection)
-- [5] Multi-modal AI system (voice, image input)
-- [3] PDF export for offline learning
+- [x] Resilient multi-agent course generation with LangGraph
+- [x] Celery + Redis distributed queuing for heavy background workflows
+- [x] Durable MySQL checkpointing and recovery from server restarts
+- [x] Web research agent integration with Tavily
+- [x] In-browser Python WASM (Pyodide) and JS execution
+- [ ] Adaptive learning path adjustment based on quiz performance
+- [ ] Automated deadline-aware scheduling & calendar export (ICS)
+- [ ] Audio/voice synthesis for hands-free lesson listening
+- [ ] Community marketplace for sharing & discovering curated courses
 
 ---
 

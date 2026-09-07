@@ -18,7 +18,7 @@ const GenerationJob = sequelize.define('GenerationJob', {
     onDelete: 'CASCADE',
   },
   status: {
-    type: DataTypes.ENUM('queued', 'running', 'completed', 'failed'),
+    type: DataTypes.ENUM('pending', 'queued', 'running', 'resuming', 'completed', 'failed', 'cancelled', 'degraded'),
     allowNull: false,
     defaultValue: 'queued',
   },
@@ -34,6 +34,19 @@ const GenerationJob = sequelize.define('GenerationJob', {
     type: DataTypes.STRING(255),
     allowNull: false,
     unique: true,
+  },
+  input_payload: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
+  retry_count: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+  },
+  checkpoint: {
+    type: DataTypes.JSON,
+    allowNull: true,
   }
 }, {
   tableName: 'generation_jobs',

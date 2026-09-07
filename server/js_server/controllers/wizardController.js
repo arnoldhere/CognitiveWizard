@@ -100,20 +100,22 @@ async function generateAgentic(req, res, next) {
       content: {},
     });
 
+    const user_role = req.user?.role || "user";
+    const input_payload = { topic, content_type, details, skill_level, goal, learning_style, user_role };
+
     const thread_id = `job_${wizardContent.id}_${Date.now()}`;
     await GenerationJob.create({
       wizard_content_id: wizardContent.id,
       status: "queued",
       thread_id,
+      input_payload,
     });
-
-    const user_role = req.user?.role || "user";
 
     // Fire off agentic pipeline — do not await (background task)
     pyAxios.post("/wizard/generate-agentic", {
       content_id: wizardContent.id,
       job_id: thread_id,
-      topic, content_type, details, skill_level, goal, learning_style, user_role
+      ...input_payload
     }).catch((err) => {
       logger.error(`[WIZARD] py_server agentic failed to start: ${err.message}`);
       wizardContent.update({ status: "error" }).catch(() => { });
@@ -478,16 +480,17 @@ async function getIncompleteGenerations(req, res, next) {
 
     const result = jobs.map(j => {
       const wc = j.wizard_content;
+      const input = j.input_payload || {};
       return {
         content_id: wc.id,
         job_id: j.thread_id,
-        topic: wc.topic,
-        content_type: wc.content_type,
-        details: wc.details,
-        skill_level: wc.skill_level,
-        goal: wc.goal,
-        learning_style: wc.learning_style,
-        user_role: wc.user_role,
+        topic: input.topic || wc.topic,
+        content_type: input.content_type || wc.content_type,
+        details: input.details,
+        skill_level: input.skill_level,
+        goal: input.goal,
+        learning_style: input.learning_style,
+        user_role: input.user_role,
         state_cache: wc.content?.langgraph_state || null
       };
     });
@@ -810,6 +813,124 @@ async function webhookAgenticLessonIncremental(req, res, next) {
   }
 }
 
+/**
+ * GET /wizard/generation/:content_id
+ * User-facing endpoint for polling generation status.
+ */
+async function getGenerationStatus(req, res, next) {
+  try {
+    const { content_id } = req.params;
+    const content = await WizardContent.findOne({
+      where: { id: content_id, user_id: req.user.id }
+    });
+    if (!content) return res.status(404).json({ error: "Content not found" });
+
+    const job = await GenerationJob.findOne({
+      where: { wizard_content_id: content_id },
+      order: [['created_at', 'DESC']]
+    });
+
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    // Try to get progress from checkpoints
+    const { GenerationCheckpoint } = require('../models');
+    const checkpoints = await GenerationCheckpoint.findAll({ where: { job_id: job.id } });
+
+    res.json({
+      job_id: job.thread_id,
+      status: job.status,
+      content_type: content.content_type,
+      current_stage: job.current_stage,
+      retry_count: job.retry_count,
+      error: job.error_details,
+      checkpoints: checkpoints.map(c => ({ stage: c.stage, status: c.status, node: c.node })),
+      label: content.content?._status_label
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /internal/wizard-webhook/job/:job_id
+ */
+async function getJobStatus(req, res, next) {
+  try {
+    const job = await GenerationJob.findOne({ where: { thread_id: req.params.job_id } });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    res.json(job);
+  } catch (err) {
+    res.status(500).json({ error: "Internal error" });
+  }
+}
+
+/**
+ * POST /internal/wizard-webhook/job/:job_id/retry
+ */
+async function retryJob(req, res, next) {
+  try {
+    const job = await GenerationJob.findOne({ where: { thread_id: req.params.job_id } });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    await job.update({ status: 'pending', retry_count: job.retry_count + 1 });
+
+    // Trigger python pyAxios
+    pyAxios.post(`/wizard/generation/${job.thread_id}/retry`).catch(e => logger.error(`Retry ping failed: ${e.message}`));
+
+    res.json({ success: true, status: 'pending' });
+  } catch (err) {
+    res.status(500).json({ error: "Internal error" });
+  }
+}
+
+/**
+ * POST /internal/wizard-webhook/job/:job_id/cancel
+ */
+async function cancelJob(req, res, next) {
+  try {
+    const job = await GenerationJob.findOne({ where: { thread_id: req.params.job_id } });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    await job.update({ status: 'cancelled' });
+
+    // Trigger python pyAxios
+    pyAxios.post(`/wizard/generation/${job.thread_id}/cancel`).catch(e => logger.error(`Cancel ping failed: ${e.message}`));
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Internal error" });
+  }
+}
+
+/**
+ * POST /internal/wizard-webhook/checkpoint
+ * Upserts a GenerationCheckpoint
+ */
+async function webhookAgenticCheckpoint(req, res, next) {
+  try {
+    const { job_id, stage, node, status } = req.body;
+    const job = await GenerationJob.findOne({ where: { thread_id: job_id } });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    const { GenerationCheckpoint } = require('../models');
+
+    // Upsert using Sequelize findOrCreate + update or native upsert
+    const [checkpoint, created] = await GenerationCheckpoint.findOrCreate({
+      where: { job_id: job.id, stage },
+      defaults: { node, status }
+    });
+
+    if (!created) {
+      await checkpoint.update({ node, status });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`[WIZARD WEBHOOK] Checkpoint error: ${err.message}`);
+    res.status(500).json({ error: "Internal error" });
+  }
+}
+
 module.exports = {
   generateContent,
   getHistory,
@@ -825,5 +946,11 @@ module.exports = {
   webhookAgenticComplete,
   webhookAgenticLessonIncremental,
   getIncompleteGenerations,
+  getGenerationStatus,
+  getJobStatus,
+  retryJob,
+  cancelJob,
+  webhookAgenticCheckpoint,
 };
+
 

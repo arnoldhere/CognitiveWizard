@@ -40,6 +40,7 @@ const LessonSection = require('./LessonSection');
 const LessonResource = require('./LessonResource');
 const LessonExercise = require('./LessonExercise');
 const GenerationJob = require('./GenerationJob');
+const GenerationCheckpoint = require('./GenerationCheckpoint');
 
 // ─── Cross-model associations ─────────────────────────────────────────────────
 
@@ -165,5 +166,6 @@ module.exports = {
   LessonResource,
   LessonExercise,
   GenerationJob,
+  GenerationCheckpoint,
 };
 

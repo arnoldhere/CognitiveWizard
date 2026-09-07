@@ -177,11 +177,26 @@ app.get("/internal/llm-configs/:task_name", async (req, res) => {
   }
 });
 
-const { webhookAgenticStatus, webhookAgenticComplete, webhookAgenticLessonIncremental, getIncompleteGenerations } = require("./controllers/wizardController");
+const { 
+  webhookAgenticStatus, 
+  webhookAgenticComplete, 
+  webhookAgenticLessonIncremental, 
+  getIncompleteGenerations,
+  getJobStatus,
+  retryJob,
+  cancelJob,
+  webhookAgenticCheckpoint
+} = require("./controllers/wizardController");
+
 app.post("/internal/wizard-webhook/status", webhookAgenticStatus);
 app.post("/internal/wizard-webhook/complete", webhookAgenticComplete);
 app.post("/internal/wizard-webhook/lesson-incremental", webhookAgenticLessonIncremental);
 app.get("/internal/wizard-webhook/incomplete", getIncompleteGenerations);
+app.get("/internal/wizard-webhook/job/:job_id", getJobStatus);
+app.post("/internal/wizard-webhook/job/:job_id/retry", retryJob);
+app.post("/internal/wizard-webhook/job/:job_id/cancel", cancelJob);
+app.post("/internal/wizard-webhook/checkpoint", webhookAgenticCheckpoint);
+
 
 app.post("/internal/ensure-admin", async (req, res) => {
   try {

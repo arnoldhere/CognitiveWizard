@@ -225,6 +225,22 @@ class CourseLessonSchema(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Pipeline state wrapper
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class LessonGenerationResultSchema(BaseModel):
+    """
+    Wraps the generated lesson with independent state tracking.
+    This prevents encoding pipeline status inside the lesson content itself.
+    """
+    lesson: Optional[CourseLessonSchema] = None
+    generation_status: Literal["generated", "failed", "pending"] = "pending"
+    review_status: Literal["passed", "failed", "unavailable", "pending"] = "pending"
+    error: Optional[str] = None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Pedagogical Review model
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -236,7 +252,7 @@ class LessonReviewSchema(BaseModel):
     """
 
     lesson_title: str
-    passed: bool
+    review_status: Literal["passed", "failed", "unavailable"]
     issues: List[str] = Field(
         default_factory=list,
         description="List of specific issues found — empty if passed",

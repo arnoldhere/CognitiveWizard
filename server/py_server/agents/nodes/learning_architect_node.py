@@ -173,6 +173,9 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
             "generated_lessons": []
         }
         await _send_status_webhook(content_id, job_id, "blueprint_ready", "✅ Blueprint ready", state_cache)
+        
+        from utils.webhook_helpers import _send_checkpoint_webhook
+        await _send_checkpoint_webhook(job_id, stage="blueprint", node="learning_architect", status="completed")
 
         return {
             "course_blueprint": validated_data,

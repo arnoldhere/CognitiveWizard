@@ -1,55 +1,71 @@
 import asyncio
 import httpx
+import traceback
+import logging
+
 from agents.graphs.course_generation_graph import get_compiled_course_graph
 from agents.states.course_agent_state import CourseAgentState
-from langgraph.checkpoint.memory import MemorySaver
 from config.settings import settings
-import traceback
+from providers.llm.provider_errors import AllProvidersFailedError
+from core.celery_app import celery_app
+from core.db import get_db_connection
+from core.mysql_checkpointer import MySQLSaver
 
+logger = logging.getLogger(__name__)
 js_server_url = settings.JS_SERVER_URL
 
 
 async def _send_complete_webhook(
-    content_id: int, job_id: str, data: dict = None, error: str = None
+    content_id: int,
+    job_id: str,
+    data: dict = None,
+    error: str = None,
+    status: str = None,
 ):
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             payload = {"content_id": content_id, "job_id": job_id}
             if error:
                 payload["error"] = error
-            else:
+            if data is not None:
                 payload["data"] = data
+            if status is not None:
+                payload["status"] = status
+
             await client.post(
                 f"{js_server_url}/internal/wizard-webhook/complete", json=payload
             )
     except Exception as e:
-        print(f"Failed to send complete webhook: {e}")
+        logger.error(f"Failed to send complete webhook: {e}")
 
 
-async def _run_agentic_workflow_async(
-    initial_state: CourseAgentState,
-    job_id: str,
-):
-    checkpointer = MemorySaver()
-    graph = get_compiled_course_graph(checkpointer=checkpointer)
+async def _run_agentic_workflow_async(initial_state: CourseAgentState, job_id: str):
+    conn = get_db_connection()
+    try:
+        checkpointer = MySQLSaver(conn)
+        graph = get_compiled_course_graph(checkpointer=checkpointer)
 
-    config = {
-        "configurable": {
-            "thread_id": job_id,
+        config = {
+            "configurable": {
+                "thread_id": job_id,
+            }
         }
-    }
 
-    state = await graph.aget_state(config)
-    if state.next:
-        print(
-            f"Resuming interrupted course generation: {job_id} (Next: {state.next})"
-        )
-        return await graph.ainvoke(None, config)
+        state = await graph.aget_state(config)
+        if state.next:
+            logger.info(
+                f"Resuming interrupted course generation: {job_id} (Next: {state.next})"
+            )
+            return await graph.ainvoke(None, config)
 
-    return await graph.ainvoke(initial_state, config)
+        return await graph.ainvoke(initial_state, config)
+    finally:
+        conn.close()
 
 
-async def run_agentic_workflow_task(
+@celery_app.task(bind=True, max_retries=3, acks_late=True)
+def run_agentic_workflow_task(
+    self,
     content_id: int,
     job_id: str,
     topic: str,
@@ -62,7 +78,7 @@ async def run_agentic_workflow_task(
     state_cache: dict = None,
 ):
     """
-    Async background task that orchestrates the LangGraph pipeline natively without Celery.
+    Celery background task that orchestrates the LangGraph pipeline.
     """
     initial_state = CourseAgentState(
         topic=topic,
@@ -74,7 +90,7 @@ async def run_agentic_workflow_task(
         details=details,
         user_role=user_role,
         job_id=job_id,
-        retry_count=0,
+        retry_count=self.request.retries,
         warnings=[],
         course_draft={},
         pipeline_status="generating",
@@ -86,54 +102,56 @@ async def run_agentic_workflow_task(
         initial_state["pipeline_status"] = "resuming"
 
     try:
-        final_state = await _run_agentic_workflow_async(initial_state, job_id)
-        await _send_complete_webhook(
-            content_id, job_id, data=final_state.get("course_draft", {})
+        # Run the async graph execution synchronously within Celery worker
+        final_state = asyncio.run(_run_agentic_workflow_async(initial_state, job_id))
+
+        asyncio.run(
+            _send_complete_webhook(
+                content_id, job_id, data=final_state.get("course_draft", {})
+            )
         )
         return {"status": "success", "content_id": content_id}
+
+    except AllProvidersFailedError as e:
+        logger.warning(f"All LLM providers failed for {job_id}: {e}")
+        # Send degraded status but still raise to retry
+        asyncio.run(
+            _send_complete_webhook(content_id, job_id, error=str(e), status="degraded")
+        )
+        raise self.retry(exc=e, countdown=60)  # Wait 60s before retry
+
     except Exception as e:
-        traceback.print_exc()
-        await _send_complete_webhook(content_id, job_id, error=str(e))
+        logger.exception(f"Unexpected error in agentic workflow for {job_id}")
+        asyncio.run(_send_complete_webhook(content_id, job_id, error=str(e)))
         raise e
 
 
-async def resume_incomplete_workflows():
-    import logging
-
-    logger = logging.getLogger(__name__)
+@celery_app.task(bind=True)
+def resume_job_task(self, job_id: str):
+    """
+    Called when a user requests to retry a failed job.
+    Fetches the payload from JS server and restarts the workflow.
+    """
+    import requests
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                f"{js_server_url}/internal/wizard-webhook/incomplete"
-            )
-            response.raise_for_status()
-            jobs = response.json()
+        response = requests.get(
+            f"{js_server_url}/internal/wizard-webhook/job/{job_id}", timeout=10
+        )
+        response.raise_for_status()
+        job = response.json()
 
-            if jobs:
-                logger.info(
-                    f"Found {len(jobs)} incomplete course generation jobs. Resuming..."
-                )
-                for job in jobs:
-                    logger.info(
-                        f"Resuming generation for course: '{job.get('topic')}' (Job ID: {job.get('job_id')})"
-                    )
-                    # Use asyncio.create_task for fire-and-forget native async execution
-                    asyncio.create_task(
-                        run_agentic_workflow_task(
-                            content_id=job["content_id"],
-                            job_id=job["job_id"],
-                            topic=job["topic"],
-                            content_type=job["content_type"],
-                            details=job.get("details", ""),
-                            skill_level=job["skill_level"],
-                            goal=job["goal"],
-                            learning_style=job["learning_style"],
-                            user_role=job["user_role"],
-                            state_cache=job.get("state_cache"),
-                        )
-                    )
-            else:
-                logger.info("No incomplete course generations found.")
+        input_payload = job.get("input_payload") or {}
+        run_agentic_workflow_task.delay(
+            content_id=job["wizard_content_id"],
+            job_id=job_id,
+            topic=input_payload.get("topic", ""),
+            content_type=input_payload.get("content_type", ""),
+            details=input_payload.get("details", ""),
+            skill_level=input_payload.get("skill_level", ""),
+            goal=input_payload.get("goal", ""),
+            learning_style=input_payload.get("learning_style", ""),
+            user_role=input_payload.get("user_role", ""),
+        )
     except Exception as e:
-        logger.error(f"Failed to check for incomplete workflows: {e}")
+        logger.error(f"Failed to fetch job payload for resume: {e}")
