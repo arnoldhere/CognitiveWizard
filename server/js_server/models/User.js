@@ -10,7 +10,6 @@ const User = sequelize.define('User', {
   email: {
     type: DataTypes.STRING(255),
     allowNull: false,
-    unique: true,
   },
   full_name: {
     type: DataTypes.STRING(255),
@@ -80,6 +79,13 @@ const User = sequelize.define('User', {
   timestamps: true, // Will add createdAt and updatedAt
   createdAt: 'created_at',
   updatedAt: false,
+  indexes: [
+    {
+      unique: true,
+      fields: ['email'],
+      name: 'email',
+    },
+  ],
 });
 
 module.exports = User;

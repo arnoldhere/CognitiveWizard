@@ -36,12 +36,10 @@ const PaymentTransaction = sequelize.define('PaymentTransaction', {
   },
   razorpay_order_id: {
     type: DataTypes.STRING(100),
-    unique: true,
     allowNull: false,
   },
   razorpay_payment_id: {
     type: DataTypes.STRING(100),
-    unique: true,
     allowNull: true,
   },
   razorpay_signature: {
@@ -62,6 +60,18 @@ const PaymentTransaction = sequelize.define('PaymentTransaction', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: false,
+  indexes: [
+    {
+      unique: true,
+      fields: ['razorpay_order_id'],
+      name: 'razorpay_order_id',
+    },
+    {
+      unique: true,
+      fields: ['razorpay_payment_id'],
+      name: 'razorpay_payment_id',
+    },
+  ],
 });
 
 module.exports = PaymentTransaction;

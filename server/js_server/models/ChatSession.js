@@ -9,7 +9,6 @@ const ChatSession = sequelize.define('ChatSession', {
   },
   session_id: {
     type: DataTypes.STRING(64),
-    unique: true,
     allowNull: false,
   },
   user_id: {
@@ -45,6 +44,13 @@ const ChatSession = sequelize.define('ChatSession', {
 }, {
   tableName: 'chat_sessions',
   timestamps: false,
+  indexes: [
+    {
+      unique: true,
+      fields: ['session_id'],
+      name: 'session_id',
+    },
+  ],
 });
 
 module.exports = ChatSession;

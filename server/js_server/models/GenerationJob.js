@@ -38,7 +38,6 @@ const GenerationJob = sequelize.define('GenerationJob', {
   thread_id: {
     type: DataTypes.STRING(255),
     allowNull: false,
-    unique: true,
   },
   input_payload: {
     type: DataTypes.JSON,
@@ -58,6 +57,13 @@ const GenerationJob = sequelize.define('GenerationJob', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  indexes: [
+    {
+      unique: true,
+      fields: ['thread_id'],
+      name: 'thread_id',
+    },
+  ],
 });
 
 // Associations

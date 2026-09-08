@@ -30,7 +30,6 @@ const WizardQuestionSet = sequelize.define('WizardQuestionSet', {
     content_type: {
         type: DataTypes.STRING(100),
         allowNull: false,
-        unique: true,
         comment: 'Content type identifier e.g. Roadmap, Guide, Schedule',
     },
     label: {
@@ -72,6 +71,13 @@ const WizardQuestionSet = sequelize.define('WizardQuestionSet', {
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
+    indexes: [
+        {
+            unique: true,
+            fields: ['content_type'],
+            name: 'content_type',
+        },
+    ],
 });
 
 module.exports = WizardQuestionSet;
