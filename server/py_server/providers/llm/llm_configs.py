@@ -1,7 +1,7 @@
 from config.settings import settings
 
 # Per-task model/param overrides — tune as needed
-TASK_PROFILES = {
+params = {
     "chat": {
         "temperature": 0.5,
         "max_new_tokens": 512,
@@ -85,4 +85,7 @@ TASK_PROFILES = {
         "use_chat": True,
     },
 }
+
+# Backward compatibility alias
+TASK_PROFILES = params
 

@@ -3,14 +3,14 @@ from functools import lru_cache
 from providers.llm.llm_provider import Provider
 from providers.llm.tasks import TaskType
 from config.settings import settings
-from providers.llm.llm_task_profiles import TASK_PROFILES
+from providers.llm.llm_configs import params, TASK_PROFILES
 
 logger = logging.getLogger(__name__)
 
 
 def get_task_profile(task_name: str):
     """Retrieve profile from local registry instead of HTTP fetch for efficiency."""
-    profile = TASK_PROFILES.get(task_name) or TASK_PROFILES.get("wizard", {})
+    profile = params.get(task_name) or params.get("wizard", {})
     return {
         "temperature": profile.get("temperature", 0.5),
         "max_new_tokens": profile.get("max_new_tokens", 512),
