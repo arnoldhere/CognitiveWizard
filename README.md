@@ -19,7 +19,7 @@
 
 ---
 
-## Platform Overview (7 Sep. 2026)
+## Platform Overview (Sep. 2026)
 
 CognitiveWizard empowers tutors and self-directed learners with an end-to-end intelligent curriculum engine. Rather than relying on simple one-shot LLM prompts, CognitiveWizard orchestrates a **AI-driven multi-agent pipeline** that designs curricula, gathers verified web sources, drafts deep modular lessons, conducts pedagogical reviews, and applies strict quality gates.
 
