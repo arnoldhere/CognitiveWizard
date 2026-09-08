@@ -46,11 +46,11 @@ class Settings:
     # ===========
     # Database configurations
     # ===========
-    DB_USER: str = os.getenv("DB_USER", "root")
-    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "password")
-    DB_HOST: str = os.getenv("DB_HOST", "127.0.0.1")
-    DB_PORT: int = int(os.getenv("DB_PORT", "3306"))
-    DB_NAME: str = os.getenv("DB_NAME", "cognitive_wizard")
+    DB_USER: str = os.getenv("DATABASE_USER", "root")
+    DB_PASSWORD: str = os.getenv("DATABASE_PASSWORD", "password")
+    DB_HOST: str = os.getenv("DATABASE_HOST", "127.0.0.1")
+    DB_PORT: int = int(os.getenv("DATABASE_PORT", "3306"))
+    DB_NAME: str = os.getenv("DATABASE_NAME", "cognitive_wizard")
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     MONGO_URI: str = os.getenv("MONGO_URI", "")
     MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "")

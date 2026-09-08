@@ -30,3 +30,4 @@ local-hf-cache/
 .vercel
 .env*
 all-model-groq.py
+BUGS.txt
