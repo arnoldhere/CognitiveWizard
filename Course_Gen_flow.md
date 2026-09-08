@@ -1,369 +1,216 @@
-# Course Generation — Architecture, Flow & Guide
+# 🧙‍♂️ CognitiveWizard: Content Generation & System Architecture Guide
 
-## Overview
-
-CognitiveWizard's course generation feature is a **multi-agent AI pipeline** that transforms a simple topic into a complete, structured, learner-ready course — with full lesson content (explanations, analogies, code examples, exercises, and resources). It is built on **LangGraph** running in the Python server, with the Express (JS) server handling persistence and the React frontend delivering the interactive learning experience.
+> **A Plain-Language Executive Guide to How CognitiveWizard Creates AI-Powered Educational Courses, Roadmaps, and Learning Materials.**
 
 ---
 
-## High-Level Architecture
+## 📖 Executive Summary
 
-```
-User (Browser)
-      │  POST /api/wizard/generate  (topic, skill level, goal, etc.)
-      ▼
-js_server  (Express)
-      │  Creates WizardContent row (status: "generating")
-      │  Calls py_server /wizard/generate-agentic
-      ▼
-py_server  (FastAPI + LangGraph)
-      │  Returns immediately (202-style acknowledgement)
-      │  Starts 5-stage pipeline as a background task
-      │
-      ├─── Stage 1: Learning Architect
-      ├─── Stage 2: Research Agent
-      ├─── Stage 3: Lesson Generator   ←─┐
-      ├─── Stage 4: Pedagogical Reviewer ─┘ (retry loop, max 2x)
-      └─── Stage 5: Quality Gate
-                    │
-                    │  POST /internal/wizard-webhook/complete
-                    ▼
-           js_server persists to MySQL
-           (6 tables: CoursePhase, CourseModule, CourseLesson,
-                      LessonSection, LessonResource, LessonExercise)
-                    │
-                    ▼
-         Frontend polls for completion
-         Opens CourseViewer ← LessonReader ← CodeSandbox
-```
+Imagine hiring an entire digital university faculty—a **Curriculum Architect**, a **Research Librarian**, a **Master Instructor**, a **Pedagogical Reviewer**, and a **Quality Dean**—working simultaneously in seconds to design an interactive, comprehensive course tailored to any topic, goal, and skill level.
+
+That is what **CognitiveWizard** does.
+
+Instead of relying on simple, generic chat prompts that often produce shallow or inaccurate content, CognitiveWizard uses a **cooperative multi-agent AI system**. Each AI agent has a dedicated job, reviews each other's work, fetches real-world resources from the web, and ensures every single lesson meets strict pedagogical standards before delivering it to the learner.
 
 ---
 
-## 5-Stage Pipeline (LangGraph Graph)
+## 🏛️ High-Level System Architecture
 
-```
-  [architect]
-       │
-  [research]
-       │
-  [lesson_generator] ◄──────────────────────────────┐
-       │                                              │
-  [reviewer]                                          │
-       │                                              │
-       ├── any FAIL + retry_count < 2 ────────────────┘  (re-generates failed lessons only)
-       │
-       └── all PASS  or  retry_count == 2
-                    │
-              [quality_gate]
-                    │
-                   END
+The platform operates across four coordinated layers:
+
+```mermaid
+graph TD
+    User["👤 Learner / Tutor (Web Browser)"] --> UI["🖥️ Frontend: React 19 + Vite<br/><i>Interactive Course Viewer, In-Browser Code Sandbox, Lesson Reader</i>"]
+    UI --> Gateway["🚪 API Gateway: Node.js / Express<br/><i>User Accounts, Security, Database Management & Webhooks</i>"]
+    Gateway --> AI["🧠 AI Brain: FastAPI + Celery Workers<br/><i>Multi-Agent LangGraph Pipeline, Parallel Background Queue</i>"]
+    AI --> Services["🌐 External Intelligence & Storage<br/><i>Tavily Search · Multi-Provider AI (Groq, OpenAI, Anthropic, HuggingFace) · MySQL State Checkpoints</i>"]
 ```
 
-### Stage 1 — Learning Architect (`learning_architect_node.py`)
-
-**Goal:** Generate the course *structure only* — no prose, no content.
-
-- Input: topic, content_type, details, skill_level, goal, learning_style, user_role
-- LLM task: `COURSE_ARCHITECT` (temperature 0.4, max_tokens 4096)
-- Output: `CourseBlueprintSchema` — phases → modules → lesson titles + learning objectives + estimated times
-- Sends status webhook: `🏗️ Designing your course structure...`
-- Fast + cheap pass before any expensive content generation
-
-### Stage 2 — Research Agent (`research_agent_node.py`)
-
-**Goal:** Fetch curated web evidence for every lesson.
-
-- Uses **Tavily** search API to gather URLs, articles, and YouTube links per lesson
-- Runs in parallel batches of 5 lessons
-- Output: `lesson_evidence` dict — keyed by lesson title → list of resource items
-- Sends status webhook: `🔍 Researching sources for N lessons...`
-- No LLM call — pure search tool usage
-
-### Stage 3 — Lesson Generator (`lesson_generator_node.py`)
-
-**Goal:** Generate complete, deep lesson content for every lesson.
-
-- Processes lessons in concurrent batches of 3
-- Each lesson gets: explanation, analogy, code examples, common mistakes, summary, exercises
-- Injects research evidence from Stage 2 as lesson resources (more reliable than asking LLM)
-- Validates each lesson against `CourseLessonSchema` (Pydantic v2)
-- Soft-fails per lesson: a bad lesson produces a placeholder, pipeline continues
-- LLM task: `COURSE_LESSON` (temperature 0.6, max_tokens 6144)
-- Sends status webhook: `✍️ Writing content for N lessons...`
-
-### Stage 4 — Pedagogical Reviewer (`pedagogical_reviewer_node.py`)
-
-**Goal:** QA every lesson against a structured educational checklist.
-
-- Reviews in parallel batches of 5
-- Checks: objective coverage, explanation completeness, example correctness, difficulty alignment, Bloom's taxonomy levels, no hallucinated facts
-- Issues PASS or FAIL per lesson with specific improvement suggestions
-- If any FAIL + `retry_count < 2` → routes back to Stage 3 (only re-generates failed lessons)
-- After 2 retries → proceeds regardless
-- Reviewer failure itself is non-blocking (defaults to PASS to keep pipeline moving)
-- LLM task: `COURSE_REVIEWER` (temperature 0.2, max_tokens 2048)
-- Sends status webhook: `🧐 Reviewing N lessons for quality...`
-
-### Stage 5 — Quality Gate (`quality_gate_node.py`)
-
-**Goal:** Final validation, assembly, and DB persistence trigger.
-
-- Validates all lessons: required fields, min word count, non-empty sections, citation presence
-- Issues warnings (not hard blocks) for minor issues
-- Hard blocks only if 0 valid lessons exist
-- Assembles the final `CoursePackageSchema`
-- POSTs the complete course to js_server webhook → triggers SQL transaction
-- Sends status webhook: `✅ Running quality checks...`
-- No LLM call — pure validation and assembly logic
+### In Plain Terms:
+1. **The Frontend (React 19)**: The modern, responsive classroom where learners read lessons, watch curated videos, run real Python/JavaScript code in their browser, and chat with an AI tutor.
+2. **The API Gateway (Node.js/Express)**: The front-office security and coordination desk that manages user accounts, handles payments, tracks course progress in MySQL, and receives live updates from the AI engine.
+3. **The AI Engine (Python/FastAPI & Celery)**: The background engine room where long-running course creation tasks run reliably without freezing the user's browser.
+4. **The Databases & Services**: Cloud MySQL databases that track learning records and remember course generation progress, Redis for lightning-fast task queuing, and Tavily for real-time web research.
 
 ---
 
-## LLM Provider System
+## ⚡ The Two Generation Tracks
 
-The pipeline configures the LLM provider directly from settings, defaulting to HuggingFace.
+CognitiveWizard provides two distinct generation experiences depending on what the user needs:
 
-**Task profiles** (temperature / max_tokens) are tuned per stage:
-| Task | Temperature | Max Tokens | Purpose |
-|---|---|---|---|
-| `course_architect` | 0.4 | 4096 | Structured blueprint |
-| `course_lesson` | 0.6 | 6144 | Rich lesson prose |
-| `course_reviewer` | 0.2 | 2048 | Deterministic QA |
-| `course_quality` | 0.1 | 1024 | Tight validation |
-
-**Error types** (distinct for clean handling):
-- `ProviderUnavailableError` — provider unreachable (connection refused, network down)
-- `ModelError` — provider reachable but inference failed (OOM, timeout, bad output)
+| Feature | 🚀 Quick Track (Roadmap / Guide / Schedule) | 🎓 Deep Track (Complete Interactive Course) |
+| :--- | :--- | :--- |
+| **Best For** | High-level timelines, revision guides, study calendars | Complete modular curriculums with full lessons & exercises |
+| **Generation Time** | 5 to 15 seconds | 1 to 3 minutes (runs smoothly in background) |
+| **Execution Model** | **Synchronous**: Instant generation with live web references | **Asynchronous**: 5-stage AI faculty with background Celery queue |
+| **Depth** | Milestones, topics, key resources & PDF export | Phases → Modules → Lessons → Analogy, Code, Mistakes & Quizzes |
+| **Crash Protection** | Instant return | **Durable Checkpointing**: Resumes automatically if interrupted |
 
 ---
 
-## Database Schema
+## 🔄 End-to-End System Flow (Sequence Diagram)
 
-Seven MySQL tables (auto-synced via Sequelize `alter: true`).
+This diagram shows exactly what happens under the hood when a user clicks "Generate":
 
-```
-wizard_contents          ← root row per generated item (any type)
-    │
-    ├── course_phases    ← Phase 1: Foundations, Phase 2: Advanced, etc.
-    │       │
-    │       └── course_modules    ← Module: "What is AI?", "Linear Algebra", etc.
-    │               │
-    │               └── course_lessons    ← Each lesson (draft → reviewed → published)
-    │                       │
-    │                       ├── lesson_sections   ← Typed content blocks
-    │                       │   (section_type: explanation | code_example | analogy |
-    │                       │                  common_mistakes | summary | key_points)
-    │                       │
-    │                       ├── lesson_resources  ← YouTube, article, docs per lesson
-    │                       │
-    │                       └── lesson_exercises  ← Coding / quiz / reflection exercises
-    │
-    └── (wizard_modules, wizard_resources — unchanged, used by roadmap/guide/schedule)
-```
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Learner / Tutor
+    participant Client as React 19 Frontend
+    participant Node as Express Gateway (js_server)
+    participant PyAPI as FastAPI Server (py_server)
+    participant Celery as Celery + Redis Worker
+    participant Graph as LangGraph Multi-Agent
+    participant DB as MySQL + Checkpointer
 
-**Lesson lifecycle status:**
-- `draft` — generated by lesson_generator_node
-- `reviewed` — passed pedagogical_reviewer_node
-- `published` — tutor/admin approved and published to learners
+    alt Synchronous Path (Roadmap / Guide / Schedule)
+        User->>Client: Selects Roadmap/Guide/Schedule & Answers Questions
+        Client->>Node: POST /wizard/generate
+        Node->>PyAPI: POST /wizard/generate-raw
+        Note over PyAPI: Parallel gather:<br/>1. LLM Generation<br/>2. Tavily Reference Agent
+        PyAPI-->>Node: Returns structured JSON + Curated Links
+        Node->>DB: Stores WizardContent & WizardModules
+        Node-->>Client: Returns Full Content
+    else Asynchronous Path (Course / Syllabus)
+        User->>Client: Selects Course/Syllabus & Details
+        Client->>Node: POST /wizard/generate-agentic
+        Node->>DB: Creates WizardContent ('generating') & GenerationJob ('queued')
+        Node->>PyAPI: POST /wizard/generate-agentic (fire-and-forget)
+        Node-->>Client: Returns Skeleton Record (HTTP 200)
+        PyAPI->>Celery: run_agentic_workflow_task.delay()
+        
+        loop Celery Worker Execution
+            Celery->>Graph: Executes 5-Stage StateGraph (with MySQLSaver)
+            Graph->>DB: Saves Checkpoints (langgraph_checkpoints)
+            Graph->>Node: Webhook: /checkpoint (Stage progress)
+            Graph->>Node: Webhook: /lesson-incremental (Saves each lesson as created)
+            Client->>Node: GET /wizard/generation/:content_id (Polls status)
+            Node-->>Client: Returns live stage progress & incremental lessons
+        end
 
-**WizardContent status flow:**
-```
-generating → pending_approval → published
+        Graph->>Node: Webhook: /complete (Final syllabus & status)
+        Node->>DB: Updates WizardContent to 'pending_approval' or 'published'
+    end
 ```
 
 ---
 
-## Real-Time Status Updates (Webhook Flow)
+## 🎓 Meet the AI Faculty: The 5-Stage Course Pipeline
 
-Each pipeline stage sends a fire-and-forget HTTP POST to the JS server during execution. The frontend polls every 4 seconds to display these live.
+When creating a full course, CognitiveWizard activates a **5-stage LangGraph workflow**. Each stage is handled by an AI specialist with a distinct role:
 
+```mermaid
+graph TD
+    A["Stage 1: Learning Architect<br/><i>Designs Course Blueprint (Phases, Modules, Lessons)</i>"] --> B["Stage 2: Research Agent<br/><i>Librarian: Finds Verified Web Docs, Videos, Articles</i>"]
+    B --> C["Stage 3: Lesson Generator<br/><i>Master Instructor: Writes Explanations, Code & Exercises</i>"]
+    C --> D["Stage 4: Pedagogical Reviewer<br/><i>Quality Auditor: Grades Lessons for Educational Value</i>"]
+    
+    D -- "Needs Improvement (Up to 2 Retries)" --> C
+    D -- "Passed All Standards" --> E["Stage 5: Quality Gate<br/><i>Enforces 80% Pass Ratio & Packages Course</i>"]
+    E --> F["Course Ready for Tutor & Learner"]
 ```
-py_server node                     js_server webhook              Frontend
-─────────────────────────────────────────────────────────────────────────
-architect_node          → POST /internal/wizard-webhook/status    🏗️ Designing...
-research_agent_node     → POST /internal/wizard-webhook/status    🔍 Researching...
-lesson_generator_node   → POST /internal/wizard-webhook/status    ✍️ Writing...
-pedagogical_reviewer    → POST /internal/wizard-webhook/status    🧐 Reviewing...
-quality_gate_node       → POST /internal/wizard-webhook/status    ✅ Quality check...
-quality_gate_node       → POST /internal/wizard-webhook/complete  → DB write → done
-```
 
-The frontend shows a **5-step progress bar** in `WizardModule.jsx` with live label updates from these webhooks.
+### Stage 1: The Learning Architect 🏗️
+* **Real-World Role**: The Academic Dean who designs the curriculum blueprint.
+* **What it does**: Takes the user's topic (e.g. *"Modern Machine Learning"*), target skill level (*Beginner*), and goal (*"Build vision apps"*), and drafts a logical modular structure: **Phases** (Foundations → Core → Advanced) broken into **Modules** and **Lessons**.
+* **Why it matters**: It plans the whole journey before writing a single word of content, ensuring no prerequisite is skipped.
+
+### Stage 2: The Research Agent 🔍
+* **Real-World Role**: The University Research Librarian.
+* **What it does**: Scours the live web using the **Tavily Search Engine** to find genuine, high-quality documentation, articles, and educational YouTube videos specifically matched to each lesson title.
+* **Why it matters**: Guarantees that references and reading lists are real, active web resources rather than hallucinated or broken links.
+
+### Stage 3: The Lesson Generator ✍️
+* **Real-World Role**: The Inspiring Professor & Textbook Author.
+* **What it does**: Crafts complete, in-depth lesson content for every topic. Each lesson includes:
+  - **Core Concept & Detailed Explanations**
+  - **Real-World Analogy** (e.g. explaining neural networks using a postal sorting facility)
+  - **Executable Code Snippets**
+  - **Common Mistakes & Misconceptions**
+  - **Hands-On Exercises & Reflection Questions**
+* **Incremental Saving**: Each lesson is saved to the database the moment it is finished. Learners don't have to wait for the whole course to complete before seeing early lessons.
+
+### Stage 4: The Pedagogical Reviewer 🧐
+* **Real-World Role**: The Educational Quality Assurance Board.
+* **What it does**: Independently audits each generated lesson against strict educational criteria (Bloom's Taxonomy, depth, factual accuracy, and exercise quality).
+* **Self-Correction Loop**: If a lesson is too brief or misses key objectives, the Reviewer flags it and sends it back to the Lesson Generator with specific instructions for revision (up to 2 automatic retries).
+
+### Stage 5: The Quality Gate 🛡️
+* **Real-World Role**: The Accreditation Inspector.
+* **What it does**: Evaluates the course as a whole. It enforces an **80% passing threshold** across all lessons.
+* **Result**: Once approved, it packages the syllabus, finalizes database transactions, and alerts the user that their course is ready to explore.
 
 ---
 
-## Frontend Components
+## 🛡️ Crash-Proof & Resilient Architecture
 
-```
-WizardModule.jsx          ← Tutor dashboard: generate, status polling, Publish
-    └── WizardContentView.jsx   ← Dispatches to CourseViewer or roadmap view
-            └── CourseViewer.jsx         ← Full course experience
-                    │
-                    ├── Collapsible sidebar (phases → modules → lessons)
-                    ├── Progress tracking (localStorage, per lesson_id)
-                    ├── Prev/Next lesson navigation
-                    │
-                    └── LessonReader.jsx   ← 5-tab lesson viewer
-                            │
-                            ├── 📖 Read      → Lesson sections (explanation, code, etc.)
-                            ├── 🎥 Watch     → YouTube resources
-                            ├── 💻 Code      → Interactive code editor + runner
-                            ├── 🧪 Practice  → Exercises (coding/quiz/reflection)
-                            └── 💬 Ask Tutor → RAG chatbot with lesson context injected
+One of the biggest problems with AI systems is that long tasks often time out or get lost if a connection drops or a server restarts. CognitiveWizard was built specifically to eliminate this:
 
-CodeSandbox.jsx
-    ├── Python execution via Pyodide (WebAssembly, no server round-trip)
-    └── JavaScript execution via eval() in sandboxed context
-```
+1. **Background Task Queue (Celery + Redis)**:
+   - Course creation runs in a dedicated background worker.
+   - Users can close their browser tab, step away, or turn off their laptop—the generation continues uninterrupted.
+2. **Durable Database Checkpointing (`MySQLSaver`)**:
+   - Every single agent step and lesson is recorded in MySQL (`langgraph_checkpoints`).
+   - If the server restarts or an internet blip occurs, CognitiveWizard does **not** start over or re-spend AI credits. It reads the last checkpoint and picks up right where it left off.
+3. **Automatic Startup Recovery (`resumePendingGenerations`)**:
+   - Every time the system boots or a user logs in, CognitiveWizard automatically inspects pending jobs and resumes any stalled tasks.
 
 ---
 
-## Key Files Reference
+## 🤖 How LLM Providers Are Managed
 
-### py_server (FastAPI / LangGraph)
+CognitiveWizard does not lock you into a single AI provider. It features an intelligent **LLM Provider Factory** that automatically routes requests to the fastest, healthiest, and most cost-effective AI model:
 
-| File | Role |
-|---|---|
-| `api/wizard_api.py` | `POST /wizard/generate-agentic` endpoint |
-| `agents/graphs/course_generation_graph.py` | LangGraph pipeline definition |
-| `agents/states/course_agent_state.py` | Shared state schema |
-| `agents/nodes/learning_architect_node.py` | Stage 1 |
-| `agents/nodes/research_agent_node.py` | Stage 2 |
-| `agents/nodes/lesson_generator_node.py` | Stage 3 |
-| `agents/nodes/pedagogical_reviewer_node.py` | Stage 4 |
-| `agents/nodes/quality_gate_node.py` | Stage 5 |
-| `providers/llm/provider_errors.py` | Error type hierarchy |
-| `providers/llm/tasks.py` | TaskType enum (incl. COURSE_* variants) |
-| `providers/llm/llm_task_profiles.py` | Per-task temperature/token params |
-| `providers/llm/factory.py` | `get_llm_for_course_task()` bridge |
-| `schemas/course_generation.py` | All Pydantic v2 schemas |
-| `utils/builders/wizard_prompt.py` | Prompt builders for architect + lesson |
+```mermaid
+graph TD
+    Consumer["Task Caller<br/>(Wizard, RAG, Quiz, Summarize, Chat)"] --> Factory["LLM Factory<br/>(factory.py)"]
+    
+    subgraph Configuration ["Configuration Sources"]
+        Profiles["Task Profiles<br/>(Fine-tuned Temperature & Tokens)"]
+        Env["Environment Config<br/>(Fallback Order: Groq → HF → OpenAI → Anthropic)"]
+        DBConfig["Admin Dashboard Overrides<br/>(Live MySQL Tuning)"]
+    end
+    
+    Profiles --> Factory
+    Env --> Factory
+    DBConfig -.->|Dynamic Tuning| Factory
+    
+    Factory --> ProviderClass["Smart Provider Router"]
+    
+    subgraph Backends ["Supported AI Providers"]
+        ProviderClass --> Groq["Groq Cloud<br/>Ultra-fast (Llama-3.3-70B)"]
+        ProviderClass --> HF["HuggingFace<br/>Specialized Open Source Models"]
+        ProviderClass --> OpenAI["OpenAI<br/>High Intelligence (GPT-4o)"]
+        ProviderClass --> Anthropic["Anthropic<br/>Reasoning Depth (Claude-3.5)"]
+    end
+```
 
-### js_server (Express / Sequelize)
-
-| File | Role |
-|---|---|
-| `controllers/wizardController.js` | Webhook handlers + getCourseLesson |
-| `routes/user/wizardRoutes.js` | `GET /:content_id/lesson/:lesson_id` |
-| `models/WizardContent.js` | Root content row |
-| `models/CoursePhase.js` | Phase model |
-| `models/CourseModule.js` | Module model |
-| `models/CourseLesson.js` | Lesson model |
-| `models/LessonSection.js` | Section content blocks |
-| `models/LessonResource.js` | Per-lesson resources |
-| `models/LessonExercise.js` | Exercises |
-
-### client (React)
-
-| File | Role |
-|---|---|
-| `pages/WizardModule.jsx` | Generation trigger + status UI |
-| `pages/WizardContentView.jsx` | Course vs. roadmap routing |
-| `components/wizard/CourseViewer.jsx` | Course navigation shell |
-| `components/wizard/LessonReader.jsx` | 5-tab lesson reader |
-| `components/wizard/CodeSandbox.jsx` | In-browser Python/JS executor |
-| `services/api.js` | `getWizardCourseLesson()` |
+### Key Provider Management Highlights:
+* **Multi-Vendor Failover**: Configured via `LLM_PROVIDER_ORDER`. If Primary (e.g. Groq) encounters rate limits or downtime, the system automatically and silently falls back to HuggingFace, OpenAI, or Anthropic.
+* **Task-Tailored AI Personalities**: Different tasks need different AI behaviors:
+  - *Tutor Chatbot & RAG*: Strict, factual, low temperature (`0.3`) to prevent hallucination.
+  - *Quiz Generator*: High creativity and variance (`0.8`) for diverse questions.
+  - *Lesson Authoring*: High token budget (`6,144 tokens`) to write rich, comprehensive textbooks.
+  - *Pedagogical Reviewer*: Objective, deterministic grading (`0.2`).
+* **Live Admin Controls**: Platform administrators can adjust model parameters, token budgets, and prompts directly from the Admin Dashboard without changing any source code.
 
 ---
 
-## How to Run Course Generation
+## 💻 The Learner & Tutor Experience
 
-### Prerequisites
+When generation completes, learners and tutors are greeted by an interactive learning interface:
 
-1. **MySQL** running with `cognitive_wizard` database
-2. **Redis** running (for session/cache)
-3. **Tavily API key** set in `server/.env`
-
-### Start the Servers
-
-```bash
-# Terminal 1 — JS server (Express + Sequelize)
-cd apps/CognitiveWizard/server/js_server
-npm run dev
-
-# Terminal 2 — Python server (FastAPI + LangGraph)
-cd apps/CognitiveWizard/server/py_server
-uvicorn main:app --reload --port 8000
-# OR
-python3 main.py
-
-# Terminal 3 — React frontend
-cd apps/CognitiveWizard/client
-npm run dev
-```
-
-### Environment Variables (`server/.env`)
-
-```env
-# HuggingFace (default)
-HF_API_KEY=hf_...
-HF_DEF_MODEL=meta-llama/Llama-3.1-8B-Instruct
-
-# Research (Tavily)
-TAVILY_API_KEY=tvly-...
-```
-
-### Generate a Course (UI Flow)
-
-1. Log in → navigate to **Wizard**
-2. Select content type: **Course / Syllabus**
-3. Enter topic (e.g. `Python Crash Course`), skill level, goal, learning style
-4. Click **Generate**
-5. Watch the 5-step progress bar update live:
-   - `🏗️ Designing your course structure...`
-   - `🔍 Researching sources for N lessons...`
-   - `✍️ Writing content for N lessons...`
-   - `🧐 Reviewing N lessons for quality...`
-   - `✅ Running quality checks...`
-6. When done → click **Preview Course** → opens `CourseViewer`
-7. Navigate phases → modules → lessons in the sidebar
-8. Open a lesson → use tabs to Read / Watch / Code / Practice / Ask Tutor
-9. As tutor: click **Publish Course** to mark all lessons as `published`
-
-### Generate via API (Direct)
-
-```bash
-# Trigger course generation
-curl -X POST http://localhost:8000/wizard/generate-agentic \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content_id": 42,
-    "topic": "Python Crash Course",
-    "content_type": "Course/Syllabus",
-    "skill_level": "beginner",
-    "goal": "Build Python fundamentals from scratch",
-    "learning_style": "hands-on",
-    "user_role": "user"
-  }'
-# Returns immediately: {"content": {"status": "generating"}}
-
-# Fetch a specific lesson (after generation completes)
-curl http://localhost:3000/api/wizard/42/lesson/7 \
-  -H "Authorization: Bearer <token>"
-```
+* **Course Viewer**: A collapsible sidebar organizing Phases, Modules, and Lessons with real-time completion tracking.
+* **5-Tab Lesson Reader**:
+  1. 📖 **Read**: Deep lesson text, formatted code blocks, analogies, and key takeaways.
+  2. 🎥 **Watch**: Embedded YouTube tutorials and curated articles gathered by the Research Agent.
+  3. 💻 **Code**: An in-browser code editor and runner powered by WebAssembly (Pyodide for Python, sandboxed engine for JavaScript)—no server setup needed.
+  4. 🧪 **Practice**: Interactive multiple-choice questions, coding exercises, and self-reflection prompts.
+  5. 💬 **Ask Tutor**: An in-context RAG chatbot grounded specifically in the lesson being studied.
+* **Tutor Collaboration**: Tutors can review drafts, provide feedback to trigger AI revisions, or click **Publish Course** to release it to their students.
 
 ---
 
-## Configuration Tips
-
-| Setting | Effect |
-|---|---|
-| `DEF_LLM_PROVIDER=openai` | Use OpenAI when configured |
-
-### Scaling the Pipeline
-
-- **Batch sizes**: Adjust `_LESSON_BATCH_SIZE = 3` in `lesson_generator_node.py` and `_REVIEW_BATCH_SIZE = 5` in `pedagogical_reviewer_node.py`
-- **Retry cap**: Change `_MAX_RETRY_COUNT = 2` in the graph or reviewer node
-- **Token budget**: Per-task profiles in `llm_task_profiles.py` — increase `max_new_tokens` for richer content
-
----
-
-## What is NOT Affected
-
-The course generation pipeline is **isolated** from all other Wizard content types. The following features use the original `get_llm_for_task()` path (HuggingFace only, no router) and are completely unaffected:
-
-- Roadmap generation
-- Learning Guide generation
-- Study Schedule generation
-- RAG chatbot (Ask Tutor)
-- Quiz generation
-- Summarization
+<div align="center">
+  <sub>CognitiveWizard © 2026 — Intelligent Curriculum & Adaptive Learning Platform</sub>
+</div>
