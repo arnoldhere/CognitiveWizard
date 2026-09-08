@@ -25,6 +25,22 @@ async function initializeServices() {
   try {
     await Promise.all([connectMySQL(), connectMongo(), connectRedis()]);
     logger.info("[INIT] All gateway services started successfully.");
+    
+    // Auto-resume any tasks that were queued or failed before shutdown
+    setTimeout(() => {
+      try {
+        logger.info("[INIT] Checking for pending/failed generation tasks to resume...");
+        const { resumePendingGenerations } = require("./controllers/wizardController");
+        resumePendingGenerations().then(result => {
+          if (result.resumed > 0 || result.skipped > 0) {
+            logger.info(`[INIT] Resume summary: ${result.resumed} resumed, ${result.skipped} skipped/cleaned.`);
+          }
+        }).catch(err => logger.error(`[INIT] Resume tasks failed: ${err.message}`));
+      } catch (err) {
+        logger.error(`[INIT] Could not invoke resume logic: ${err.message}`);
+      }
+    }, 5000); // 5s delay to ensure py_server is fully up
+
   } catch (error) {
     logger.error("[INIT] Failed to start required services.", { error: error.message });
     process.exit(1);

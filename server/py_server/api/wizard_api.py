@@ -15,7 +15,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from typing import Any, Dict, List
-from fastapi import APIRouter, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response
 from agents.graphs.refr_retr_graph import compiled_reference_graph
 from schemas.wizard import *

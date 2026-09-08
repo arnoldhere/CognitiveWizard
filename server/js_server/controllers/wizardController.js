@@ -520,10 +520,24 @@ async function webhookAgenticComplete(req, res, next) {
       return res.status(404).json({ error: "Content not found" });
     }
 
-    if (error) {
-      await content.update({ status: "error", content: { error } }, { transaction: t });
+    const reqStatus = req.body.status;
+    const userMessage = req.body.user_message;
+    const retryInfo = req.body.retry_info;
+
+    if (error || reqStatus === 'failed' || reqStatus === 'degraded') {
+      const contentStatus = reqStatus === 'degraded' ? 'generating' : 'error';
+      await content.update({ status: contentStatus, content: { error } }, { transaction: t });
+      
       if (job_id) {
-        await GenerationJob.update({ status: 'failed', error_details: error }, { where: { thread_id: job_id }, transaction: t });
+        const updatePayload = {
+          status: reqStatus || 'failed',
+          error_details: error || null,
+          user_message: userMessage || "Something unexpected happened. Our system will try again automatically."
+        };
+        if (retryInfo && retryInfo.retry_count !== undefined) {
+          updatePayload.retry_count = retryInfo.retry_count;
+        }
+        await GenerationJob.update(updatePayload, { where: { thread_id: job_id }, transaction: t });
       }
       await t.commit();
       return res.status(200).json({ success: true });
@@ -931,6 +945,125 @@ async function webhookAgenticCheckpoint(req, res, next) {
   }
 }
 
+/**
+ * Resume waiting, queued, or failed generation tasks.
+/**
+ * Get count of resumable failed/pending generation tasks for a user.
+ * Used for login notifications.
+ */
+async function getFailedGenerationsCount(userId) {
+  try {
+    const contents = await WizardContent.findAll({
+      where: { user_id: userId },
+      attributes: ['id']
+    });
+    const contentIds = contents.map(c => c.id);
+    if (contentIds.length === 0) return 0;
+
+    const limitDate = new Date();
+    limitDate.setHours(limitDate.getHours() - 48);
+
+    const count = await GenerationJob.count({
+      where: {
+        wizard_content_id: { [Op.in]: contentIds },
+        status: { [Op.in]: ['queued', 'failed', 'degraded', 'pending', 'resuming'] },
+        retry_count: { [Op.lt]: 3 },
+        created_at: { [Op.gte]: limitDate }
+      }
+    });
+    return count;
+  } catch (err) {
+    logger.error(`[RESUME] Error getting failed generation count: ${err.message}`);
+    return 0;
+  }
+}
+
+/**
+ * Resume waiting, queued, or failed generation tasks.
+ * Applies max age (48h) and max retry (< 3) guards.
+ * Stale jobs (> 48h) are permanently marked as cancelled and their checkpoints cleaned.
+ */
+async function resumePendingGenerations(userId = null) {
+  const result = { resumed: 0, skipped: 0, reasons: [] };
+  try {
+    const whereClause = {
+      status: {
+        [Op.in]: ['queued', 'failed', 'degraded', 'pending', 'resuming']
+      }
+    };
+    
+    if (userId) {
+      const contents = await WizardContent.findAll({
+        where: { user_id: userId },
+        attributes: ['id']
+      });
+      const contentIds = contents.map(c => c.id);
+      if (contentIds.length === 0) return result;
+      whereClause.wizard_content_id = { [Op.in]: contentIds };
+    }
+
+    const jobs = await GenerationJob.findAll({ where: whereClause });
+    const limitDate = new Date();
+    limitDate.setHours(limitDate.getHours() - 48);
+
+    for (const job of jobs) {
+      // 1. Max age guard & Cleanup
+      if (new Date(job.created_at) < limitDate) {
+        logger.info(`[RESUME] Skipping and cleaning stale job ${job.thread_id} (created: ${job.created_at})`);
+        job.status = 'cancelled';
+        job.user_message = "Generation expired and was cancelled automatically.";
+        await job.save();
+
+        // Mark associated wizard content as error
+        await WizardContent.update(
+          { status: 'error' },
+          { where: { id: job.wizard_content_id } }
+        );
+
+        // Cleanup stale checkpointer data from DB to maintain performance
+        const { LanggraphCheckpoint, LanggraphWrite } = require('../models');
+        await LanggraphCheckpoint.destroy({ where: { thread_id: job.thread_id } });
+        await LanggraphWrite.destroy({ where: { thread_id: job.thread_id } });
+
+        result.skipped++;
+        result.reasons.push(`Job ${job.thread_id} too old (>48h)`);
+        continue;
+      }
+
+      // 2. Max retry guard
+      if (job.retry_count >= 3) {
+        logger.info(`[RESUME] Skipping job ${job.thread_id} - max retries reached`);
+        result.skipped++;
+        result.reasons.push(`Job ${job.thread_id} max retries (3) reached`);
+        continue;
+      }
+
+      // 3. Resume execution
+      logger.info(`[RESUME] Triggering retry for GenerationJob ${job.thread_id} (status: ${job.status})`);
+      job.status = 'resuming';
+      await job.save();
+
+      // Update associated content status to generating so UI updates correctly
+      await WizardContent.update(
+        { status: 'generating' },
+        { where: { id: job.wizard_content_id } }
+      );
+
+      try {
+        await pyAxios.post(`/wizard/generation/${job.thread_id}/retry`);
+        result.resumed++;
+      } catch (err) {
+        logger.error(`[RESUME] Failed to retry job ${job.thread_id}: ${err.message}`);
+        result.reasons.push(`Job ${job.thread_id} pyAxios POST failed`);
+      }
+    }
+    return result;
+  } catch (err) {
+    logger.error(`[RESUME] Error checking pending generations: ${err.message}`);
+    return result;
+  }
+}
+
 module.exports = {
   generateContent,
   getHistory,
@@ -951,6 +1084,8 @@ module.exports = {
   retryJob,
   cancelJob,
   webhookAgenticCheckpoint,
+  resumePendingGenerations,
+  getFailedGenerationsCount,
 };
 
 

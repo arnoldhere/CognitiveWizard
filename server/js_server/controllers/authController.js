@@ -65,7 +65,29 @@ async function login(req, res, next) {
     const access_token = generateToken(user);
     const userObj = user.toJSON();
     delete userObj.hashed_password;
-    res.json({ access_token, token_type: "bearer", user: userObj, "role": user.role });
+
+    let pendingCount = 0;
+    try {
+      const { resumePendingGenerations, getFailedGenerationsCount } = require("./wizardController");
+      
+      // Get count before background resume kicks in
+      pendingCount = await getFailedGenerationsCount(user.id);
+
+      // Trigger auto-resume in background
+      resumePendingGenerations(user.id).catch(err => 
+        logger.error(`[AUTH] Background resume failed for user ${user.id}: ${err.message}`)
+      );
+    } catch (resumeErr) {
+      logger.error(`[AUTH] Could not invoke resume functionality: ${resumeErr.message}`);
+    }
+
+    res.json({ 
+      access_token, 
+      token_type: "bearer", 
+      user: userObj, 
+      role: user.role,
+      pending_generations: pendingCount 
+    });
   } catch (err) {
     next(err);
   }

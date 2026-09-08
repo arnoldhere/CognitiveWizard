@@ -42,6 +42,10 @@ const LessonExercise = require('./LessonExercise');
 const GenerationJob = require('./GenerationJob');
 const GenerationCheckpoint = require('./GenerationCheckpoint');
 
+// ─── LangGraph internal tables (managed by Sequelize, read/written by Python) ─
+const LanggraphCheckpoint = require('./LanggraphCheckpoint');
+const LanggraphWrite = require('./LanggraphWrite');
+
 // ─── Cross-model associations ─────────────────────────────────────────────────
 
 
@@ -143,7 +147,7 @@ sequelize.sync({ alter: true }).then(async () => {
   }
 }).catch(console.error);
 
-// ─── Exports ───────────────────────────────────────────────────────────────────
+// ─── Exports
 module.exports = {
   sequelize,
   User,
@@ -167,5 +171,8 @@ module.exports = {
   LessonExercise,
   GenerationJob,
   GenerationCheckpoint,
+  // LangGraph internal tables
+  LanggraphCheckpoint,
+  LanggraphWrite,
 };
 

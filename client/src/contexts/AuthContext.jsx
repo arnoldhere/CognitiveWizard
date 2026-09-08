@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { login as authLogin, signup as authSignup, getCurrentUser } from "../services/auth";
 import { API, setAuthToken } from "../services/api";
 import { AuthContext } from "./auth-context";
+import toast from 'react-hot-toast';
 
 const TOKEN_KEY = "cw_token";
 const USER_KEY = "cw_user";
@@ -105,6 +106,14 @@ export function AuthProvider({ children }) {
             }
 
             persistSession(payload.access_token, payload.user);
+            
+            if (payload.pending_generations > 0) {
+                toast.success(`We found ${payload.pending_generations} course generation(s) that didn't complete. They're being resumed automatically.`, {
+                    duration: 6000,
+                    icon: '🔄',
+                });
+            }
+            
             return payload;
         } catch (error) {
             clearSession();

@@ -30,6 +30,11 @@ const GenerationJob = sequelize.define('GenerationJob', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  user_message: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'User-friendly error/status message for frontend display',
+  },
   thread_id: {
     type: DataTypes.STRING(255),
     allowNull: false,
