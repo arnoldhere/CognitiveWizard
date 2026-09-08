@@ -10,23 +10,23 @@ const { sequelize } = require('../config/db');
 
 const LanggraphWrite = sequelize.define('LanggraphWrite', {
   thread_id: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(128),
     allowNull: false,
     primaryKey: true,
   },
   checkpoint_ns: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(128),
     allowNull: false,
     defaultValue: '',
     primaryKey: true,
   },
   checkpoint_id: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(128),
     allowNull: false,
     primaryKey: true,
   },
   task_id: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(128),
     allowNull: false,
     primaryKey: true,
   },

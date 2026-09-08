@@ -10,23 +10,23 @@ const { sequelize } = require('../config/db');
 
 const LanggraphCheckpoint = sequelize.define('LanggraphCheckpoint', {
   thread_id: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(128),
     allowNull: false,
     primaryKey: true,
   },
   checkpoint_ns: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(128),
     allowNull: false,
     defaultValue: '',
     primaryKey: true,
   },
   checkpoint_id: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(128),
     allowNull: false,
     primaryKey: true,
   },
   parent_checkpoint_id: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(128),
     allowNull: true,
   },
   type: {
