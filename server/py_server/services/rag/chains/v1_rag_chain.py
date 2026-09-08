@@ -51,6 +51,9 @@ def _format_docs(docs: List[Any]) -> str:
     )
 
 
+format_docs = _format_docs
+
+
 def _extract_query(x: Any) -> str:
     return x.get("input", x) if isinstance(x, dict) else str(x)
 
