@@ -58,38 +58,42 @@ CognitiveWizard empowers tutors and self-directed learners with an end-to-end in
 
 ## System Architecture
 
-```txt
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Client: React 19 (Vite)                         │
-│       CourseViewer · LessonReader · CodeSandbox · AskTutor · Quiz      │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ HTTP / REST (port 5173 / 80)
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│              Express API Gateway (js_server — port 3000)               │
-│      Auth · Content CRUD · Checkpoint Webhooks · Rate Limiting         │
-│               MySQL  ·  MongoDB (Chat)  ·  Redis (Cache)               │
-└───────────────────┬────────────────────────────────┬───────────────────┘
-                    │ REST                           │ Webhooks
-                    ▼                                ▲
-┌────────────────────────────────────────────────────┴───────────────────┐
-│                 FastAPI AI Engine (py_server — port 8000)              │
-│       /wizard/generate-agentic  ·  /rag/chat  ·  /quiz/generate        │
-└───────────────────┬────────────────────────────────────────────────────┘
-                    │ Enqueues Task (.delay)
-                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│              Celery Distributed Worker (py_server background)          │
-│                Redis Broker  ◄───►  MySQL LangGraph Saver              │
-│                                                                        │
-│  [Architect Node] ──► [Research Node] ──► [Generator Node]            │
-│                              ▲                     │                   │
-│                              │ (Retry on Fail)     ▼                   │
-│                       [Quality Gate] ◄── [Reviewer Node]               │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ External APIs
-                                    ▼
-                Groq / HuggingFace / OpenAI / Anthropic  ·  Tavily Search
+```mermaid
+flowchart TD
+    subgraph Client ["Client Layer"]
+        React["React 19 (Vite)<br/><i>CourseViewer • LessonReader • CodeSandbox • AskTutor • Quiz</i>"]
+    end
+
+    subgraph Gateway ["API & Data Layer"]
+        Express["Express API Gateway (js_server — Port 3000)<br/>Auth • Sequelize (MySQL) • MongoDB (Chat) • Redis (Cache)<br/><code>/internal/wizard-webhook/*</code>"]
+    end
+
+    subgraph AI ["AI Engine Layer"]
+        FastAPI["FastAPI AI Engine (py_server — Port 8000)<br/><code>/wizard/*</code> • <code>/rag/*</code> • <code>/quiz/*</code> • <code>/summarize/*</code>"]
+    end
+
+    subgraph Worker ["Distributed Async Worker Layer"]
+        Celery["Celery Worker (Redis Broker)<br/><i>MySQLSaver (langgraph_checkpoints & writes)</i>"]
+
+        subgraph Pipeline ["LangGraph Execution Pipeline"]
+            Architect["Architect"] --> Research["Research (Tavily)"]
+            Research --> Generator["Lesson Generator"]
+            Generator --> Reviewer["Pedagogical Reviewer"]
+            Reviewer -- "Retry (up to 2x)" --> Generator
+            Reviewer --> QualityGate["Quality Gate"]
+        end
+    end
+
+    subgraph External ["External Services"]
+        LLMs["LLM Providers<br/>Groq • HuggingFace • OpenAI • Anthropic"]
+    end
+
+    React <-->|"HTTP / REST (Port 3000)"| Express
+    Express -->|"REST / Job dispatch"| FastAPI
+    FastAPI -->|"Status / Incremental webhooks"| Express
+    FastAPI -->|"Enqueue task (.delay)"| Celery
+    Celery --> Pipeline
+    Pipeline -->|"API Calls"| External
 ```
 
 ---
