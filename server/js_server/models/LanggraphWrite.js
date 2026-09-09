@@ -47,6 +47,11 @@ const LanggraphWrite = sequelize.define('LanggraphWrite', {
     type: DataTypes.BLOB('long'),
     allowNull: false,
   },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+  },
 }, {
   tableName: 'langgraph_writes',
   timestamps: true,

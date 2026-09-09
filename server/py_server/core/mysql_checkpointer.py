@@ -229,8 +229,8 @@ class MySQLSaver(BaseCheckpointSaver):
                     cursor.execute(
                         "INSERT INTO langgraph_writes "
                         "(thread_id, checkpoint_ns, checkpoint_id, "
-                        "task_id, idx, channel, type, value) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+                        "task_id, idx, channel, type, value, created_at) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW()) "
                         "ON DUPLICATE KEY UPDATE value=VALUES(value)",
                         (
                             thread_id,

@@ -41,6 +41,11 @@ const LanggraphCheckpoint = sequelize.define('LanggraphCheckpoint', {
     type: DataTypes.JSON,
     allowNull: false,
   },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+  },
 }, {
   tableName: 'langgraph_checkpoints',
   timestamps: true,
