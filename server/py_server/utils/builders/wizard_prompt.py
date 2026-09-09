@@ -154,7 +154,7 @@ def build_learning_architect_prompt(
     """
     Build the Learning Architect prompt.
 
-    Produces STRUCTURE ONLY — phase titles, module titles, lesson titles,
+    Produces STRUCTURE ONLY — chapter titles, module titles, lesson titles,
     learning objectives, and time estimates. NO lesson prose.
 
     If feedback + existing_blueprint are provided: modify the blueprint
@@ -203,15 +203,16 @@ TASK: Regenerate the ENTIRE course blueprint incorporating the feedback above.
 Keep what works, fix what the feedback addresses.
 
 IMPORTANT RULES:
-- Generate STRUCTURE ONLY: phases, modules, lesson titles, objectives, time estimates.
+- Generate STRUCTURE ONLY: chapters, modules, lesson titles, objectives, time estimates.
 - Do NOT write any lesson content, explanations, or prose.
 - Identify the appropriate subject domain (e.g., natural_sciences, computer_science, engineering, business_finance, humanities, medicine).
 - Set exercise_paradigm appropriately: "coding" (for IT/software), "analysis" (for natural sciences/geology), "calculation" (for engineering/physics), "case_study" (for business/medicine), "reflection" (for humanities).
 - Each lesson should have 2-4 specific, measurable learning objectives.
 - Lesson titles should be concrete and descriptive.
 - Group logically related lessons into modules (2-5 lessons per module).
-- Group logically related modules into phases (2-4 modules per phase).
-- Total phases: 2-5 depending on course breadth.
+- Group logically related modules into chapters (2-4 modules per chapter).
+- Total chapters: 2-5 depending on course breadth.
+- CRITICAL ROOT JSON FORMAT: The output MUST be a single JSON object starting with "{" and ending with "}". NEVER wrap the entire response in a JSON array [ ... ].
 
 JSON OUTPUT SCHEMA:
 {_BLUEPRINT_JSON_SCHEMA}
@@ -232,7 +233,7 @@ Learner Context:
 {learner_ctx_str}
 
 IMPORTANT RULES — READ CAREFULLY:
-- Generate STRUCTURE ONLY: phases, modules, lesson titles, objectives, time estimates.
+- Generate STRUCTURE ONLY: chapters, modules, lesson titles, objectives, time estimates.
 - Do NOT write any lesson content, explanations, analogies, code, or exercises.
   (Lesson content will be generated separately by a dedicated content writer.)
 - DOMAIN & EXERCISE PARADIGM CLASSIFICATION:
@@ -249,11 +250,12 @@ IMPORTANT RULES — READ CAREFULLY:
   NOT generic (e.g. "Introduction", "Overview").
 - Each lesson must have 2-4 measurable learning objectives starting with action verbs
   (e.g. "Identify...", "Calculate...", "Analyze...", "Evaluate...").
-- Difficulty progression: early phases = beginner, later phases = intermediate/advanced.
+- Difficulty progression: early chapters = beginner, later chapters = intermediate/advanced.
 - Group lessons into modules (2-5 lessons per module, related by theme).
-- Group modules into phases (2-4 modules per phase, related by learning stage).
-- Total course: 2-5 phases covering the full topic comprehensively.
+- Group modules into chapters (2-4 modules per chapter, related by learning stage).
+- Total course: 2-5 chapters covering the full topic comprehensively.
 - Do not repeat the same concept in multiple lessons.
+- CRITICAL ROOT JSON FORMAT: The output MUST be a single JSON object starting with "{" and ending with "}". NEVER wrap the entire response in a JSON array [ ... ].
 
 JSON OUTPUT SCHEMA:
 {_BLUEPRINT_JSON_SCHEMA}
@@ -265,6 +267,45 @@ Return ONLY the JSON. No markdown, no explanation, no extra text.
 # ═══════════════════════════════════════════════════════════════════════════════
 # NEW: LESSON CONTENT PROMPT — generates full deep lesson
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+def is_theoretical_lesson(lesson_title: str, learning_objectives: Optional[List[str]] = None) -> bool:
+    """
+    Detect whether a lesson is primarily theoretical, historical, conceptual, or ethical,
+    where hands-on code and coding exercises are unnecessary and should be omitted/replaced
+    with conceptual Q&A or reflection.
+    """
+    title_lower = (lesson_title or "").lower().strip()
+
+    # Explicit coding overrides — if title specifically asks to code/implement/program
+    code_overrides = [
+        "implement", "coding", "code", "programming", "building a", "build a",
+        "script", "syntax", "function", "library", "numpy", "pandas", "pytorch",
+        "tensorflow", "scikit", "sql query", "api development", "debugging",
+        "hands-on", "lab:", "practical lab"
+    ]
+    if any(k in title_lower for k in code_overrides):
+        return False
+
+    theory_indicators = [
+        "history", "evolution", "origin", "timeline", "milestone",
+        "ethics", "ethical", "bias", "fairness", "privacy", "governance", "societal",
+        "what is", "overview", "introduction to", "intro to", "concepts of", "principles of",
+        "philosophy", "philosophical", "foundations of", "theory", "theoretical",
+        "taxonomy", "lifecycle", "biological vs", "human vs", "comparison of",
+        "comparing", "difference between", "pros and cons", "advantages and disadvantages",
+        "limitations of", "future of", "trends in", "challenges in", "applications of",
+        "understanding the concept", "types of"
+    ]
+    if any(k in title_lower for k in theory_indicators):
+        return True
+
+    if learning_objectives:
+        combined_obj = " ".join(learning_objectives).lower()
+        if any(k in combined_obj for k in ["history", "evolution", "ethical", "societal impact", "philosophical"]):
+            return True
+
+    return False
 
 
 def build_lesson_content_prompt(
@@ -283,38 +324,29 @@ def build_lesson_content_prompt(
     exercise_paradigm: Optional[str] = "mixed",
 ) -> str:
     """
-    Build the Lesson Content Generator prompt.
-
-    Takes the lesson blueprint + research evidence and generates a full lesson
-    with multiple typed content sections and domain-adaptive exercises.
+    Build the prompt for the Lesson Generator Node.
+    Produces a complete, richly detailed lesson with multiple typed content sections
+    and domain-adaptive exercises.
 
     Tailors exercise types (coding, calculation, case_study, analysis, reflection)
-    to match the study domain (e.g. Geology gets scientific analysis, Engineering gets calculations,
-    Software gets coding).
+    and section composition to the lesson's nature (theoretical vs practical).
     """
     import json as _json
 
-    objectives_str = (
-        "\n".join(f"  - {obj}" for obj in learning_objectives)
-        or "  - Understand this lesson's core concepts"
+    objectives_str = "\n".join(
+        f"- {obj}" for obj in (learning_objectives or ["Understand core concepts"])
     )
 
-    # Format evidence compactly to avoid huge prompts
     evidence_str = ""
     if evidence:
-        evidence_items = []
-        for i, res in enumerate(evidence[:5], 1):
-            evidence_items.append(
-                f"  [{i}] {res.get('title', 'Resource')} ({res.get('resource_type', 'article')}) — {res.get('url', '')}"
-            )
         evidence_str = (
-            "Available References (cite these in your examples where relevant):\n"
-            + "\n".join(evidence_items)
+            "CURATED RESEARCH RESOURCES (incorporate facts/perspectives from these):\n"
+            + "\n".join(
+                f"- {item.get('title', 'Resource')}: {item.get('url', '')} — {item.get('description', '')}"
+                for item in evidence
+            )
         )
-    else:
-        evidence_str = "No external references available — use general knowledge."
 
-    # Retry suggestions from reviewer
     suggestions_str = ""
     if reviewer_suggestions:
         suggestions_str = (
@@ -322,16 +354,24 @@ def build_lesson_content_prompt(
             + "\n".join(f"  - {s}" for s in reviewer_suggestions)
         )
 
-    # Domain-specific exercise guidelines
+    # Domain & lesson-nature specific exercise guidelines
     domain_lower = (domain or "general").lower().strip()
     paradigm_lower = (exercise_paradigm or "mixed").lower().strip()
+    is_theory = is_theoretical_lesson(lesson_title, learning_objectives)
 
-    if paradigm_lower == "coding" or domain_lower in ("computer_science", "software_engineering", "data_ai"):
-        exercise_instructions = """8. Write 1-2 coding exercises:
-   - exercise_type MUST be "coding".
-   - Set language appropriately (e.g. "python", "javascript", "sql").
-   - Include non-null starter_code boilerplate for the CodeSandbox editor, difficulty, solution_hint, and expected_output."""
-        code_section_rule = "Write at least 1 'code' section: working, correct code snippet with explanation."
+    if is_theory:
+        exercise_instructions = """8. Write 1-2 Conceptual Q&A / Reflection exercises (DO NOT write coding exercises):
+   - exercise_type MUST be "reflection" or "analysis" (set starter_code: null and language: null).
+   - In 'title': A clear descriptive exercise title (e.g. "Concept Check: Key Milestones in ML").
+   - In 'description': Pose a thought-provoking conceptual question, historical analysis prompt, or scenario for the learner to answer.
+   - In 'solution_hint': Provide key concepts, context, or perspectives to consider.
+   - In 'expected_output': Provide a detailed, well-structured model answer / explanation."""
+        code_section_rule = "DO NOT write a 'code' section. This is a theoretical/conceptual lesson (e.g. history, foundations, ethics, overview) — omit code entirely and focus on rich explanation, analogy, and real-world example sections."
+    elif paradigm_lower == "coding" or domain_lower in ("computer_science", "software_engineering", "data_ai"):
+        exercise_instructions = """8. Write 1-2 practical exercises:
+   - If this lesson is hands-on/implementation: Write 1-2 coding exercises (exercise_type: "coding") with appropriate language (e.g. "python", "javascript", "sql"), starter_code boilerplate for the CodeSandbox editor, difficulty, solution_hint, and expected_output.
+   - If this specific lesson is conceptual or theoretical: Write 1-2 conceptual Q&A / reflection exercises (exercise_type: "reflection" or "analysis") with starter_code: null and language: null, providing a clear question/scenario and comprehensive model answer."""
+        code_section_rule = "Write 1 'code' section ONLY if writing or running code is directly relevant to this specific lesson; for conceptual or overview topics, omit the 'code' section."
     elif paradigm_lower == "calculation" or domain_lower in ("engineering", "applied_sciences_engineering", "physics"):
         exercise_instructions = """8. Write 1-2 quantitative / problem-solving calculation exercises:
    - exercise_type MUST be "calculation".
@@ -370,6 +410,12 @@ def build_lesson_content_prompt(
     elif learning_style and "theoretical" in learning_style.lower():
         style_note = "Emphasize explanations and analogies. Include at least one research-backed claim."
 
+    section_order_str = (
+        "explanation → analogy → example → common_mistakes → summary"
+        if is_theory
+        else "explanation → analogy → example → (code if relevant) → common_mistakes → summary"
+    )
+
     return f"""
 You are an expert educational content writer in {domain_label} ({domain}) for {skill_level}-level learners.
 
@@ -400,8 +446,15 @@ CONTENT REQUIREMENTS:
 {exercise_instructions}
 {style_note}
 
+LESSON NATURE & EXERCISE ADAPTATION:
+- For theoretical, conceptual, historical, or ethical lessons (like history of ML, ethics, or overview concepts):
+  * Skip code sections completely. Do NOT invent unnecessary code snippets.
+  * Do NOT create coding exercises. Provide simple, thought-provoking conceptual Q&A / reflection exercises with starter_code: null.
+- For practical or hands-on implementation lessons (like building models, coding algorithms, using APIs):
+  * Provide working code and hands-on coding exercises.
+
 SECTION ORDER (follow this sequence):
-  explanation → analogy → example → (code if relevant) → common_mistakes → summary
+  {section_order_str}
 
 STRICT RULES:
 - Output ONLY valid JSON matching the schema below.
@@ -577,10 +630,10 @@ _BLUEPRINT_JSON_SCHEMA = """
   "exercise_paradigm": "analysis | coding | calculation | case_study | reflection",
   "course_outcomes": ["What learner will be able to do after completing the course", "..."],
   "prerequisites": ["Prior knowledge required", "..."],
-  "phases": [
+  "chapters": [
     {
-      "title": "Phase 1: Foundations",
-      "description": "What this phase covers and why",
+      "title": "Chapter 1: Foundations",
+      "description": "What this chapter covers and why",
       "estimated_duration": "2 weeks",
       "modules": [
         {

@@ -331,11 +331,19 @@ const EXERCISE_TYPE_CONFIG = {
   },
   reflection: {
     icon: Lightbulb,
-    label: "Conceptual Reflection & Reasoning",
+    label: "Conceptual Q&A / Reflection",
     badgeBg: "bg-cyan-100 text-cyan-800 border-cyan-200",
     headerBg: "from-cyan-50 to-indigo-50/50 border-cyan-100",
     buttonBg: "bg-cyan-600 hover:bg-cyan-500",
-    placeholder: "Write your reflection, critical evaluation, and key insights here...",
+    placeholder: "Write your answer, conceptual analysis, or critical evaluation here...",
+  },
+  quiz_seed: {
+    icon: Star,
+    label: "Knowledge Check / Quiz",
+    badgeBg: "bg-amber-100 text-amber-800 border-amber-200",
+    headerBg: "from-amber-50 to-orange-50/50 border-amber-100",
+    buttonBg: "bg-amber-600 hover:bg-amber-500",
+    placeholder: "Provide your answer and explanation for this concept check...",
   },
 };
 
@@ -346,8 +354,8 @@ function PracticeTab({ exercises }) {
     return (
       <div className="py-12 text-center text-slate-400">
         <FlaskConical size={40} className="mx-auto mb-3 opacity-30" />
-        <p className="text-sm font-medium">No domain practice exercises for this lesson.</p>
-        <p className="mt-1 text-xs">Check the Code tab if this is a software lesson.</p>
+        <p className="text-sm font-medium">No written practice exercises for this lesson.</p>
+        <p className="mt-1 text-xs">Review the Read tab or explore the exercises if available.</p>
       </div>
     );
   }
@@ -794,6 +802,13 @@ export default function LessonReader({ contentId, lessonId, onBack, onNext, onPr
     return true;
   });
 
+  // Reset activeTab if it's no longer available for the current lesson (e.g. Code tab on a theory lesson)
+  useEffect(() => {
+    if (lesson && !availableTabs.some((t) => t.id === activeTab)) {
+      setActiveTab("read");
+    }
+  }, [lesson, availableTabs, activeTab]);
+
   if (loading) {
     return (
       <div className="flex min-h-[400px] flex-col items-center justify-center gap-3">
@@ -820,9 +835,9 @@ export default function LessonReader({ contentId, lessonId, onBack, onNext, onPr
         {/* Breadcrumb */}
         {lesson.module && (
           <div className="mb-2 flex items-center gap-1 text-xs font-semibold text-slate-400">
-            {lesson.module.phase && (
+            {lesson.module.chapter && (
               <>
-                <span>{lesson.module.phase.title}</span>
+                <span>{lesson.module.chapter.title}</span>
                 <ChevronRight size={12} />
               </>
             )}

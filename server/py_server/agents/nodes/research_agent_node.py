@@ -50,17 +50,24 @@ async def _send_status_webhook(content_id: int | None, status: str, label: str) 
         logger.warning("Status webhook failed (non-critical): %s", exc)
 
 
-def _extract_lesson_titles(blueprint: Dict[str, Any]) -> List[Dict[str, str]]:
+def _extract_lesson_titles(blueprint: Any) -> List[Dict[str, str]]:
     """
     Walk the blueprint tree and collect all lesson titles + their parent context.
     Returns list of dicts: {"topic": full_search_topic, "lesson_title": title}
     """
+    if not isinstance(blueprint, dict):
+        if isinstance(blueprint, list) and len(blueprint) > 0 and isinstance(blueprint[0], dict):
+            blueprint = blueprint[0] if "chapters" in blueprint[0] else {"chapters": blueprint}
+        else:
+            return []
+
     lessons = []
     course_title = blueprint.get("title", "")
 
-    for phase in blueprint.get("phases", []):
-        phase_title = phase.get("title", "")
-        for module in phase.get("modules", []):
+    chapters = blueprint.get("chapters") or []
+    for chapter in chapters:
+        chapter_title = chapter.get("title", "")
+        for module in chapter.get("modules", []):
             module_title = module.get("title", "")
             for lesson in module.get("lessons", []):
                 lesson_title = lesson.get("title", "")

@@ -165,7 +165,7 @@ async def _execute_workflow_and_notify(
             or final_state.get("pipeline_status") == "error"
             or not course_draft
             or course_draft.get("error")
-            or not course_draft.get("phases")
+            or not course_draft.get("chapters")
         ):
             err_msg = (
                 (final_state and final_state.get("error"))

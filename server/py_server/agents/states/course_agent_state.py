@@ -30,7 +30,7 @@ class CourseAgentState(TypedDict):
     feedback: Optional[str]        # Tutor feedback for regeneration flows
 
     # ── Stage 1: Learning Architect output ────────────────────────────────────
-    # Course blueprint — structure-only (phases/modules/lesson titles + objectives).
+    # Course blueprint — structure-only (chapters/modules/lesson titles + objectives).
     # No lesson prose here. Fast + cheap first pass.
     course_blueprint: Optional[Dict[str, Any]]
 

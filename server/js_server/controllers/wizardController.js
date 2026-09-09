@@ -9,10 +9,10 @@
  *  - Roadmap/Guide/Schedule → legacy single-LLM call (py_server generate-raw)
  *
  * New course DB hierarchy:
- *   WizardContent → CoursePhase → CourseModule → CourseLesson
- *                                              → LessonSection
- *                                              → LessonResource
- *                                              → LessonExercise
+ *   WizardContent → CourseChapter → CourseModule → CourseLesson
+ *                                                → LessonSection
+ *                                                → LessonResource
+ *                                                → LessonExercise
  */
 
 const { pyAxios } = require("../utils/apiProxy");
@@ -24,7 +24,7 @@ const {
   WizardModule,
   WizardResource,
   User,
-  CoursePhase,
+  CourseChapter,
   CourseModule,
   CourseLesson,
   LessonSection,
@@ -163,7 +163,7 @@ async function getHistory(req, res, next) {
 /**
  * GET /wizard/:content_id
  * Full content retrieval.
- * For courses: returns the full phase→module→lesson hierarchy.
+ * For courses: returns the full chapter→module→lesson hierarchy.
  * For other types: returns WizardContent with legacy WizardModule/WizardResource.
  */
 async function getContent(req, res, next) {
@@ -185,8 +185,8 @@ async function getContent(req, res, next) {
             as: "generation_job"
           },
           {
-            model: CoursePhase,
-            as: "phases",
+            model: CourseChapter,
+            as: "chapters",
             order: [["sequence", "ASC"]],
             include: [
               {
@@ -207,12 +207,14 @@ async function getContent(req, res, next) {
           },
         ],
         order: [
-          [{ model: CoursePhase, as: "phases" }, "sequence", "ASC"],
-          [{ model: CoursePhase, as: "phases" }, { model: CourseModule, as: "modules" }, "sequence", "ASC"],
-          [{ model: CoursePhase, as: "phases" }, { model: CourseModule, as: "modules" }, { model: CourseLesson, as: "lessons" }, "sequence", "ASC"],
+          [{ model: CourseChapter, as: "chapters" }, "sequence", "ASC"],
+          [{ model: CourseChapter, as: "chapters" }, { model: CourseModule, as: "modules" }, "sequence", "ASC"],
+          [{ model: CourseChapter, as: "chapters" }, { model: CourseModule, as: "modules" }, { model: CourseLesson, as: "lessons" }, "sequence", "ASC"],
         ],
       });
-      return res.json(content);
+      if (!content) return res.status(404).json({ detail: "Content not found" });
+      const json = content.toJSON();
+      return res.json(json);
     }
 
     // Legacy: Roadmap/Guide/Schedule with WizardModule/WizardResource
@@ -272,8 +274,8 @@ async function getCourseLesson(req, res, next) {
           attributes: ["id", "title", "description"],
           include: [
             {
-              model: CoursePhase,
-              as: "phase",
+              model: CourseChapter,
+              as: "chapter",
               attributes: ["id", "title"],
             },
           ],
@@ -672,7 +674,7 @@ async function getIncompleteGenerations(req, res, next) {
  * Final payload from py_server after the agent pipeline completes.
  *
  * Handles two content shapes:
- *  1. `data.content_type === 'course'` → write CoursePhase/Module/Lesson/Section/Resource/Exercise tables
+ *  1. `data.content_type === 'course'` → write CourseChapter/Module/Lesson/Section/Resource/Exercise tables
  *  2. Legacy flat modules → write WizardModule/WizardResource tables
  */
 async function webhookAgenticComplete(req, res, next) {
@@ -711,8 +713,8 @@ async function webhookAgenticComplete(req, res, next) {
     // ── Course format ──────────────────────────────────────────────────────
     const isCourse = content.content_type === "course" || data?.content_type === "course";
     if (isCourse) {
-      if (!data || data.error || !Array.isArray(data.phases) || data.phases.length === 0) {
-        const errorMsg = data?.error || "Course package is incomplete or missing phases";
+      if (!data || data.error || !Array.isArray(data.chapters) || data.chapters.length === 0) {
+        const errorMsg = data?.error || "Course package is incomplete or missing chapters";
         await content.update({ status: "error", content: { error: errorMsg } }, { transaction: t });
         if (job_id) {
           await GenerationJob.update(
@@ -796,26 +798,27 @@ async function webhookAgenticComplete(req, res, next) {
  */
 async function _persistCourseData(content, data, t) {
   // Clear any previously generated course data for this content_id
-  await CoursePhase.destroy({ where: { content_id: content.id }, transaction: t });
+  await CourseChapter.destroy({ where: { content_id: content.id }, transaction: t });
 
   const sectionsToCreate = [];
   const resourcesToCreate = [];
   const exercisesToCreate = [];
 
-  let phaseSeq = 1;
-  for (const phase of data.phases || []) {
-    const dbPhase = await CoursePhase.create({
+  const chaptersData = data.chapters || [];
+  let chapSeq = 1;
+  for (const chapter of chaptersData) {
+    const dbChapter = await CourseChapter.create({
       content_id: content.id,
-      title: phase.title || "Phase",
-      description: phase.description || "",
-      sequence: phaseSeq++,
-      estimated_duration: phase.estimated_duration || "",
+      title: chapter.title || "Chapter",
+      description: chapter.description || "",
+      sequence: chapSeq++,
+      estimated_duration: chapter.estimated_duration || "",
     }, { transaction: t });
 
     let modSeq = 1;
-    for (const module of phase.modules || []) {
+    for (const module of chapter.modules || []) {
       const dbModule = await CourseModule.create({
-        phase_id: dbPhase.id,
+        chapter_id: dbChapter.id,
         content_id: content.id,
         title: module.title || "Module",
         description: module.description || "",
@@ -899,7 +902,7 @@ async function _persistCourseData(content, data, t) {
   }
 
   logger.info(
-    `[WEBHOOK] Course data persisted via bulkCreate: content_id=${content.id}, phases=${data.phases?.length || 0}, sections=${sectionsToCreate.length}, resources=${resourcesToCreate.length}, exercises=${exercisesToCreate.length}`
+    `[WEBHOOK] Course data persisted via bulkCreate: content_id=${content.id}, chapters=${data.chapters?.length || 0}, sections=${sectionsToCreate.length}, resources=${resourcesToCreate.length}, exercises=${exercisesToCreate.length}`
   );
 }
 
@@ -908,7 +911,9 @@ async function _persistCourseData(content, data, t) {
  * Incremental lesson save from py_server.
  */
 async function webhookAgenticLessonIncremental(req, res, next) {
-  const { content_id, job_id, lesson_data, phase_title, module_title, sequence_info, state_cache } = req.body;
+  const { content_id, job_id, lesson_data, chapter_title, module_title, sequence_info, state_cache } = req.body;
+  const targetChapterTitle = chapter_title || "Chapter 1";
+  const targetChapterSeq = sequence_info?.chapter_seq || 1;
 
   if (!content_id || !lesson_data || !lesson_data.title) {
     return res.status(400).json({ error: "Missing required incremental payload (content_id or lesson_data.title)" });
@@ -933,12 +938,12 @@ async function webhookAgenticLessonIncremental(req, res, next) {
         }, { transaction: t });
       }
 
-      // Upsert Phase
-      const [dbPhase] = await CoursePhase.findOrCreate({
-        where: { content_id, title: phase_title },
+      // Upsert Chapter
+      const [dbChapter] = await CourseChapter.findOrCreate({
+        where: { content_id, title: targetChapterTitle },
         defaults: {
           description: "",
-          sequence: sequence_info?.phase_seq || 1,
+          sequence: targetChapterSeq,
           estimated_duration: "",
         },
         transaction: t
@@ -946,8 +951,11 @@ async function webhookAgenticLessonIncremental(req, res, next) {
 
       // Upsert Module
       const [dbModule] = await CourseModule.findOrCreate({
-        where: { phase_id: dbPhase.id, content_id, title: module_title },
+        where: { chapter_id: dbChapter.id, content_id, title: module_title },
         defaults: {
+          chapter_id: dbChapter.id,
+          content_id,
+          title: module_title,
           description: "",
           learning_objectives: [],
           key_takeaways: [],

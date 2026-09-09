@@ -34,7 +34,7 @@ const LanggraphCheckpoint = sequelize.define('LanggraphCheckpoint', {
     allowNull: true,
   },
   checkpoint: {
-    type: DataTypes.JSON,
+    type: DataTypes.TEXT('long'),
     allowNull: false,
   },
   metadata: {

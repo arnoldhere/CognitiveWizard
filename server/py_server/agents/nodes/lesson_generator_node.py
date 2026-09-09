@@ -60,14 +60,16 @@ async def _send_incremental_lesson_webhook(content_id: int | None, job_id: str |
     if not content_id:
         return
     try:
+        chapter_title = module_context.get("chapter_title", "")
+        chapter_seq = module_context.get("chapter_idx", 0) + 1
         payload = {
             "content_id": content_id,
             "job_id": job_id,
             "lesson_data": lesson_data,
-            "phase_title": module_context.get("phase_title", ""),
+            "chapter_title": chapter_title,
             "module_title": module_context.get("module_title", ""),
             "sequence_info": {
-                "phase_seq": module_context.get("phase_idx", 0) + 1,
+                "chapter_seq": chapter_seq,
                 "module_seq": module_context.get("mod_idx", 0) + 1,
                 "lesson_seq": lesson_idx + 1
             }
@@ -124,9 +126,10 @@ async def _generate_single_lesson(
     )
 
     system_msg = (
-        "You are an expert educational content writer. "
-        "Generate a deeply detailed lesson with explanations, real-world examples, "
-        "analogies, code snippets, common mistakes, and practical exercises. "
+        "You are an expert educational content writer across diverse academic and technical domains. "
+        "Generate a deeply detailed lesson tailored to the topic's nature with clear explanations, real-world examples, "
+        "analogies, common misconceptions, code snippets (only when practically relevant to the topic; omit for theoretical, historical, or conceptual lessons), "
+        "and domain-appropriate exercises (coding for implementation topics, conceptual Q&A/reflection/analysis for theory). "
         "Output ONLY valid JSON matching the exact schema. No markdown, no extra text."
     )
 
@@ -217,20 +220,27 @@ async def _generate_single_lesson(
         }
 
 
-def _collect_all_lessons(blueprint: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _collect_all_lessons(blueprint: Any) -> List[Dict[str, Any]]:
     """
     Flatten blueprint into a list of lesson tasks with full context.
-    Each item carries: lesson_blueprint, module_context, phase info, indices.
+    Each item carries: lesson_blueprint, module_context, chapter info, indices.
     """
+    if not isinstance(blueprint, dict):
+        if isinstance(blueprint, list) and len(blueprint) > 0 and isinstance(blueprint[0], dict):
+            blueprint = blueprint[0] if "chapters" in blueprint[0] else {"chapters": blueprint}
+        else:
+            return []
+
     all_lessons = []
-    for phase_idx, phase in enumerate(blueprint.get("phases", [])):
-        for mod_idx, module in enumerate(phase.get("modules", [])):
+    chapters = blueprint.get("chapters") or []
+    for chap_idx, chapter in enumerate(chapters):
+        for mod_idx, module in enumerate(chapter.get("modules", [])):
             module_context = {
                 "module_title": module.get("title", ""),
                 "module_description": module.get("description", ""),
                 "difficulty": module.get("difficulty", "beginner"),
-                "phase_title": phase.get("title", ""),
-                "phase_idx": phase_idx,
+                "chapter_title": chapter.get("title", ""),
+                "chapter_idx": chap_idx,
                 "mod_idx": mod_idx,
                 "domain": blueprint.get("domain", "general"),
                 "domain_label": blueprint.get("domain_label", "General"),
@@ -242,7 +252,7 @@ def _collect_all_lessons(blueprint: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "blueprint": lesson_bp,
                         "module_context": module_context,
                         "lesson_idx": lesson_idx,
-                        "path": (phase_idx, mod_idx, lesson_idx),
+                        "path": (chap_idx, mod_idx, lesson_idx),
                     }
                 )
     return all_lessons
@@ -371,7 +381,7 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
 
         if webhook_tasks:
             # Deliver incrementally and sequentially to prevent MySQL transaction deadlocks
-            # when Express upserts parent CoursePhase and CourseModule records.
+            # when Express upserts parent CourseChapter and CourseModule records.
             for task_coro in webhook_tasks:
                 try:
                     await task_coro

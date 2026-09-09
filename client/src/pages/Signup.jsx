@@ -43,7 +43,6 @@ export default function Signup() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-
         setError(null);
         setLoading(true);
 
@@ -62,6 +61,8 @@ export default function Signup() {
     };
 
     const updateField = (field) => (event) => {
+        setError(null);
+
         const value =
             event.target.type === "checkbox"
                 ? event.target.checked
@@ -92,12 +93,20 @@ export default function Signup() {
                     ? "Good"
                     : "Strong";
 
+    const completion = [
+        form.full_name,
+        form.phone,
+        form.dob,
+        form.email,
+        form.password,
+    ].filter(Boolean).length;
+
     return (
         <main className="relative min-h-screen overflow-hidden bg-slate-50">
-            {/* Background decoration */}
+            {/* Background */}
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-                <div className="absolute -bottom-40 -right-32 h-[30rem] w-[30rem] rounded-full bg-accent/30 blur-3xl" />
+                <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+                <div className="absolute -bottom-40 -right-32 h-[32rem] w-[32rem] rounded-full bg-primary/5 blur-3xl" />
 
                 <div className="absolute inset-0 opacity-[0.025]">
                     <svg
@@ -121,20 +130,22 @@ export default function Signup() {
                             </pattern>
                         </defs>
 
-                        <rect width="100%" height="100%" fill="url(#grid)" />
+                        <rect
+                            width="100%"
+                            height="100%"
+                            fill="url(#grid)"
+                        />
                     </svg>
                 </div>
             </div>
 
-            <div className="relative mx-auto flex min-h-screen w-full max-w-7xl items-center px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-                <div className="grid w-full items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
-                    {/* =====================================================
-                        LEFT — BRAND / VALUE PROPOSITION
-                    ====================================================== */}
+            <div className="relative mx-auto flex min-h-screen w-full max-w-7xl items-center px-4 py-5 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
+                <div className="grid w-full items-center gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14">
+                    {/* LEFT */}
                     <motion.div
-                        initial={{ opacity: 0, x: -30 }}
+                        initial={{ opacity: 0, x: -24 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6 }}
+                        transition={{ duration: 0.5 }}
                         className="hidden lg:block"
                     >
                         {/* Brand */}
@@ -147,7 +158,6 @@ export default function Signup() {
                                 <div className="text-lg font-extrabold tracking-tight text-dark">
                                     CognitiveWizard
                                 </div>
-
                                 <div className="text-xs font-medium text-slate-500">
                                     Intelligent learning platform
                                 </div>
@@ -160,22 +170,21 @@ export default function Signup() {
                                 Start your learning journey
                             </div>
 
-                            <h1 className="text-4xl font-black leading-[1.08] tracking-tight text-slate-950 xl:text-6xl">
+                            <h1 className="text-4xl font-black leading-[1.06] tracking-tight text-slate-950 xl:text-6xl">
                                 Learn smarter.
                                 <span className="block text-primary">
                                     Grow faster.
                                 </span>
                             </h1>
 
-                            <p className="mt-6 max-w-lg text-lg leading-8 text-slate-600">
+                            <p className="mt-6 max-w-lg text-base leading-7 text-slate-600 xl:text-lg">
                                 Create your personalized learning profile and
                                 unlock a smarter way to study, practice, and
                                 track your progress.
                             </p>
                         </div>
 
-                        {/* Benefits */}
-                        <div className="mt-10 space-y-4">
+                        <div className="mt-10 space-y-5">
                             <Benefit
                                 icon={<Brain size={19} />}
                                 title="Personalized learning"
@@ -195,7 +204,6 @@ export default function Signup() {
                             />
                         </div>
 
-                        {/* Mini stats */}
                         <div className="mt-10 grid max-w-lg grid-cols-3 gap-3">
                             <MiniStat
                                 icon={<Users size={17} />}
@@ -217,19 +225,17 @@ export default function Signup() {
                         </div>
                     </motion.div>
 
-                    {/* =====================================================
-                        RIGHT — SIGNUP CARD
-                    ====================================================== */}
+                    {/* RIGHT */}
                     <motion.div
-                        initial={{ opacity: 0, y: 25 }}
+                        initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
+                        transition={{ duration: 0.5, delay: 0.08 }}
                         className="w-full"
                     >
-                        <Card className="mx-auto w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10">
+                        <Card className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200/70 bg-white/95 shadow-xl shadow-slate-900/[0.08] backdrop-blur sm:rounded-[28px]">
                             <CardContent className="p-0">
                                 {/* Mobile brand */}
-                                <div className="border-b border-slate-100 bg-slate-50/80 px-6 py-5 lg:hidden">
+                                <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6 lg:hidden">
                                     <div className="flex items-center gap-3">
                                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-md">
                                             <Brain size={21} />
@@ -239,7 +245,6 @@ export default function Signup() {
                                             <div className="font-extrabold text-dark">
                                                 CognitiveWizard
                                             </div>
-
                                             <div className="text-xs text-slate-500">
                                                 Intelligent learning platform
                                             </div>
@@ -247,76 +252,126 @@ export default function Signup() {
                                     </div>
                                 </div>
 
-                                <div className="p-6 sm:p-8 lg:p-10">
+                                <div className="p-5 sm:p-8 lg:p-10">
                                     {/* Header */}
-                                    <div className="mb-8">
-                                        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                            <Sparkles
-                                                size={27}
-                                                strokeWidth={2}
-                                            />
+                                    <div className="mb-7">
+                                        <div className="mb-4 flex items-center justify-between">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                                <Sparkles
+                                                    size={24}
+                                                    strokeWidth={2}
+                                                />
+                                            </div>
+
+                                            <div className="text-right">
+                                                <div className="text-xs font-semibold text-slate-400">
+                                                    Profile setup
+                                                </div>
+                                                <div className="mt-0.5 text-sm font-bold text-slate-700">
+                                                    {Math.min(
+                                                        completion + 1,
+                                                        5
+                                                    )}{" "}
+                                                    / 5
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <h2 className="text-3xl font-black tracking-tight text-slate-950">
+                                        <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                                             Create your account
                                         </h2>
 
-                                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                                        <p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">
                                             Set up your profile and start
                                             building a smarter learning
                                             experience.
                                         </p>
+
+                                        {/* Progress */}
+                                        <div className="mt-5">
+                                            <div className="mb-2 flex items-center justify-between">
+                                                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                                    Setup progress
+                                                </span>
+                                                <span className="text-[11px] font-bold text-primary">
+                                                    {Math.round(
+                                                        (completion / 5) * 100
+                                                    )}
+                                                    %
+                                                </span>
+                                            </div>
+
+                                            <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{
+                                                        width: `${(completion / 5) *
+                                                            100
+                                                            }%`,
+                                                    }}
+                                                    transition={{
+                                                        duration: 0.3,
+                                                    }}
+                                                    className="h-full rounded-full bg-primary"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <form
                                         onSubmit={handleSubmit}
                                         className="space-y-6"
                                     >
-                                        {/* Personal information */}
+                                        {/* Personal */}
                                         <FormSection
                                             number="01"
                                             title="Personal information"
-                                            description="Tell us a little about yourself."
+                                            description="Basic details for your learning profile."
                                         >
-                                            <div className="grid gap-5 sm:grid-cols-2">
+                                            <div className="grid gap-4 sm:grid-cols-2">
                                                 <IconInput
-                                                    icon={<User size={18} />}
+                                                    icon={<User size={17} />}
                                                     label="Full Name"
                                                     value={form.full_name}
                                                     onChange={updateField(
                                                         "full_name"
                                                     )}
                                                     placeholder="Your full name"
+                                                    required
                                                 />
 
                                                 <IconInput
-                                                    icon={<Phone size={18} />}
+                                                    icon={<Phone size={17} />}
                                                     label="Phone Number"
                                                     value={form.phone}
                                                     onChange={updateField(
                                                         "phone"
                                                     )}
                                                     placeholder="Your phone number"
+                                                    required
                                                 />
                                             </div>
 
                                             <IconInput
-                                                icon={<Calendar size={18} />}
+                                                icon={<Calendar size={17} />}
                                                 label="Date of Birth"
                                                 type="date"
                                                 value={form.dob}
                                                 onChange={updateField("dob")}
+                                                required
                                             />
                                         </FormSection>
 
-                                        {/* Account information */}
+                                        <div className="h-px bg-slate-100" />
+
+                                        {/* Account */}
                                         <FormSection
                                             number="02"
                                             title="Account details"
-                                            description="Choose the credentials you'll use to sign in."
+                                            description="Choose credentials you'll use to sign in."
                                         >
                                             <IconInput
-                                                icon={<Mail size={18} />}
+                                                icon={<Mail size={17} />}
                                                 label="Email Address"
                                                 type="email"
                                                 value={form.email}
@@ -327,12 +382,15 @@ export default function Signup() {
 
                                             <div>
                                                 <div className="relative">
-                                                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                                                        <Lock size={18} />
+                                                    <div
+                                                        className="pointer-events-none absolute left-0 top-[38px] z-10 flex h-5 w-10 items-center justify-center text-slate-400"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <Lock size={17} />
                                                     </div>
 
                                                     <Input
-                                                        className="pr-12 pl-10"
+                                                        className="pl-10 pr-12"
                                                         label="Password"
                                                         type={
                                                             showPassword
@@ -354,7 +412,7 @@ export default function Signup() {
                                                                 (prev) => !prev
                                                             )
                                                         }
-                                                        className="absolute right-3 top-[38px] rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                        className="absolute right-2.5 top-[34px] flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
                                                         aria-label={
                                                             showPassword
                                                                 ? "Hide password"
@@ -369,7 +427,14 @@ export default function Signup() {
                                                     </button>
                                                 </div>
 
-                                                {/* Password strength */}
+                                                {!password && (
+                                                    <p className="mt-2 text-xs text-slate-400">
+                                                        Use 8+ characters with
+                                                        at least one letter and
+                                                        number.
+                                                    </p>
+                                                )}
+
                                                 {password.length > 0 && (
                                                     <motion.div
                                                         initial={{
@@ -390,12 +455,12 @@ export default function Signup() {
 
                                                             <span
                                                                 className={`text-xs font-bold ${passwordStrength ===
-                                                                        "Strong"
-                                                                        ? "text-emerald-600"
-                                                                        : passwordStrength ===
-                                                                            "Good"
-                                                                            ? "text-amber-600"
-                                                                            : "text-red-500"
+                                                                    "Strong"
+                                                                    ? "text-emerald-600"
+                                                                    : passwordStrength ===
+                                                                        "Good"
+                                                                        ? "text-amber-600"
+                                                                        : "text-red-500"
                                                                     }`}
                                                             >
                                                                 {
@@ -412,9 +477,9 @@ export default function Signup() {
                                                                             level
                                                                         }
                                                                         className={`h-1.5 flex-1 rounded-full transition-colors ${passwordScore >=
-                                                                                level
-                                                                                ? "bg-primary"
-                                                                                : "bg-slate-200"
+                                                                            level
+                                                                            ? "bg-primary"
+                                                                            : "bg-slate-200"
                                                                             }`}
                                                                     />
                                                                 )
@@ -448,17 +513,19 @@ export default function Signup() {
                                             </div>
                                         </FormSection>
 
-                                        {/* Role selection */}
+                                        <div className="h-px bg-slate-100" />
+
+                                        {/* Role */}
                                         <FormSection
                                             number="03"
                                             title="Choose your role"
-                                            description="You can use CognitiveWizard as a learner or educator."
+                                            description="Select how you'll use CognitiveWizard."
                                         >
                                             <div className="grid gap-3 sm:grid-cols-2">
                                                 <RoleCard
                                                     selected={!form.is_tutor}
                                                     icon={
-                                                        <BookOpen size={22} />
+                                                        <BookOpen size={21} />
                                                     }
                                                     title="Student"
                                                     description="Learn, practice, and track your progress."
@@ -503,16 +570,14 @@ export default function Signup() {
                                                 role="alert"
                                                 className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
                                             >
-                                                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs">
+                                                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold">
                                                     !
                                                 </div>
 
                                                 <div>
                                                     <p className="font-bold">
-                                                        Account creation
-                                                        failed
+                                                        Account creation failed
                                                     </p>
-
                                                     <p className="mt-0.5 leading-5">
                                                         {error}
                                                     </p>
@@ -520,66 +585,65 @@ export default function Signup() {
                                             </motion.div>
                                         )}
 
-                                        {/* Submit */}
-                                        <Button
-                                            type="submit"
-                                            className="group w-full !rounded-xl py-3.5 text-sm font-bold shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/25"
-                                            isLoading={loading}
-                                        >
-                                            {loading
-                                                ? "Creating Account..."
-                                                : "Create My Account"}
+                                        {/* CTA */}
+                                        <div className="pt-1">
+                                            <Button
+                                                type="submit"
+                                                className="group w-full !rounded-xl py-3.5 text-sm font-bold shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/25 active:translate-y-0"
+                                                isLoading={loading}
+                                            >
+                                                {loading
+                                                    ? "Creating your account…"
+                                                    : "Create account"}
 
-                                            {!loading && (
-                                                <ArrowRight
-                                                    size={17}
-                                                    className="ml-2 inline-block transition-transform group-hover:translate-x-1"
-                                                />
-                                            )}
-                                        </Button>
+                                                {!loading && (
+                                                    <ArrowRight
+                                                        size={17}
+                                                        className="ml-2 inline-block transition-transform group-hover:translate-x-1"
+                                                    />
+                                                )}
+                                            </Button>
+                                        </div>
 
-                                        {/* Security note */}
+                                        {/* Security */}
                                         <div className="flex items-center justify-center gap-2 text-center text-xs text-slate-400">
                                             <ShieldCheck
                                                 size={15}
                                                 className="text-emerald-500"
                                             />
-
                                             <span>
-                                                Your account information is
-                                                securely handled.
+                                                Your information is securely
+                                                handled.
                                             </span>
                                         </div>
 
-                                        {/* Divider */}
-                                        <div className="relative py-1">
-                                            <div className="absolute inset-0 flex items-center">
+                                        {/* Login */}
+                                        <div className="relative pt-2">
+                                            <div className="absolute inset-x-0 top-0 flex items-center">
                                                 <div className="w-full border-t border-slate-200" />
                                             </div>
 
                                             <div className="relative flex justify-center">
-                                                <span className="bg-white px-3 text-xs font-medium uppercase tracking-wider text-slate-400">
-                                                    Already a member?
+                                                <span className="bg-white px-3 text-xs font-medium text-slate-400">
+                                                    Already have an account?
                                                 </span>
                                             </div>
-                                        </div>
 
-                                        {/* Login */}
-                                        <div className="text-center">
-                                            <Link
-                                                to="/login"
-                                                className="inline-flex items-center gap-1.5 text-sm font-bold text-primary transition-colors hover:text-primary/80"
-                                            >
-                                                Sign in to your account
-                                                <ArrowRight size={15} />
-                                            </Link>
+                                            <div className="mt-4 text-center">
+                                                <Link
+                                                    to="/login"
+                                                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/5 hover:text-primary/80 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                >
+                                                    Sign in to your account
+                                                    <ArrowRight size={15} />
+                                                </Link>
+                                            </div>
                                         </div>
                                     </form>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        {/* Mobile footer */}
                         <p className="mt-5 text-center text-xs text-slate-400 lg:hidden">
                             © {new Date().getFullYear()} CognitiveWizard
                         </p>
@@ -603,8 +667,7 @@ function Benefit({ icon, title, description }) {
 
             <div>
                 <h3 className="font-bold text-slate-900">{title}</h3>
-
-                <p className="mt-1 text-sm leading-5 text-slate-500">
+                <p className="mt-1 max-w-sm text-sm leading-5 text-slate-500">
                     {description}
                 </p>
             </div>
@@ -645,7 +708,7 @@ function FormSection({ number, title, description, children }) {
                 </div>
             </div>
 
-            <div className="space-y-5">{children}</div>
+            <div className="space-y-4">{children}</div>
         </section>
     );
 }
@@ -661,7 +724,11 @@ function IconInput({
 }) {
     return (
         <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-3 text-slate-400">
+            {/* Input icon: aligned with the actual input box, not the label */}
+            <div
+                className="pointer-events-none absolute left-0 top-[38px] z-10 flex h-5 w-10 items-center justify-center text-slate-400"
+                aria-hidden="true"
+            >
                 {icon}
             </div>
 
@@ -681,11 +748,10 @@ function IconInput({
 function PasswordRule({ active, text }) {
     return (
         <div
-            className={`flex items-center gap-1.5 text-[11px] transition-colors ${active ? "text-emerald-600" : "text-slate-400"
+            className={`flex items-center gap-1.5 text-[11px] font-medium transition-colors ${active ? "text-emerald-600" : "text-slate-400"
                 }`}
         >
             <CheckCircle2 size={12} />
-
             <span>{text}</span>
         </div>
     );
@@ -703,31 +769,32 @@ function RoleCard({
             type="button"
             onClick={onClick}
             aria-pressed={selected}
-            className={`group relative rounded-2xl border p-4 text-left transition-all duration-200 ${selected
-                    ? "border-primary bg-primary/[0.06] shadow-md shadow-primary/10"
-                    : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+            className={`group relative rounded-2xl border p-4 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 ${selected
+                ? "border-primary bg-primary/[0.07] shadow-sm ring-2 ring-primary/10"
+                : "border-slate-200 bg-white hover:border-primary/40 hover:bg-slate-50 hover:shadow-sm"
                 }`}
         >
-            {/* Selection indicator */}
+            {/* Selection */}
             <div
                 className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border transition-all ${selected
-                        ? "border-primary bg-primary text-white"
-                        : "border-slate-300 bg-white"
+                    ? "border-primary bg-primary text-white"
+                    : "border-slate-300 bg-white"
                     }`}
             >
                 {selected && <CheckCircle2 size={13} />}
             </div>
 
+            {/* Icon */}
             <div
                 className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${selected
-                        ? "bg-primary text-white"
-                        : "bg-slate-100 text-slate-500 group-hover:bg-primary/10 group-hover:text-primary"
+                    ? "bg-primary text-white"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-primary/10 group-hover:text-primary"
                     }`}
             >
                 {icon}
             </div>
 
-            <h4 className="pr-6 text-sm font-extrabold text-slate-900">
+            <h4 className="pr-7 text-sm font-extrabold text-slate-900">
                 {title}
             </h4>
 

@@ -332,7 +332,7 @@ const PIPELINE_STATUS_CONFIG = {
   generating_blueprint: {
     icon: <LayoutTemplate className="h-10 w-10 text-white" />,
     label: "Designing course structure",
-    sub: "The Learning Architect is mapping out phases, modules, and lesson objectives...",
+    sub: "The Learning Architect is mapping out chapters, modules, and lesson objectives...",
     step: 1,
   },
   generating_evidence: {
@@ -856,8 +856,9 @@ export default function WizardModule() {
         (data.content_type || "").toLowerCase().trim()
       );
 
+      const chapters = data.chapters || [];
       // Course/Syllabus with relational data: show preview + View Course / Publish buttons
-      if (isCourse && data.phases?.length > 0) {
+      if (isCourse && chapters.length > 0) {
         return (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -874,7 +875,7 @@ export default function WizardModule() {
                 </h2>
                 <p className="mx-auto mt-4 max-w-lg text-sm font-medium leading-6 text-slate-500">
                   Your course <strong>{data.topic}</strong> has been generated with{" "}
-                  <strong>{data.phases.length} phases</strong> and is ready for review.
+                  <strong>{chapters.length} chapters</strong> and is ready for review.
                   Open the full course viewer to explore lessons before publishing.
                 </p>
               </div>

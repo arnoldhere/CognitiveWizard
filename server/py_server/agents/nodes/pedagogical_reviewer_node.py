@@ -71,44 +71,19 @@ _REVIEW_RETRY_BASE_DELAY = 0.75
 # ====================
 
 _REVIEW_CHECKLIST = """
-Evaluate this lesson against the following checklist:
-1. Learning objectives covered?
-- Are all stated learning objectives addressed by the lesson?
+Evaluate this lesson against the following criteria:
 
-2. Explanation sufficient?
-- Is the core concept clearly and thoroughly explained?
-- Is the explanation appropriate for the learner's level?
+1. Factual accuracy & Core Concept:
+   - Does the lesson explain the core concept correctly without major scientific, technical, or logical hallucinations?
+2. Coverage of Stated Learning Objectives:
+   - Are the core learning objectives addressed in the explanation, examples, or overview?
+3. Practical Quality & Exercises:
+   - Are the exercises coherent and aligned with the lesson topic?
+   - NOTE ON CODE VS THEORY: Theoretical, historical, or conceptual lessons (e.g. "History of Machine Learning", "Ethics in AI", conceptual overviews) are NOT required to contain code sections or coding exercises. Conceptual Q&A, scenario analysis, or reflection exercises are appropriate and expected. Do NOT reject or penalize a theoretical lesson for omitting code.
 
-3. Examples correct?
-- Are examples technically correct?
-- Are code examples syntactically valid and logically correct where applicable?
-
-4. Difficulty appropriate?
-- Does the lesson match the stated difficulty and learner skill level?
-
-5. No hallucinated facts?
-- Are factual claims accurate?
-- Flag unsupported or suspicious claims.
-
-6. References relevant?
-- Do attached resources relate to the lesson?
-- Do they reasonably support the lesson content?
-
-7. No unnecessary duplication?
-- Is the lesson content coherent and non-repetitive?
-
-8. Estimated time realistic?
-- Is the estimated completion time reasonable for the amount of content?
-
-9. Bloom's taxonomy:
-- Identify levels addressed:
-    remember
-    understand
-    apply
-    analyze
-
-10. Practical learning quality:
-- Does the learner get enough explanation and practical understanding to achieve the stated objectives?
+PASS vs FAIL DECISION RUBRIC:
+- Set "review_status": "passed" if the core subject matter is accurately explained and the primary objectives are addressed. Any minor improvements, suggestions for more examples, or stylistic polish MUST be placed in the "suggestions" array without failing the lesson. (Remember that human instructors review the course before publication).
+- ONLY set "review_status": "failed" if there are critical blocking defects: severe factual hallucinations, total absence of core topic coverage, unparseable/empty text, or completely broken exercises.
 """
 
 
@@ -312,11 +287,10 @@ Resources:
 {_REVIEW_CHECKLIST}
 
 IMPORTANT:
-- Judge the actual lesson content, not what you assume it contains.
-- Be strict but fair.
-- Do not fail a lesson for stylistic preferences alone.
-- If a technical claim or code example appears incorrect, explain why.
-- If an objective is not covered, identify the missing objective.
+- Judge the actual lesson content objectively.
+- Default to "review_status": "passed" if the technical explanation is sound and addresses the topic.
+- Place recommendations, extra examples, or stylistic feedback in "suggestions".
+- ONLY return "failed" if the lesson is fundamentally broken, severely hallucinated, or empty.
 - Suggestions must be actionable for the lesson generator.
 
 Output ONLY valid JSON.
@@ -744,16 +718,22 @@ async def _review_single_lesson(
 # Blueprint index
 # =========================
 def _build_lesson_blueprint_index(
-    blueprint: Dict[str, Any],
+    blueprint: Any,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Index lesson blueprints by title for O(1) lookup.
     """
+    if not isinstance(blueprint, dict):
+        if isinstance(blueprint, list) and len(blueprint) > 0 and isinstance(blueprint[0], dict):
+            blueprint = blueprint[0] if "chapters" in blueprint[0] else {"chapters": blueprint}
+        else:
+            return {}
 
     index: Dict[str, Dict[str, Any]] = {}
+    chapters = blueprint.get("chapters") or []
 
-    for phase in blueprint.get("phases", []):
-        for module in phase.get("modules", []):
+    for chapter in chapters:
+        for module in chapter.get("modules", []):
             for lesson in module.get("lessons", []):
                 title = lesson.get("title", "")
 

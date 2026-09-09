@@ -32,14 +32,19 @@ const isCourseType = (t) =>
   ["course/syllabus", "course", "syllabus"].includes((t || "").toLowerCase().trim());
 
 const isGenerating = (status) =>
-  status?.startsWith("generating") || status === "processing";
+  !["pending_approval", "published", "ready", "completed", "error"].includes((status || "").toLowerCase().trim());
 
 // ── Status label map for dynamic messages ─────────────────────────────────────
 const STATUS_MESSAGES = {
+  blueprint_ready: {
+    icon: <LayoutTemplate className="h-10 w-10 text-white" />,
+    title: "Structure ready",
+    sub: "Chapters and modules outlined, preparing research and lessons...",
+  },
   generating_blueprint: {
     icon: <LayoutTemplate className="h-10 w-10 text-white" />,
     title: "Designing your course structure",
-    sub: "The Learning Architect is mapping out phases, modules, and lessons...",
+    sub: "The Learning Architect is mapping out chapters, modules, and lessons...",
   },
   generating_evidence: {
     icon: <Search className="h-10 w-10 text-white" />,
@@ -316,8 +321,9 @@ export default function WizardContentView() {
 
   // ── Course / Syllabus ──
   if (isCourseType(type)) {
-    // If course has phases, render the full CourseViewer
-    if (data.phases?.length > 0) {
+    const chapters = data.chapters || [];
+    // If course is ready / pending approval / published and has chapters, render full CourseViewer
+    if (chapters.length > 0 && ["pending_approval", "published", "ready", "completed"].includes((status || "").toLowerCase().trim())) {
       return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
           <CourseViewer content={data} onContentUpdated={(updated) => setData(updated)} />

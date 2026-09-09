@@ -1,16 +1,16 @@
 /**
  * CourseModule.js
  * ===============
- * A module within a course phase. Represents a coherent topic area
+ * A module within a course chapter. Represents a coherent topic area
  * (e.g. "What is AI and ML?", "Linear Algebra Essentials").
  *
- * Hierarchy: CoursePhase → CourseModule → CourseLesson
+ * Hierarchy: CourseChapter → CourseModule → CourseLesson
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const WizardContent = require('./WizardContent');
-const CoursePhase = require('./CoursePhase');
+const CourseChapter = require('./CourseChapter');
 
 const CourseModule = sequelize.define('CourseModule', {
   id: {
@@ -19,11 +19,11 @@ const CourseModule = sequelize.define('CourseModule', {
     autoIncrement: true,
   },
 
-  /** FK to parent phase */
-  phase_id: {
+  /** FK to parent chapter */
+  chapter_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: { model: CoursePhase, key: 'id' },
+    references: { model: CourseChapter, key: 'id' },
     onDelete: 'CASCADE',
   },
 
@@ -73,7 +73,7 @@ const CourseModule = sequelize.define('CourseModule', {
     allowNull: true,
   },
 
-  /** Order within the phase */
+  /** Order within the chapter */
   sequence: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -87,8 +87,8 @@ const CourseModule = sequelize.define('CourseModule', {
 });
 
 // Associations
-CoursePhase.hasMany(CourseModule, { foreignKey: 'phase_id', as: 'modules' });
-CourseModule.belongsTo(CoursePhase, { foreignKey: 'phase_id', as: 'phase' });
+CourseChapter.hasMany(CourseModule, { foreignKey: 'chapter_id', as: 'modules' });
+CourseModule.belongsTo(CourseChapter, { foreignKey: 'chapter_id', as: 'chapter' });
 
 WizardContent.hasMany(CourseModule, { foreignKey: 'content_id', as: 'course_modules' });
 CourseModule.belongsTo(WizardContent, { foreignKey: 'content_id', as: 'course' });

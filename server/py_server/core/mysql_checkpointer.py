@@ -14,6 +14,7 @@ This module does NOT create or alter tables — it only reads/writes data.
 """
 
 import asyncio
+import base64
 import json
 import logging
 import threading
@@ -174,6 +175,16 @@ class MySQLSaver(BaseCheckpointSaver):
             else:
                 type_, serialized = "json", self.serde.dumps(checkpoint)
 
+            if isinstance(serialized, bytes):
+                try:
+                    checkpoint_val = serialized.decode("utf-8")
+                    json.loads(checkpoint_val)
+                except Exception:
+                    checkpoint_val = json.dumps(base64.b64encode(serialized).decode("ascii"))
+                    type_ = f"b64:{type_}"
+            else:
+                checkpoint_val = serialized
+
             serialized_metadata = json.dumps(metadata)
             parent_checkpoint_id = config["configurable"].get("checkpoint_id")
 
@@ -192,11 +203,7 @@ class MySQLSaver(BaseCheckpointSaver):
                             checkpoint_id,
                             parent_checkpoint_id,
                             type_,
-                            (
-                                serialized.decode("utf-8")
-                                if isinstance(serialized, bytes)
-                                else serialized
-                            ),
+                            checkpoint_val,
                             serialized_metadata,
                         ),
                     )
@@ -234,6 +241,15 @@ class MySQLSaver(BaseCheckpointSaver):
                         else:
                             type_, serialized = "json", self.serde.dumps(value)
 
+                        if isinstance(serialized, bytes):
+                            try:
+                                write_val = serialized.decode("utf-8")
+                            except UnicodeDecodeError:
+                                write_val = base64.b64encode(serialized).decode("ascii")
+                                type_ = f"b64:{type_}"
+                        else:
+                            write_val = serialized
+
                         cursor.execute(
                             "INSERT INTO langgraph_writes "
                             "(thread_id, checkpoint_ns, checkpoint_id, "
@@ -248,7 +264,7 @@ class MySQLSaver(BaseCheckpointSaver):
                                 idx,
                                 channel,
                                 type_,
-                                serialized,
+                                write_val,
                             ),
                         )
                 self.conn.commit()
@@ -320,12 +336,25 @@ class MySQLSaver(BaseCheckpointSaver):
 
             # Deserialize checkpoint data
             raw_checkpoint = row["checkpoint"]
-            if isinstance(raw_checkpoint, str):
+            ckpt_type = row["type"] or "json"
+            if ckpt_type.startswith("b64:"):
+                ckpt_type = ckpt_type[4:]
+                if isinstance(raw_checkpoint, str):
+                    try:
+                        parsed = json.loads(raw_checkpoint)
+                        if isinstance(parsed, str):
+                            raw_checkpoint = parsed
+                    except Exception:
+                        pass
+                    raw_checkpoint = base64.b64decode(raw_checkpoint.encode("ascii"))
+                elif isinstance(raw_checkpoint, bytes):
+                    raw_checkpoint = base64.b64decode(raw_checkpoint)
+            elif isinstance(raw_checkpoint, str):
                 raw_checkpoint = raw_checkpoint.encode("utf-8")
 
             if hasattr(self.serde, "loads_typed"):
                 checkpoint = self.serde.loads_typed(
-                    (row["type"] or "json", raw_checkpoint)
+                    (ckpt_type, raw_checkpoint)
                 )
             else:
                 checkpoint = self.serde.loads(raw_checkpoint)
@@ -361,10 +390,21 @@ class MySQLSaver(BaseCheckpointSaver):
 
             pending_writes = []
             for r in writes_rows:
+                w_type = r["type"] or "json"
+                w_val = r["value"]
+                if w_type.startswith("b64:"):
+                    w_type = w_type[4:]
+                    if isinstance(w_val, str):
+                        w_val = base64.b64decode(w_val.encode("ascii"))
+                    elif isinstance(w_val, bytes):
+                        w_val = base64.b64decode(w_val)
+                elif isinstance(w_val, str):
+                    w_val = w_val.encode("utf-8")
+
                 if hasattr(self.serde, "loads_typed"):
-                    val = self.serde.loads_typed((r["type"] or "json", r["value"]))
+                    val = self.serde.loads_typed((w_type, w_val))
                 else:
-                    val = self.serde.loads(r["value"])
+                    val = self.serde.loads(w_val)
                 pending_writes.append((r["task_id"], r["channel"], val))
 
             return CheckpointTuple(

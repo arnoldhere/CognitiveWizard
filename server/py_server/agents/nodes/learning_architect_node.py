@@ -5,7 +5,7 @@ Learning Architect Node — Stage 1 of the course generation pipeline.
 
 Responsibilities:
  - Generate a STRUCTURAL course blueprint ONLY (no lesson prose)
- - Output: phases, modules, lesson titles + objectives + estimated times
+ - Output: chapters, modules, lesson titles + objectives + estimated times
  - Uses Pydantic structured output for reliable JSON extraction
  - Notifies JS server with granular status: 'generating_blueprint'
 
@@ -148,24 +148,70 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
 
         raw_data = json.loads(json_str)
 
+        # Normalize list payloads from LLM
+        if isinstance(raw_data, list):
+            if len(raw_data) > 0 and all(isinstance(x, dict) and "modules" in x for x in raw_data):
+                raw_data = {
+                    "title": state.get("topic") or "Course Blueprint",
+                    "description": state.get("details") or f"Comprehensive course on {state.get('topic', 'the subject')}",
+                    "domain": state.get("domain", "general"),
+                    "domain_label": "General",
+                    "exercise_paradigm": "mixed",
+                    "chapters": raw_data,
+                }
+            elif len(raw_data) == 1 and isinstance(raw_data[0], dict):
+                raw_data = raw_data[0]
+
         # Validate against Pydantic schema — catch malformed output early
         try:
-            blueprint = CourseBlueprintSchema(**raw_data)
+            blueprint = CourseBlueprintSchema.model_validate(raw_data)
             validated_data = blueprint.model_dump()
+            num_chapters = len(blueprint.chapters or [])
             logger.info(
-                "[Architect|%s] Blueprint validated: %d phases, topic=%s",
+                "[Architect|%s] Blueprint validated: %d chapters, topic=%s",
                 job_id,
-                len(blueprint.phases),
+                num_chapters,
                 state["topic"],
             )
         except Exception as validation_err:
             logger.warning(
-                "[Architect|%s] Blueprint validation failed (using raw): %s",
+                "[Architect|%s] Blueprint validation failed (using fallback dict): %s",
                 job_id,
                 validation_err,
             )
-            # Use raw data but warn — downstream nodes are more resilient
-            validated_data = raw_data
+            # Guarantee validated_data is ALWAYS a dict with "chapters"
+            if isinstance(raw_data, dict):
+                validated_data = {
+                    "title": raw_data.get("title") or state.get("topic") or "Course Blueprint",
+                    "description": raw_data.get("description") or f"Comprehensive course on {state.get('topic', 'the topic')}",
+                    "domain": raw_data.get("domain", "general"),
+                    "domain_label": raw_data.get("domain_label", "General"),
+                    "exercise_paradigm": raw_data.get("exercise_paradigm", "mixed"),
+                    "chapters": raw_data.get("chapters") or [],
+                }
+            elif isinstance(raw_data, list):
+                validated_data = {
+                    "title": state.get("topic") or "Course Blueprint",
+                    "description": f"Comprehensive course on {state.get('topic', 'the topic')}",
+                    "domain": "general",
+                    "domain_label": "General",
+                    "exercise_paradigm": "mixed",
+                    "chapters": [x for x in raw_data if isinstance(x, dict)],
+                }
+            else:
+                validated_data = {
+                    "title": state.get("topic") or "Course Blueprint",
+                    "description": f"Comprehensive course on {state.get('topic', 'the topic')}",
+                    "chapters": [],
+                }
+
+        if not validated_data.get("chapters"):
+            logger.error("[Architect|%s] Course blueprint contains 0 chapters.", job_id)
+            return {
+                "warnings": state.get("warnings", []) + ["Architect failed to produce course chapters."],
+                "pipeline_status": "error",
+                "course_blueprint": validated_data,
+            }
 
         # Cache state into MySQL for crash resilience
         state_cache = {

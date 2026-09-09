@@ -1,17 +1,17 @@
 /**
- * CoursePhase.js
- * ==============
- * Represents a high-level learning phase within a generated Course/Syllabus.
- * Example: "Phase 1: Foundations", "Phase 2: Intermediate Concepts".
+ * CourseChapter.js
+ * ================
+ * Represents a high-level learning chapter within a generated Course/Syllabus.
+ * Example: "Chapter 1: Foundations", "Chapter 2: Intermediate Concepts".
  *
- * Hierarchy: WizardContent → CoursePhase → CourseModule → CourseLesson
+ * Hierarchy: WizardContent → CourseChapter → CourseModule → CourseLesson
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const WizardContent = require('./WizardContent');
 
-const CoursePhase = sequelize.define('CoursePhase', {
+const CourseChapter = sequelize.define('CourseChapter', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -26,13 +26,13 @@ const CoursePhase = sequelize.define('CoursePhase', {
     onDelete: 'CASCADE',
   },
 
-  /** Phase title, e.g. "Phase 1: Foundations" */
+  /** Chapter title, e.g. "Chapter 1: Foundations" */
   title: {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
 
-  /** Brief description of what this phase covers */
+  /** Brief description of what this chapter covers */
   description: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -51,14 +51,14 @@ const CoursePhase = sequelize.define('CoursePhase', {
     allowNull: true,
   },
 }, {
-  tableName: 'course_phases',
+  tableName: 'course_chapters',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
 
 // Associations
-WizardContent.hasMany(CoursePhase, { foreignKey: 'content_id', as: 'phases' });
-CoursePhase.belongsTo(WizardContent, { foreignKey: 'content_id', as: 'course' });
+WizardContent.hasMany(CourseChapter, { foreignKey: 'content_id', as: 'chapters' });
+CourseChapter.belongsTo(WizardContent, { foreignKey: 'content_id', as: 'course' });
 
-module.exports = CoursePhase;
+module.exports = CourseChapter;

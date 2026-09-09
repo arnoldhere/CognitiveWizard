@@ -6,11 +6,11 @@
  * Layout:
  *  ┌─────────────────┬──────────────────────────────────┐
  *  │  Course sidebar │        Lesson Reader              │
- *  │ ┌─ Phase 1     │  📖 Read | 🎥 Watch | 💻 Code ... │
+ *  │ ┌─ Chapter 1   │  📖 Read | 🎥 Watch | 💻 Code ... │
  *  │ │  ∟ Module 1  │                                    │
  *  │ │    ∟ Lesson  │  [Lesson content renders here]     │
  *  │ │    ∟ Lesson  │                                    │
- *  │ └─ Phase 2     │                                    │
+ *  │ └─ Chapter 2   │                                    │
  *  └─────────────────┴──────────────────────────────────┘
  *
  * On mobile: sidebar slides in from left as a drawer.
@@ -34,18 +34,18 @@ import { publishWizardContent } from "../../services/api";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
-// ── Flatten all lessons from phases → modules → lessons ───────────────────────
-function buildFlatLessonList(phases) {
+// ── Flatten all lessons from chapters → modules → lessons ───────────────────────
+function buildFlatLessonList(chapters) {
   const lessons = [];
-  (phases || []).forEach((phase, pi) => {
-    (phase.modules || []).forEach((module, mi) => {
+  (chapters || []).forEach((chapter, ci) => {
+    (chapter.modules || []).forEach((module, mi) => {
       (module.lessons || []).forEach((lesson, li) => {
         lessons.push({
           ...lesson,
-          phaseIdx: pi,
+          chapterIdx: ci,
           moduleIdx: mi,
           lessonIdx: li,
-          phaseName: phase.title,
+          chapterName: chapter.title,
           moduleName: module.title,
         });
       });
@@ -54,33 +54,33 @@ function buildFlatLessonList(phases) {
   return lessons;
 }
 
-// ── Phase section in sidebar ──────────────────────────────────────────────────
-function PhaseSection({ phase, phaseIdx, activeLesson, onSelectLesson, completedIds, isFirst }) {
-  const [isOpen, setIsOpen] = useState(phaseIdx === 0); // first phase open by default
+// ── Chapter section in sidebar ──────────────────────────────────────────────────
+function ChapterSection({ chapter, chapterIdx, activeLesson, onSelectLesson, completedIds, isFirst }) {
+  const [isOpen, setIsOpen] = useState(chapterIdx === 0); // first chapter open by default
 
-  // Auto-open if active lesson is in this phase
+  // Auto-open if active lesson is in this chapter
   const hasActiveLesson = useMemo(() =>
-    (phase.modules || []).some((m) =>
+    (chapter.modules || []).some((m) =>
       (m.lessons || []).some((l) => l.id === activeLesson?.id)
     ),
-    [phase, activeLesson]
+    [chapter, activeLesson]
   );
 
   useEffect(() => {
     if (hasActiveLesson) setIsOpen(true);
   }, [hasActiveLesson]);
 
-  const totalLessons = (phase.modules || []).reduce(
+  const totalLessons = (chapter.modules || []).reduce(
     (acc, m) => acc + (m.lessons || []).length, 0
   );
-  const completedInPhase = (phase.modules || []).reduce(
+  const completedInChapter = (chapter.modules || []).reduce(
     (acc, m) => acc + (m.lessons || []).filter((l) => completedIds.has(l.id)).length,
     0
   );
 
   return (
     <div className="mb-2">
-      {/* Phase header */}
+      {/* Chapter header */}
       <button
         onClick={() => setIsOpen((v) => !v)}
         className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-100"
@@ -89,12 +89,12 @@ function PhaseSection({ phase, phaseIdx, activeLesson, onSelectLesson, completed
           "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black",
           isOpen ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
         )}>
-          {phaseIdx + 1}
+          {chapterIdx + 1}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-slate-800">{phase.title}</p>
+          <p className="truncate text-sm font-bold text-slate-800">{chapter.title}</p>
           <p className="text-[11px] font-medium text-slate-400">
-            {completedInPhase}/{totalLessons} lessons
+            {completedInChapter}/{totalLessons} lessons
           </p>
         </div>
         {isOpen ? (
@@ -104,7 +104,7 @@ function PhaseSection({ phase, phaseIdx, activeLesson, onSelectLesson, completed
         )}
       </button>
 
-      {/* Phase modules + lessons */}
+      {/* Chapter modules + lessons */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -115,7 +115,7 @@ function PhaseSection({ phase, phaseIdx, activeLesson, onSelectLesson, completed
             className="overflow-hidden"
           >
             <div className="ml-3 mt-1 border-l-2 border-slate-100 pl-3">
-              {(phase.modules || []).map((module, mi) => (
+              {(chapter.modules || []).map((module, mi) => (
                 <ModuleSection
                   key={module.id || mi}
                   module={module}
@@ -421,8 +421,8 @@ function CourseOverview({ content, flatLessons, completedIds, onStartLearning, o
       {/* Stats */}
       <div className="mb-6 flex gap-6 text-sm">
         <div className="text-center">
-          <p className="text-2xl font-black text-slate-900">{content.phases?.length || 0}</p>
-          <p className="font-medium text-slate-400">Phases</p>
+          <p className="text-2xl font-black text-slate-900">{content.chapters?.length || 0}</p>
+          <p className="font-medium text-slate-400">Chapters</p>
         </div>
         <div className="h-full w-px bg-slate-200" />
         <div className="text-center">
@@ -490,8 +490,8 @@ export default function CourseViewer({ content, onContentUpdated }) {
     setCourseContent(content);
   }, [content]);
 
-  const phases = courseContent?.phases || [];
-  const flatLessons = useMemo(() => buildFlatLessonList(phases), [phases]);
+  const chapters = courseContent?.chapters || [];
+  const flatLessons = useMemo(() => buildFlatLessonList(chapters), [chapters]);
   const isPendingApproval = courseContent?.status === "pending_approval";
 
   const [activeLesson, setActiveLesson] = useState(null);
@@ -530,14 +530,15 @@ export default function CourseViewer({ content, onContentUpdated }) {
   const handleLessonUpdated = useCallback((updatedLesson) => {
     setCourseContent((prev) => {
       if (!prev) return prev;
-      const nextPhases = (prev.phases || []).map((ph) => ({
-        ...ph,
-        modules: (ph.modules || []).map((m) => ({
+      const currentChapters = prev.chapters || [];
+      const nextChapters = currentChapters.map((ch) => ({
+        ...ch,
+        modules: (ch.modules || []).map((m) => ({
           ...m,
           lessons: (m.lessons || []).map((l) => (l.id === updatedLesson.id ? { ...l, ...updatedLesson } : l)),
         })),
       }));
-      const updated = { ...prev, phases: nextPhases };
+      const updated = { ...prev, chapters: nextChapters };
       if (onContentUpdated) onContentUpdated(updated);
       return updated;
     });
@@ -566,7 +567,7 @@ export default function CourseViewer({ content, onContentUpdated }) {
     }
   }, [currentIdx, flatLessons, activeLesson, markCompleted]);
 
-  if (!phases.length) {
+  if (!chapters.length) {
     return (
       <div className="flex min-h-[400px] items-center justify-center gap-3 text-center">
         <Loader size={28} className="animate-spin text-blue-400" />
@@ -603,12 +604,12 @@ export default function CourseViewer({ content, onContentUpdated }) {
           Course Overview
         </button>
 
-        {phases.map((phase, pi) => (
-          <PhaseSection
-            key={phase.id || pi}
-            phase={phase}
-            phaseIdx={pi}
-            isFirst={pi === 0}
+        {chapters.map((chapter, ci) => (
+          <ChapterSection
+            key={chapter.id || ci}
+            chapter={chapter}
+            chapterIdx={ci}
+            isFirst={ci === 0}
             activeLesson={activeLesson}
             onSelectLesson={handleSelectLesson}
             completedIds={completedIds}

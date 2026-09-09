@@ -9,7 +9,7 @@
  * - Uses sequelize.sync({ alter: true }) to auto-migrate new columns/tables
  *
  * Course hierarchy (new):
- *   WizardContent → CoursePhase → CourseModule → CourseLesson
+ *   WizardContent → CourseChapter → CourseModule → CourseLesson
  *                                              → LessonSection
  *                                              → LessonResource
  *                                              → LessonExercise
@@ -33,7 +33,7 @@ const WizardModule = require('./WizardModule');
 const WizardResource = require('./WizardResource');
 
 // ─── New Course generation models ─────────────────────────────────────────────
-const CoursePhase = require('./CoursePhase');
+const CourseChapter = require('./CourseChapter');
 const CourseModule = require('./CourseModule');
 const CourseLesson = require('./CourseLesson');
 const LessonSection = require('./LessonSection');
@@ -87,7 +87,7 @@ const DEFAULT_WIZARD_QUESTION_SETS = [
     questions: [
       { key: 'skillLevel', label: 'What is your current skill level?', type: 'select', options: ['Beginner', 'Intermediate', 'Advanced'], required: true },
       { key: 'targetAudience', label: 'Who is the target audience?', type: 'text', placeholder: 'e.g., Beginners, Data Science students', required: true },
-      { key: 'moduleCount', label: 'How many modules (approximate)?', type: 'number', placeholder: 'e.g., 8', required: false },
+      { key: 'chapterCount', label: 'How many chapters (approximate)?', type: 'number', placeholder: 'e.g., 5', required: false },
       { key: 'courseFocus', label: 'Primary focus of the course?', type: 'select', options: ['Academic/Theoretical', 'Bootcamp/Practical', 'Corporate Training'], required: true },
       { key: 'prerequisites', label: 'Any prerequisites needed?', type: 'text', placeholder: 'e.g., Basic Python, High School Math', required: false },
       { key: 'goal', label: 'What is the learner\'s goal?', type: 'text', placeholder: 'e.g., Get a job as ML Engineer', required: false },
@@ -124,6 +124,13 @@ const DEFAULT_WIZARD_QUESTION_SETS = [
 // alter: true → adds new columns/tables without dropping existing data.
 // Switch to explicit Alembic/Umzug migrations for production stability.
 sequelize.sync({ alter: true }).then(async () => {
+  // Ensure langgraph_checkpoints.checkpoint is LONGTEXT to safely hold msgpack base64 & JSON payloads
+  try {
+    await sequelize.query("ALTER TABLE langgraph_checkpoints MODIFY COLUMN checkpoint LONGTEXT");
+  } catch (e) {
+    // Ignore if table not yet created
+  }
+
   // Seed LLM configs on first run
   const llmCount = await LLMConfig.count();
   if (llmCount === 0) {
@@ -139,11 +146,20 @@ sequelize.sync({ alter: true }).then(async () => {
     console.log('[SEED] Default LLM configs created.');
   }
 
-  // Seed wizard question sets on first run
+  // Seed / update wizard question sets
   const wizardCount = await WizardQuestionSet.count();
   if (wizardCount === 0) {
     await WizardQuestionSet.bulkCreate(DEFAULT_WIZARD_QUESTION_SETS);
     console.log('[SEED] Default wizard question sets created.');
+  } else {
+    // Ensure Course/Syllabus question set has the updated chapterCount question
+    const courseQuestionSet = DEFAULT_WIZARD_QUESTION_SETS.find(q => q.content_type === 'Course/Syllabus');
+    if (courseQuestionSet) {
+      await WizardQuestionSet.update(
+        { questions: courseQuestionSet.questions },
+        { where: { content_type: 'Course/Syllabus' } }
+      );
+    }
   }
 }).catch(console.error);
 
@@ -162,8 +178,8 @@ module.exports = {
   // Legacy wizard models (roadmap / guide / schedule)
   WizardModule,
   WizardResource,
-  // New course generation models
-  CoursePhase,
+  // New course generation models (CourseChapter -> CourseModule -> CourseLesson)
+  CourseChapter,
   CourseModule,
   CourseLesson,
   LessonSection,

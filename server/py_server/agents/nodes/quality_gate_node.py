@@ -26,7 +26,7 @@ import httpx
 from agents.states.course_agent_state import CourseAgentState
 from schemas.course_generation import (
     CoursePackageSchema,
-    CoursePhaseFullSchema,
+    CourseChapterFullSchema,
     CourseModuleFullSchema,
     CourseLessonSchema,
     QualityGateResultSchema,
@@ -98,11 +98,18 @@ def _assemble_course_package(
     Merge blueprint structure with generated lesson content into CoursePackageSchema.
     Lessons not found in lesson_index get a minimal placeholder.
     """
-    phases_full = []
+    if not isinstance(blueprint, dict):
+        if isinstance(blueprint, list) and len(blueprint) > 0 and isinstance(blueprint[0], dict):
+            blueprint = blueprint[0] if "chapters" in blueprint[0] else {"chapters": blueprint}
+        else:
+            blueprint = {}
 
-    for phase in blueprint.get("phases", []):
+    chapters_full = []
+    chapters = blueprint.get("chapters") or []
+
+    for chapter in chapters:
         modules_full = []
-        for module in phase.get("modules", []):
+        for module in chapter.get("modules", []):
             lessons_full = []
             for lesson_bp in module.get("lessons", []):
                 lesson_title = lesson_bp.get("title", "")
@@ -134,11 +141,11 @@ def _assemble_course_package(
                 )
             )
 
-        phases_full.append(
-            CoursePhaseFullSchema(
-                title=phase.get("title", ""),
-                description=phase.get("description", ""),
-                estimated_duration=phase.get("estimated_duration", "2 weeks"),
+        chapters_full.append(
+            CourseChapterFullSchema(
+                title=chapter.get("title", ""),
+                description=chapter.get("description", ""),
+                estimated_duration=chapter.get("estimated_duration", "2 weeks"),
                 modules=modules_full,
             )
         )
@@ -153,7 +160,7 @@ def _assemble_course_package(
         exercise_paradigm=blueprint.get("exercise_paradigm", "mixed"),
         course_outcomes=blueprint.get("course_outcomes", []),
         prerequisites=blueprint.get("prerequisites", []),
-        phases=phases_full,
+        chapters=chapters_full,
         quality_gate=quality_result,
         warnings=warnings,
     )
@@ -278,7 +285,7 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
             "course_draft": {
                 "content_type": "course",
                 "error": f"Course assembly failed: {exc}",
-                "phases": [],
+                "chapters": [],
             },
             "raw_blueprint": blueprint,
             "warnings": warnings + [f"Quality Gate assembly failed: {exc}"],

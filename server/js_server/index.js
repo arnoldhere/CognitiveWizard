@@ -20,12 +20,16 @@ const { notFoundHandler, globalErrorHandler } = require("./middlewares/errorHand
 const { connectMySQL } = require("./config/db");
 const { connectMongo } = require("./config/mongo");
 const { connectRedis } = require("./config/redis");
+const initializeAdmin = require("./utils/checkAdmin");
 
 async function initializeServices() {
   try {
     await Promise.all([connectMySQL(), connectMongo(), connectRedis()]);
     logger.info("[INIT] All gateway services started successfully.");
-    
+
+    // Automatically verify and ensure admin user record exists on startup
+    await initializeAdmin();
+
     // Auto-resume any tasks that were queued or failed before shutdown
     setTimeout(() => {
       try {
@@ -193,10 +197,10 @@ app.get("/internal/llm-configs/:task_name", async (req, res) => {
   }
 });
 
-const { 
-  webhookAgenticStatus, 
-  webhookAgenticComplete, 
-  webhookAgenticLessonIncremental, 
+const {
+  webhookAgenticStatus,
+  webhookAgenticComplete,
+  webhookAgenticLessonIncremental,
   getIncompleteGenerations,
   getJobStatus,
   retryJob,
@@ -216,15 +220,17 @@ app.post("/internal/wizard-webhook/checkpoint", webhookAgenticCheckpoint);
 
 app.post("/internal/ensure-admin", async (req, res) => {
   try {
-    logger.info("checking Admin user...")
-    const initializeAdmin = require("./utils/checkAdmin")
-    await initializeAdmin()
-    return res.status(200).json({ message: "Admin user verified" });
+    logger.info("[ADMIN] Manual admin verification requested via /internal/ensure-admin");
+    const result = await initializeAdmin();
+    if (!result.success) {
+      return res.status(500).json({ error: result.reason || result.error || "Failed to verify or initialize admin user" });
+    }
+    return res.status(200).json({ message: "Admin user verified", details: result });
+  } catch (e) {
+    logger.error("[ADMIN] Error in /internal/ensure-admin:", e);
+    return res.status(500).json({ error: e.message });
   }
-  catch (e) {
-    console.error(e);
-  }
-})
+});
 
 app.use("/admin", adminRoutes);
 
@@ -241,6 +247,7 @@ const server = app.listen(PORT, () => {
   logger.info("╚══════════════════════════════════════════════════════════╝");
   logger.info(`  Environment : ${NODE_ENV}`);
   logger.info(`  py_server   : ${PY_SERVER_URL}`);
+  // logger.info(`  Listening on: http://localhost:${PORT}`);
   logger.info(`  CORS Origins: ${CORS_ORIGINS.join(", ")}`);
   logger.info("──────────────────────────────────────────────────────────");
 });
