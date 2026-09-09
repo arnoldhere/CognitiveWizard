@@ -14,6 +14,7 @@ class Settings:
     # ChromaDB setup
     # ==============
     CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR")
+    FACE_CHROMA_COLLECTION: str = os.getenv("FACE_CHROMA_COLLECTION", "face_vectors")
     RAG_CHROMA_COLLECTION_PREFIX: str = os.getenv(
         "RAG_CHROMA_COLLECTION_PREFIX", "rag_user"
     )

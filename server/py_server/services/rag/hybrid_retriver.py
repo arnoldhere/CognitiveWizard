@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class HybridRetriever:
     """
     Hybrid Retriever
@@ -13,17 +18,29 @@ class HybridRetriever:
         )
 
     def retrieve(self, query: str):
-        return self.retriever.invoke(query)
+        try:
+            return self.retriever.invoke(query)
+        except Exception as exc:
+            logger.warning("HybridRetriever.retrieve failed: %s", exc)
+            return []
 
     # LangChain expects retrievers to support invoke() for compatibility.
     invoke = retrieve
     __call__ = retrieve
 
     def search(self, query: str, k: int = 5):
-        return self.retriever.invoke(query)
+        try:
+            return self.retriever.invoke(query)
+        except Exception as exc:
+            logger.warning("HybridRetriever.search failed: %s", exc)
+            return []
 
     def get_relevant_documents(self, query: str):
-        return self.retriever.invoke(query)
+        try:
+            return self.retriever.invoke(query)
+        except Exception as exc:
+            logger.warning("HybridRetriever.get_relevant_documents failed: %s", exc)
+            return []
 
     def get_relevant_documents_with_scores(self, query: str, k: int = 5):
         """
@@ -33,18 +50,22 @@ class HybridRetriever:
         stores expose raw distances instead, so the fallback converts distance
         into a bounded similarity score to keep the response contract stable.
         """
-        if hasattr(self.vectordb, "similarity_search_with_relevance_scores"):
-            results = self.vectordb.similarity_search_with_relevance_scores(query, k=k)
-            return [(doc, self._normalize_score(score)) for doc, score in results]
+        try:
+            if hasattr(self.vectordb, "similarity_search_with_relevance_scores"):
+                results = self.vectordb.similarity_search_with_relevance_scores(query, k=k)
+                return [(doc, self._normalize_score(score)) for doc, score in results]
 
-        if hasattr(self.vectordb, "similarity_search_with_score"):
-            results = self.vectordb.similarity_search_with_score(query, k=k)
-            return [
-                (doc, self._distance_to_similarity(distance))
-                for doc, distance in results
-            ]
+            if hasattr(self.vectordb, "similarity_search_with_score"):
+                results = self.vectordb.similarity_search_with_score(query, k=k)
+                return [
+                    (doc, self._distance_to_similarity(distance))
+                    for doc, distance in results
+                ]
 
-        return [(doc, 0.0) for doc in self.get_relevant_documents(query)[:k]]
+            return [(doc, 0.0) for doc in self.get_relevant_documents(query)[:k]]
+        except Exception as exc:
+            logger.warning("HybridRetriever.get_relevant_documents_with_scores failed: %s", exc)
+            return []
 
     def _normalize_score(self, score) -> float:
         try:

@@ -126,7 +126,33 @@ class LangChainRAGService:
         ]
 
         user_vectordb = self._get_user_vectordb(user_id)
-        user_vectordb.add_documents(docs)
+        try:
+            user_vectordb.add_documents(docs)
+        except Exception as exc:
+            err_str = str(exc).lower()
+            if "dimension" in err_str:
+                logger.warning(
+                    "Chroma dimension mismatch detected for user %s: %s. Re-creating collection with current embedder.",
+                    user_id,
+                    exc,
+                )
+                try:
+                    user_vectordb.delete_collection()
+                except Exception:
+                    pass
+                index_path = self._get_user_index_path(user_id)
+                collection_name = self._rag_collection_name(user_id)
+                user_vectordb = VectorDBFactory.create(
+                    collection_name, self.embedder, str(index_path)
+                )
+                self._vectordbs[user_id] = user_vectordb
+                self._retrievers[user_id] = HybridRetriever(user_vectordb)
+                self._rag_chains[user_id] = build_retrieval_qa_chain(
+                    self._retrievers[user_id], prompt=None
+                )
+                user_vectordb.add_documents(docs)
+            else:
+                raise
 
         for chunk_text in chunks:
             self._chunk_store[user_id].append(

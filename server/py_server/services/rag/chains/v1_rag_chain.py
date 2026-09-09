@@ -10,6 +10,10 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from utils.builders.rag_prompt import RAG_PROMPT
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # ===========================
 # Helpers methods
 # ===========================
@@ -84,19 +88,25 @@ def build_retrieval_qa_chain(
     prompt = prompt or RAG_PROMPT
 
     def _invoke_retriever(retriever_obj, query_text: str):
-        if hasattr(retriever_obj, "invoke"):
-            return retriever_obj.invoke(query_text)
-        if hasattr(retriever_obj, "retrieve"):
-            return retriever_obj.retrieve(query_text)
-        if hasattr(retriever_obj, "get_relevant_documents_with_scores"):
-            return retriever_obj.get_relevant_documents_with_scores(query_text)
-        if hasattr(retriever_obj, "get_relevant_documents"):
-            return retriever_obj.get_relevant_documents(query_text)
-        if callable(retriever_obj):
-            return retriever_obj(query_text)
-        raise AttributeError(
-            "Retriever must support invoke(), retrieve(), get_relevant_documents[_with_scores](), or call(query)"
-        )
+        try:
+            if hasattr(retriever_obj, "invoke"):
+                return retriever_obj.invoke(query_text)
+            if hasattr(retriever_obj, "retrieve"):
+                return retriever_obj.retrieve(query_text)
+            if hasattr(retriever_obj, "get_relevant_documents_with_scores"):
+                return retriever_obj.get_relevant_documents_with_scores(query_text)
+            if hasattr(retriever_obj, "get_relevant_documents"):
+                return retriever_obj.get_relevant_documents(query_text)
+            if callable(retriever_obj):
+                return retriever_obj(query_text)
+            raise AttributeError(
+                "Retriever must support invoke(), retrieve(), get_relevant_documents[_with_scores](), or call(query)"
+            )
+        except Exception as exc:
+            logger.warning(
+                "RAG retrieval failed (falling back to direct response): %s", exc
+            )
+            return []
 
     def _retrieve(x: dict) -> dict:
         """Single retrieval call — result shared between answer + source branches."""

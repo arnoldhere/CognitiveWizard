@@ -176,7 +176,7 @@ class ChromaVectorService:
 
     def _collection_name(self, src: str, user_id: Optional[str] = None) -> str:
         if src == "face":
-            return settings.FACE_CHROMA_COLLECTION
+            return getattr(settings, "FACE_CHROMA_COLLECTION", "face_vectors")
         if src == "rag":
             if not user_id:
                 raise ValueError("user_id is required for RAG vector access.")
