@@ -227,6 +227,21 @@ async def _execute_workflow_and_notify(
             raise
 
     except Exception as e:
+        # Check for celery SoftTimeLimitExceeded
+        exc_type_name = type(e).__name__
+        if exc_type_name == "SoftTimeLimitExceeded":
+            logger.error(f"Task soft time limit exceeded for job {job_id}")
+            timeout_msg = "Course generation took longer than expected and timed out. You can retry the generation."
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error="Task soft time limit exceeded",
+                status="failed",
+                user_message=timeout_msg,
+                retry_info=retry_info,
+            )
+            raise
+
         user_msg = _get_user_message(e)
         logger.exception(f"Unexpected error in agentic workflow for {job_id}: {e}")
         await _send_complete_webhook(
@@ -258,6 +273,7 @@ def run_agentic_workflow_task(
 
     Runs the async graph inside a single ``asyncio.run()`` invocation so that async
     nodes, MySQLSaver checkpointer, and webhooks share one clean event loop.
+    Reclaims memory via garbage collection upon completion.
     """
     current_retry = self.request.retries
     max_retries = self.max_retries
@@ -283,15 +299,19 @@ def run_agentic_workflow_task(
         "max_retries": max_retries,
     }
 
-    return asyncio.run(
-        _execute_workflow_and_notify(
-            task_instance=self,
-            content_id=content_id,
-            job_id=job_id,
-            initial_state=initial_state,
-            retry_info=retry_info,
+    try:
+        return asyncio.run(
+            _execute_workflow_and_notify(
+                task_instance=self,
+                content_id=content_id,
+                job_id=job_id,
+                initial_state=initial_state,
+                retry_info=retry_info,
+            )
         )
-    )
+    finally:
+        import gc
+        gc.collect()
 
 
 @celery_app.task(bind=True)

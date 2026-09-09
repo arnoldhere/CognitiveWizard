@@ -15,7 +15,7 @@ import {
 import QuizResultsHistory from "../components/quiz/QuizResultsHistory";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    User, Mail, Shield, History, Trash2, AlertTriangle, 
+    User, Mail, Shield, History, Trash2, AlertTriangle,
     Phone, CheckCircle, X, Clock, XCircle, Calendar, GraduationCap
 } from "lucide-react";
 import Modal from "../components/ui/Modal";
@@ -316,11 +316,10 @@ export default function Profile() {
                             <div>
                                 <p className="text-xs font-bold text-primary tracking-widest uppercase mb-1">Profile</p>
                                 <h2 className="text-3xl font-extrabold text-slate-900 mb-3">Account Details</h2>
-                                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border ${
-                                    user?.role === "tutor" ? "bg-amber-50 text-amber-600 border-amber-200" :
-                                    user?.role === "admin" ? "bg-cyan-50 text-cyan-600 border-cyan-200" :
-                                    "bg-blue-50 text-blue-600 border-blue-200"
-                                }`}>
+                                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border ${user?.role === "tutor" ? "bg-amber-50 text-amber-600 border-amber-200" :
+                                        user?.role === "admin" ? "bg-cyan-50 text-cyan-600 border-cyan-200" :
+                                            "bg-blue-50 text-blue-600 border-blue-200"
+                                    }`}>
                                     {user?.role === "tutor" ? <GraduationCap size={14} /> : <Shield size={14} />}
                                     {user?.role === "tutor" ? "TUTOR / INSTRUCTOR" : user?.role === "admin" ? "ADMINISTRATOR" : "STUDENT / LEARNER"}
                                 </span>
@@ -348,7 +347,7 @@ export default function Profile() {
 
                     <div className="bg-slate-50 border border-slate-200 rounded-3xl p-8 shadow-sm">
                         <h3 className="text-xl font-bold text-slate-900 mb-6">Edit Profile Details</h3>
-                        
+
                         {profileSuccess && (
                             <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl text-sm font-medium">
                                 {profileSuccess}
@@ -398,7 +397,7 @@ export default function Profile() {
                         <div className="bg-rose-50 border border-rose-200 rounded-3xl p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                             <div>
                                 <h4 className="text-lg font-bold text-rose-800 mb-1">Delete Account Permanently</h4>
-                                <p className="text-sm text-rose-600">This will delete your credentials, quiz milestones, and document index databases permanently.</p>
+                                <p className="text-sm text-rose-600">This will delete your credentials, quiz milestones, document index databases permanently and all other related data records too.</p>
                             </div>
                             <button onClick={() => setDeleteModalOpen(true)} className="shrink-0 flex items-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-600/30 transition-all">
                                 <Trash2 size={18} /> Delete Profile
@@ -480,7 +479,7 @@ export default function Profile() {
                                             </div>
                                             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-3">Days Left</p>
                                             <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                <div 
+                                                <div
                                                     className={`h-full rounded-full transition-all ${subscriptionStatus.days_left <= 5 ? (subscriptionStatus.days_left <= 1 ? "bg-rose-500" : "bg-amber-500") : "bg-primary"}`}
                                                     style={{ width: `${Math.min(100, ((subscriptionStatus.days_left ?? 0) / 30) * 100)}%` }}
                                                 />
@@ -517,7 +516,7 @@ export default function Profile() {
                                             )}
                                             <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
                                             <p className="text-sm text-slate-500 mb-6 min-h-[40px]">{plan.description}</p>
-                                            
+
                                             <div className="mb-2">
                                                 <span className="text-4xl font-black text-primary">₹{plan.amount_inr}</span>
                                             </div>
@@ -572,11 +571,11 @@ export default function Profile() {
                 </div>
                 <div className="mb-6">
                     <label className="block text-sm font-bold text-slate-700 mb-2">Enter your password to verify your identity:</label>
-                    <input 
+                    <input
                         type="password"
                         placeholder="Enter password to confirm"
                         value={deletePassword}
-                        onChange={(e) => { setDeletePassword(e.target.value); if(deleteError) setDeleteError(null); }}
+                        onChange={(e) => { setDeletePassword(e.target.value); if (deleteError) setDeleteError(null); }}
                         disabled={deleteLoading}
                         className={`w-full px-4 py-3 rounded-xl border ${deleteError ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200 focus:border-primary focus:ring-primary/20'} outline-none focus:ring-2 transition-all`}
                     />
@@ -644,7 +643,7 @@ export default function Profile() {
                         <div>
                             <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedQuizDetail.quiz_topic}</h3>
                             <p className="text-sm font-semibold text-slate-500">
-                                Score: {selectedQuizDetail.score_percentage}% ({selectedQuizDetail.correct_answers}/{selectedQuizDetail.total_questions}) • 
+                                Score: {selectedQuizDetail.score_percentage}% ({selectedQuizDetail.correct_answers}/{selectedQuizDetail.total_questions}) •
                                 Time Taken: {formatDuration(selectedQuizDetail.time_taken)} / {formatDuration(selectedQuizDetail.time_limit_seconds)}
                             </p>
                         </div>

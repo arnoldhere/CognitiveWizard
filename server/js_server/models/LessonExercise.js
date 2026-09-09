@@ -45,11 +45,11 @@ const LessonExercise = sequelize.define('LessonExercise', {
     allowNull: false,
   },
 
-  /** Type of exercise — drives which UI component renders it */
+  /** Type of exercise — drives which UI component renders it (coding, calculation, case_study, analysis, reflection, quiz_seed) */
   exercise_type: {
-    type: DataTypes.ENUM('coding', 'reflection', 'quiz_seed'),
+    type: DataTypes.STRING(50),
     allowNull: false,
-    defaultValue: 'coding',
+    defaultValue: 'reflection',
   },
 
   /** Difficulty relative to the lesson: easy / medium / hard */

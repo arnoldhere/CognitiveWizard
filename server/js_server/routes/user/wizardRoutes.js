@@ -42,6 +42,7 @@ const {
   generateAgentic,
   provideFeedback,
   publishContent,
+  updateCourseLesson,
   getPublishedCourses,
   getGenerationStatus,
 } = require("../../controllers/wizardController");
@@ -96,6 +97,11 @@ router.delete("/:content_id", deleteContent);
 
 /** Submit feedback to trigger course regeneration */
 router.post("/:content_id/feedback", provideFeedback);
+
+/**
+ * Update lesson detail (sections, exercises, title, summary) during tutor review.
+ */
+router.put("/:content_id/lesson/:lesson_id", updateCourseLesson);
 
 /** Approve and publish draft */
 router.post("/:content_id/publish", publishContent);

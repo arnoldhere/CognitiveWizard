@@ -31,6 +31,9 @@ const {
   LessonResource,
   LessonExercise,
   GenerationJob,
+  GenerationCheckpoint,
+  LanggraphCheckpoint,
+  LanggraphWrite,
 } = require("../models");
 
 /** Check if a content_type is a full course (uses new relational hierarchy) */
@@ -176,7 +179,6 @@ async function getContent(req, res, next) {
       const isFinished = ["published", "pending_approval", "error"].includes(baseContent.status);
       const content = await WizardContent.findOne({
         where,
-        attributes: isFinished ? { exclude: ["content"] } : undefined, // Include content during generation for status labels
         include: [
           {
             model: GenerationJob,
@@ -376,7 +378,8 @@ async function provideFeedback(req, res, next) {
 
 /**
  * POST /wizard/:content_id/publish
- * Publish a reviewed course draft.
+ * Publish a reviewed course draft with tutor author attribution,
+ * and clean up intermediate generation checkpoints, writes, and jobs.
  */
 async function publishContent(req, res, next) {
   try {
@@ -399,9 +402,171 @@ async function publishContent(req, res, next) {
       );
     }
 
-    await content.update({ status: "published" });
+    // Capture tutor author attribution
+    const authorName = (req.body && req.body.author_name && req.body.author_name.trim())
+      ? req.body.author_name.trim()
+      : (req.user.full_name || req.user.email);
+
+    const currentContent = content.content || {};
+    const updatedContentPayload = {
+      ...currentContent,
+      author: authorName,
+      author_id: req.user.id,
+      author_role: req.user.role || "tutor",
+      published_at: new Date().toISOString(),
+    };
+
+    await content.update({
+      status: "published",
+      content: updatedContentPayload,
+    });
+
+    // Clean up unnecessary checkpoints, writes, and completed generation jobs to optimize storage and performance
+    try {
+      const jobs = await GenerationJob.findAll({
+        where: { wizard_content_id: content.id },
+        attributes: ["id", "thread_id"],
+      });
+      const threadIds = jobs.map((j) => j.thread_id).filter(Boolean);
+      const jobIds = jobs.map((j) => j.id);
+
+      if (threadIds.length > 0) {
+        await LanggraphWrite.destroy({ where: { thread_id: threadIds } });
+        await LanggraphCheckpoint.destroy({ where: { thread_id: threadIds } });
+      }
+      if (jobIds.length > 0) {
+        await GenerationCheckpoint.destroy({ where: { job_id: jobIds } });
+        await GenerationJob.destroy({ where: { id: jobIds } });
+      }
+      logger.info(`[WIZARD] Cleaned up generation checkpoints and jobs for published content_id=${content.id}`);
+    } catch (cleanupErr) {
+      logger.warn(`[WIZARD] Non-critical: Checkpoint cleanup failed for content_id=${content.id}: ${cleanupErr.message}`);
+    }
+
     res.json(content);
   } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PUT /wizard/:content_id/lesson/:lesson_id
+ * Update a lesson's metadata, sections, and exercises during tutor review.
+ */
+async function updateCourseLesson(req, res, next) {
+  const t = await sequelize.transaction();
+  try {
+    const { content_id, lesson_id } = req.params;
+    const { title, summary, estimated_time, learning_objectives, sections, exercises } = req.body;
+
+    // Verify content ownership
+    const content = await WizardContent.findOne({
+      where: { id: content_id, user_id: req.user.id },
+      transaction: t,
+    });
+    if (!content) {
+      await t.rollback();
+      return res.status(404).json({ detail: "Content not found or unauthorized" });
+    }
+
+    const lesson = await CourseLesson.findOne({
+      where: { id: lesson_id, content_id },
+      transaction: t,
+    });
+    if (!lesson) {
+      await t.rollback();
+      return res.status(404).json({ detail: "Lesson not found" });
+    }
+
+    // Update basic fields
+    const updateFields = { status: "reviewed" };
+    if (title !== undefined) updateFields.title = title;
+    if (summary !== undefined) updateFields.summary = summary;
+    if (estimated_time !== undefined) updateFields.estimated_time = estimated_time;
+    if (learning_objectives !== undefined) updateFields.learning_objectives = learning_objectives;
+
+    await lesson.update(updateFields, { transaction: t });
+
+    // If sections provided, update existing sections or create new
+    if (Array.isArray(sections)) {
+      for (const sec of sections) {
+        if (sec.id) {
+          await LessonSection.update(
+            {
+              title: sec.title,
+              content_markdown: sec.content_markdown || sec.body,
+              section_type: sec.section_type || "explanation",
+              language: sec.language || null,
+            },
+            { where: { id: sec.id, lesson_id: lesson.id }, transaction: t }
+          );
+        } else if (sec.body || sec.content_markdown) {
+          await LessonSection.create(
+            {
+              lesson_id: lesson.id,
+              title: sec.title || null,
+              content_markdown: sec.content_markdown || sec.body,
+              section_type: sec.section_type || "explanation",
+              language: sec.language || null,
+              sequence: sec.sequence || 1,
+            },
+            { transaction: t }
+          );
+        }
+      }
+    }
+
+    // If exercises provided, update existing or create new
+    if (Array.isArray(exercises)) {
+      for (const ex of exercises) {
+        if (ex.id) {
+          await LessonExercise.update(
+            {
+              title: ex.title,
+              description: ex.description,
+              exercise_type: ex.exercise_type || "reflection",
+              starter_code: ex.starter_code || null,
+              language: ex.language || null,
+              solution_hint: ex.solution_hint || null,
+              expected_output: ex.expected_output || null,
+            },
+            { where: { id: ex.id, lesson_id: lesson.id }, transaction: t }
+          );
+        } else if (ex.title && ex.description) {
+          await LessonExercise.create(
+            {
+              lesson_id: lesson.id,
+              title: ex.title,
+              description: ex.description,
+              exercise_type: ex.exercise_type || "reflection",
+              difficulty: ex.difficulty || "medium",
+              starter_code: ex.starter_code || null,
+              language: ex.language || null,
+              solution_hint: ex.solution_hint || null,
+              expected_output: ex.expected_output || null,
+              sequence: ex.sequence || 1,
+            },
+            { transaction: t }
+          );
+        }
+      }
+    }
+
+    await t.commit();
+
+    // Return updated lesson with all children
+    const updated = await CourseLesson.findOne({
+      where: { id: lesson_id },
+      include: [
+        { model: LessonSection, as: "sections", order: [["sequence", "ASC"]] },
+        { model: LessonResource, as: "resources", order: [["relevance_score", "DESC"]] },
+        { model: LessonExercise, as: "exercises", order: [["sequence", "ASC"]] },
+      ],
+    });
+
+    res.json(updated);
+  } catch (err) {
+    await t.rollback();
     next(err);
   }
 }
@@ -414,7 +579,7 @@ async function getPublishedCourses(req, res, next) {
   try {
     const publishedContent = await WizardContent.findAll({
       where: { status: "published" },
-      attributes: ["id", "topic", "content_type", "status", "created_at"],
+      attributes: ["id", "topic", "content_type", "status", "content", "created_at"],
       include: [
         {
           model: User,
@@ -562,7 +727,16 @@ async function webhookAgenticComplete(req, res, next) {
 
       await _persistCourseData(content, data, t);
       await content.update(
-        { status: "pending_approval", content: { _course_stored_in_tables: true } },
+        {
+          status: "pending_approval",
+          content: {
+            ...(content.content || {}),
+            _course_stored_in_tables: true,
+            domain: data.domain || "general",
+            domain_label: data.domain_label || "General",
+            exercise_paradigm: data.exercise_paradigm || "mixed",
+          },
+        },
         { transaction: t }
       );
       if (job_id) {
@@ -700,10 +874,10 @@ async function _persistCourseData(content, data, t) {
             lesson_id: dbLesson.id,
             title: exercise.title || "Exercise",
             description: exercise.description || "",
-            exercise_type: exercise.exercise_type || "coding",
+            exercise_type: exercise.exercise_type || "reflection",
             difficulty: exercise.difficulty || "medium",
             starter_code: exercise.starter_code || null,
-            language: exercise.language || "python",
+            language: exercise.language || null,
             solution_hint: exercise.solution_hint || null,
             expected_output: exercise.expected_output || null,
             sequence: exercise.sequence || exSeq++,
@@ -846,10 +1020,10 @@ async function webhookAgenticLessonIncremental(req, res, next) {
         lesson_id: dbLesson.id,
         title: exercise.title || "Exercise",
         description: exercise.description || "",
-        exercise_type: exercise.exercise_type || "coding",
+        exercise_type: exercise.exercise_type || "reflection",
         difficulty: exercise.difficulty || "medium",
         starter_code: exercise.starter_code || null,
-        language: exercise.language || "python",
+        language: exercise.language || null,
         solution_hint: exercise.solution_hint || null,
         expected_output: exercise.expected_output || null,
         sequence: exercise.sequence || exSeq++,
@@ -1123,6 +1297,7 @@ module.exports = {
   generateAgentic,
   provideFeedback,
   publishContent,
+  updateCourseLesson,
   getPublishedCourses,
   webhookAgenticStatus,
   webhookAgenticComplete,

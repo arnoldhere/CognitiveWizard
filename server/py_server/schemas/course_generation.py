@@ -71,6 +71,18 @@ class CourseBlueprintSchema(BaseModel):
     title: str = Field(..., min_length=3)
     description: str = Field(..., min_length=20)
     target_audience: str = Field(default="General Learners")
+    domain: str = Field(
+        default="general",
+        description="Academic/professional domain: computer_science, engineering, natural_sciences, business_finance, humanities, medicine, general",
+    )
+    domain_label: str = Field(
+        default="General",
+        description="Human-readable domain name, e.g. 'Geology & Earth Sciences'",
+    )
+    exercise_paradigm: str = Field(
+        default="mixed",
+        description="Primary exercise style: coding | calculation | case_study | analysis | reflection",
+    )
     course_outcomes: List[str] = Field(default_factory=list)
     prerequisites: List[str] = Field(default_factory=list)
     phases: List[PhaseBlueprintSchema] = Field(..., min_length=1)
@@ -165,22 +177,33 @@ class LessonExerciseSchema(BaseModel):
     """
     A practice exercise attached to a lesson.
     Maps to the lesson_exercises DB table.
+    Supports multi-domain exercises: coding, calculation, case_study, analysis, reflection.
     """
 
-    title: str = Field(..., min_length=5)
-    description: str = Field(..., min_length=20, description="Full problem statement")
-    exercise_type: Literal["coding", "reflection", "quiz_seed"] = "coding"
+    title: str = Field(..., min_length=3)
+    description: str = Field(..., min_length=15, description="Full problem statement / scenario")
+    exercise_type: Literal[
+        "coding",
+        "calculation",
+        "case_study",
+        "analysis",
+        "reflection",
+        "quiz_seed",
+    ] = "reflection"
     difficulty: Literal["easy", "medium", "hard"] = "medium"
     starter_code: Optional[str] = Field(
         default=None,
-        description="Boilerplate code for coding exercises — shown in CodeSandbox editor",
+        description="Boilerplate code for coding exercises — NULL for non-coding exercises",
     )
-    language: Optional[str] = Field(default="python")
+    language: Optional[str] = Field(
+        default=None,
+        description="Language for coding exercises (e.g. 'python') — NULL for non-coding exercises",
+    )
     solution_hint: Optional[str] = Field(
         default=None, description="Hint to unblock learner without giving away solution"
     )
     expected_output: Optional[str] = Field(
-        default=None, description="Model answer / expected output"
+        default=None, description="Model answer / expected output / key conclusion"
     )
     sequence: int = Field(default=1, ge=1)
 
@@ -325,6 +348,9 @@ class CoursePackageSchema(BaseModel):
     title: str
     description: str
     target_audience: str = "General Learners"
+    domain: Optional[str] = "general"
+    domain_label: Optional[str] = "General"
+    exercise_paradigm: Optional[str] = "mixed"
     course_outcomes: List[str] = Field(default_factory=list)
     prerequisites: List[str] = Field(default_factory=list)
     phases: List[CoursePhaseFullSchema] = Field(default_factory=list)

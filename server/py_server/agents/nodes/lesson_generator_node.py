@@ -118,6 +118,9 @@ async def _generate_single_lesson(
         learning_style=learner_profile.get("learning_style", ""),
         evidence=evidence,
         reviewer_suggestions=reviewer_suggestions,
+        domain=module_context.get("domain", "general"),
+        domain_label=module_context.get("domain_label", "General"),
+        exercise_paradigm=module_context.get("exercise_paradigm", "mixed"),
     )
 
     system_msg = (
@@ -229,6 +232,9 @@ def _collect_all_lessons(blueprint: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "phase_title": phase.get("title", ""),
                 "phase_idx": phase_idx,
                 "mod_idx": mod_idx,
+                "domain": blueprint.get("domain", "general"),
+                "domain_label": blueprint.get("domain_label", "General"),
+                "exercise_paradigm": blueprint.get("exercise_paradigm", "mixed"),
             }
             for lesson_idx, lesson_bp in enumerate(module.get("lessons", [])):
                 all_lessons.append(

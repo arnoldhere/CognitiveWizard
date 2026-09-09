@@ -154,11 +154,23 @@ export const provideWizardFeedback = async (id, feedback) => {
   }, "Failed to submit feedback. Please try again.");
 };
 
-export const publishWizardContent = async (id, modulesData) => {
+export const publishWizardContent = async (id, payload = {}) => {
   return requestWithFriendlyErrors(async () => {
-    const res = await API.post(`/wizard/${id}/publish`, { modules: modulesData });
+    // payload can be an array (legacy modules) or an object ({ modules, author_name })
+    const body = Array.isArray(payload) ? { modules: payload } : payload;
+    const res = await API.post(`/wizard/${id}/publish`, body);
     return res.data;
   }, "Failed to publish content. Please try again.");
+};
+
+/**
+ * Update lesson content (sections, exercises, title, overview) during tutor review.
+ */
+export const updateWizardCourseLesson = async (contentId, lessonId, updateData) => {
+  return requestWithFriendlyErrors(async () => {
+    const res = await API.put(`/wizard/${contentId}/lesson/${lessonId}`, updateData);
+    return res.data;
+  }, "Failed to update lesson. Please try again.");
 };
 
 export const exportWizardPdf = async (payload) => {

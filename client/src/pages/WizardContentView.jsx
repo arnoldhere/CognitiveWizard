@@ -320,7 +320,7 @@ export default function WizardContentView() {
     if (data.phases?.length > 0) {
       return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
-          <CourseViewer content={data} />
+          <CourseViewer content={data} onContentUpdated={(updated) => setData(updated)} />
         </motion.div>
       );
     }

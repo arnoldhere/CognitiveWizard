@@ -205,8 +205,10 @@ Keep what works, fix what the feedback addresses.
 IMPORTANT RULES:
 - Generate STRUCTURE ONLY: phases, modules, lesson titles, objectives, time estimates.
 - Do NOT write any lesson content, explanations, or prose.
+- Identify the appropriate subject domain (e.g., natural_sciences, computer_science, engineering, business_finance, humanities, medicine).
+- Set exercise_paradigm appropriately: "coding" (for IT/software), "analysis" (for natural sciences/geology), "calculation" (for engineering/physics), "case_study" (for business/medicine), "reflection" (for humanities).
 - Each lesson should have 2-4 specific, measurable learning objectives.
-- Lesson titles should be concrete and descriptive (e.g. "Variables and Data Types in Python").
+- Lesson titles should be concrete and descriptive.
 - Group logically related lessons into modules (2-5 lessons per module).
 - Group logically related modules into phases (2-4 modules per phase).
 - Total phases: 2-5 depending on course breadth.
@@ -233,10 +235,20 @@ IMPORTANT RULES — READ CAREFULLY:
 - Generate STRUCTURE ONLY: phases, modules, lesson titles, objectives, time estimates.
 - Do NOT write any lesson content, explanations, analogies, code, or exercises.
   (Lesson content will be generated separately by a dedicated content writer.)
-- Lesson titles must be concrete and specific (e.g. "Supervised vs Unsupervised Learning")
+- DOMAIN & EXERCISE PARADIGM CLASSIFICATION:
+  Identify the academic/professional domain of this topic:
+  * "natural_sciences" (Geology, Earth Sciences, Biology, Chemistry, Astronomy) → exercise_paradigm: "analysis"
+  * "computer_science" (Programming, Software Engineering, AI, Databases) → exercise_paradigm: "coding"
+  * "engineering" (Mechanical, Civil, Electrical Engineering, Physics) → exercise_paradigm: "calculation"
+  * "business_finance" (Management, Marketing, Finance, Accounting) → exercise_paradigm: "case_study"
+  * "humanities" (History, Philosophy, Literature, Law) → exercise_paradigm: "reflection"
+  * "medicine" (Healthcare, Clinical Anatomy, Nursing) → exercise_paradigm: "case_study"
+  * "general" (Other topics) → exercise_paradigm: "reflection"
+  Set "domain", "domain_label" (e.g., "Geology & Earth Sciences"), and "exercise_paradigm" in the JSON output.
+- Lesson titles must be concrete and specific (e.g. "Sedimentary Facies and Stratigraphy" or "Supervised vs Unsupervised Learning")
   NOT generic (e.g. "Introduction", "Overview").
 - Each lesson must have 2-4 measurable learning objectives starting with action verbs
-  (e.g. "Define...", "Implement...", "Compare...", "Analyze...").
+  (e.g. "Identify...", "Calculate...", "Analyze...", "Evaluate...").
 - Difficulty progression: early phases = beginner, later phases = intermediate/advanced.
 - Group lessons into modules (2-5 lessons per module, related by theme).
 - Group modules into phases (2-4 modules per phase, related by learning stage).
@@ -266,15 +278,19 @@ def build_lesson_content_prompt(
     learning_style: str,
     evidence: List[Dict[str, Any]],
     reviewer_suggestions: Optional[List[str]] = None,
+    domain: Optional[str] = "general",
+    domain_label: Optional[str] = "General",
+    exercise_paradigm: Optional[str] = "mixed",
 ) -> str:
     """
     Build the Lesson Content Generator prompt.
 
     Takes the lesson blueprint + research evidence and generates a full lesson
-    with multiple typed content sections and exercises.
+    with multiple typed content sections and domain-adaptive exercises.
 
-    Evidence is presented as available references — the LLM is instructed to
-    ground its explanations in them where relevant.
+    Tailors exercise types (coding, calculation, case_study, analysis, reflection)
+    to match the study domain (e.g. Geology gets scientific analysis, Engineering gets calculations,
+    Software gets coding).
     """
     import json as _json
 
@@ -306,6 +322,43 @@ def build_lesson_content_prompt(
             + "\n".join(f"  - {s}" for s in reviewer_suggestions)
         )
 
+    # Domain-specific exercise guidelines
+    domain_lower = (domain or "general").lower().strip()
+    paradigm_lower = (exercise_paradigm or "mixed").lower().strip()
+
+    if paradigm_lower == "coding" or domain_lower in ("computer_science", "software_engineering", "data_ai"):
+        exercise_instructions = """8. Write 1-2 coding exercises:
+   - exercise_type MUST be "coding".
+   - Set language appropriately (e.g. "python", "javascript", "sql").
+   - Include non-null starter_code boilerplate for the CodeSandbox editor, difficulty, solution_hint, and expected_output."""
+        code_section_rule = "Write at least 1 'code' section: working, correct code snippet with explanation."
+    elif paradigm_lower == "calculation" or domain_lower in ("engineering", "applied_sciences_engineering", "physics"):
+        exercise_instructions = """8. Write 1-2 quantitative / problem-solving calculation exercises:
+   - exercise_type MUST be "calculation".
+   - Provide a detailed problem statement with numerical parameters, formulas, or design specs.
+   - Do NOT write code/starter_code (set starter_code: null, language: null).
+   - Include solution_hint (key formulas/steps) and expected_output (step-by-step calculation results)."""
+        code_section_rule = "Write a 'code' section ONLY if computing is directly relevant to this specific lesson; otherwise omit."
+    elif paradigm_lower == "analysis" or domain_lower in ("natural_sciences", "geology", "biology", "chemistry"):
+        exercise_instructions = """8. Write 1-2 scientific analysis or field scenario exercises:
+   - exercise_type MUST be "analysis".
+   - Provide a real-world scenario (e.g. sample identification, rock stratigraphy, fault line interpretation, environmental data drill).
+   - Do NOT write Python code (set starter_code: null, language: null).
+   - Include solution_hint (observational cues) and expected_output (scientific deduction/model answer)."""
+        code_section_rule = "Omit 'code' section unless scientific computing/data analysis was explicitly requested."
+    elif paradigm_lower == "case_study" or domain_lower in ("business_finance", "humanities", "social_sciences", "medicine", "health_medicine"):
+        exercise_instructions = """8. Write 1-2 case study dilemma or strategic decision exercises:
+   - exercise_type MUST be "case_study" or "reflection".
+   - Present a realistic professional or clinical scenario with competing factors and strategic decisions.
+   - Do NOT write Python code (set starter_code: null, language: null).
+   - Include solution_hint (key trade-offs to weigh) and expected_output (comprehensive evaluation/recommendation)."""
+        code_section_rule = "Omit 'code' section unless computing was explicitly requested."
+    else:
+        exercise_instructions = """8. Write 1-2 practice exercises:
+   - exercise_type can be "reflection", "analysis", "calculation", or "case_study".
+   - Include detailed scenario description, solution_hint, and expected_output."""
+        code_section_rule = "Write a 'code' section only if programming is relevant to the topic."
+
     # Adapt style instruction based on learning_style
     style_note = ""
     if learning_style and "visual" in learning_style.lower():
@@ -313,17 +366,18 @@ def build_lesson_content_prompt(
     elif learning_style and (
         "coding" in learning_style.lower() or "interactive" in learning_style.lower()
     ):
-        style_note = "Emphasize code sections and include at least 2 coding exercises with starter code."
+        style_note = "Emphasize interactive practical application in exercises."
     elif learning_style and "theoretical" in learning_style.lower():
         style_note = "Emphasize explanations and analogies. Include at least one research-backed claim."
 
     return f"""
-You are an expert educational content writer for {skill_level}-level learners.
+You are an expert educational content writer in {domain_label} ({domain}) for {skill_level}-level learners.
 
 LESSON TO WRITE:
   Title: {lesson_title}
   Part of Module: {module_title}
   Module Context: {module_description}
+  Domain: {domain_label}
   Difficulty: {difficulty}
   Learner Goal: {goal or "Gain knowledge in this subject"}
 
@@ -340,24 +394,20 @@ CONTENT REQUIREMENTS:
    Minimum 150 words. No jargon without definition.
 3. Write at least 1 'example' section: concrete worked example (with context/story).
 4. Write at least 1 'analogy' section: real-world analogy that a {skill_level} learner would relate to.
-5. Write at least 1 'code' section (if relevant): working, correct code snippet with a brief explanation.
-   Set the language field appropriately (python/javascript/sql/bash etc).
+5. {code_section_rule}
 6. Write 1 'common_mistakes' section: 2-3 common errors or misconceptions + how to avoid them.
 7. Write 1 'summary' section: 3-5 bullet points recapping key ideas.
-8. Write 1-2 exercises:
-   - At least 1 coding exercise with starter_code, difficulty, and solution_hint.
-   - Optional: 1 reflection exercise if appropriate.
+{exercise_instructions}
 {style_note}
 
 SECTION ORDER (follow this sequence):
-  explanation → analogy → example → code → common_mistakes → summary
+  explanation → analogy → example → (code if relevant) → common_mistakes → summary
 
 STRICT RULES:
 - Output ONLY valid JSON matching the schema below.
 - No markdown code fences. No extra text. No comments.
 - All section body fields must be non-empty strings.
-- Code sections must have the 'language' field set.
-- exercises[].starter_code should be filled for coding exercises (not null).
+- Only populate exercises[].starter_code and language if exercise_type is "coding".
 - Do not include resources[] — they are injected separately.
 
 JSON OUTPUT SCHEMA:
@@ -522,6 +572,9 @@ _BLUEPRINT_JSON_SCHEMA = """
   "title": "Course Title",
   "description": "2-3 sentence course description",
   "target_audience": "Who this course is for",
+  "domain": "natural_sciences | computer_science | engineering | business_finance | humanities | medicine | general",
+  "domain_label": "e.g. 'Geology & Earth Sciences' or 'Software Development'",
+  "exercise_paradigm": "analysis | coding | calculation | case_study | reflection",
   "course_outcomes": ["What learner will be able to do after completing the course", "..."],
   "prerequisites": ["Prior knowledge required", "..."],
   "phases": [
@@ -542,7 +595,7 @@ _BLUEPRINT_JSON_SCHEMA = """
               "title": "Specific Lesson Title",
               "learning_objectives": [
                 "Define X and explain its significance",
-                "Implement Y using Z",
+                "Analyze Y in context of Z",
                 "Compare A vs B"
               ],
               "estimated_time": "20 minutes"
@@ -577,21 +630,21 @@ _LESSON_JSON_SCHEMA = """
     },
     {
       "section_type": "example",
-      "title": "Worked Example",
-      "body": "Detailed worked example with context",
+      "title": "Worked Example / Practical Case",
+      "body": "Detailed worked example or case with context",
       "language": null,
       "sequence": 3
     },
     {
       "section_type": "code",
-      "title": "Code Example",
-      "body": "# Full working code snippet\\ndef example():\\n    pass",
+      "title": "Code / Method Example (if relevant, otherwise omit this section)",
+      "body": "# Working snippet\\ndef example():\\n    pass",
       "language": "python",
       "sequence": 4
     },
     {
       "section_type": "common_mistakes",
-      "title": "Common Mistakes to Avoid",
+      "title": "Common Misconceptions to Avoid",
       "body": "List of pitfalls and how to avoid them",
       "language": null,
       "sequence": 5
@@ -607,13 +660,13 @@ _LESSON_JSON_SCHEMA = """
   "exercises": [
     {
       "title": "Exercise title",
-      "description": "Full problem statement",
-      "exercise_type": "coding",
+      "description": "Full problem statement / scenario / calculation task / case study",
+      "exercise_type": "coding | calculation | case_study | analysis | reflection",
       "difficulty": "medium",
-      "starter_code": "# Write your solution here\\ndef solution():\\n    pass",
-      "language": "python",
-      "solution_hint": "Think about using a loop...",
-      "expected_output": "Expected output or model answer",
+      "starter_code": null,
+      "language": null,
+      "solution_hint": "Guiding hint to unblock learner",
+      "expected_output": "Expected output, calculation result, or model answer conclusion",
       "sequence": 1
     }
   ]

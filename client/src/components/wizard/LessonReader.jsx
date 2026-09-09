@@ -23,11 +23,12 @@ import {
   BookOpen, TvMinimalPlay as Youtube, Code2, FlaskConical, MessageCircle,
   ChevronLeft, ChevronRight, Clock, Loader, AlertTriangle,
   Lightbulb, FileCode, AlertCircle, CheckCircle2, List,
-  ExternalLink, Star, Sparkles, PlayCircle,
+  ExternalLink, Star, Sparkles, PlayCircle, Edit3, Save, X,
+  Briefcase, Calculator, Microscope
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CodeSandbox from "./CodeSandbox";
-import { getWizardCourseLesson } from "../../services/api";
+import { getWizardCourseLesson, updateWizardCourseLesson } from "../../services/api";
 
 // ── Helper ─────────────────────────────────────────────────────────────────────
 const cn = (...classes) => classes.filter(Boolean).join(" ");
@@ -303,92 +304,413 @@ function CodeTab({ exercises }) {
 }
 
 // ── Practice tab ──────────────────────────────────────────────────────────────
-function PracticeTab({ exercises }) {
-  const reflectionExercises = exercises.filter((e) => e.exercise_type !== "coding");
+const EXERCISE_TYPE_CONFIG = {
+  case_study: {
+    icon: Briefcase,
+    label: "Case Study & Scenario Analysis",
+    badgeBg: "bg-indigo-100 text-indigo-800 border-indigo-200",
+    headerBg: "from-indigo-50 to-blue-50/60 border-indigo-100",
+    buttonBg: "bg-indigo-600 hover:bg-indigo-500",
+    placeholder: "Analyze this scenario. Outline your proposed solution, trade-offs, and expected outcomes...",
+  },
+  calculation: {
+    icon: Calculator,
+    label: "Quantitative Calculation & Problem",
+    badgeBg: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    headerBg: "from-emerald-50 to-teal-50/60 border-emerald-100",
+    buttonBg: "bg-emerald-600 hover:bg-emerald-500",
+    placeholder: "Show your step-by-step calculations, formula applied, and final numerical solution...",
+  },
+  analysis: {
+    icon: Microscope,
+    label: "Scientific & Field Analysis",
+    badgeBg: "bg-purple-100 text-purple-800 border-purple-200",
+    headerBg: "from-purple-50 to-violet-50/60 border-purple-100",
+    buttonBg: "bg-purple-600 hover:bg-purple-500",
+    placeholder: "Record your scientific observations, taxonomic/geological classifications, and deduction...",
+  },
+  reflection: {
+    icon: Lightbulb,
+    label: "Conceptual Reflection & Reasoning",
+    badgeBg: "bg-cyan-100 text-cyan-800 border-cyan-200",
+    headerBg: "from-cyan-50 to-indigo-50/50 border-cyan-100",
+    buttonBg: "bg-cyan-600 hover:bg-cyan-500",
+    placeholder: "Write your reflection, critical evaluation, and key insights here...",
+  },
+};
 
-  if (!reflectionExercises.length) {
+function PracticeTab({ exercises }) {
+  const practiceExercises = exercises.filter((e) => e.exercise_type !== "coding");
+
+  if (!practiceExercises.length) {
     return (
       <div className="py-12 text-center text-slate-400">
         <FlaskConical size={40} className="mx-auto mb-3 opacity-30" />
-        <p className="text-sm font-medium">No reflection exercises for this lesson.</p>
-        <p className="mt-1 text-xs">Go to the Code tab to try coding exercises.</p>
+        <p className="text-sm font-medium">No domain practice exercises for this lesson.</p>
+        <p className="mt-1 text-xs">Check the Code tab if this is a software lesson.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {reflectionExercises.map((exercise, i) => (
-        <ReflectionCard key={exercise.id || i} exercise={exercise} index={i} />
+      {practiceExercises.map((exercise, i) => (
+        <AdaptiveExerciseCard key={exercise.id || i} exercise={exercise} index={i} />
       ))}
     </div>
   );
 }
 
-function ReflectionCard({ exercise, index }) {
+function AdaptiveExerciseCard({ exercise, index }) {
   const [answer, setAnswer] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [showExpected, setShowExpected] = useState(false);
+
+  const typeConfig = EXERCISE_TYPE_CONFIG[exercise.exercise_type] || EXERCISE_TYPE_CONFIG.reflection;
+  const TypeIcon = typeConfig.icon;
 
   return (
-    <div className="rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50 to-indigo-50/50 p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-600 text-xs font-black text-white">
-          {index + 1}
+    <div className={cn("rounded-2xl border bg-gradient-to-br p-5 transition-all shadow-sm", typeConfig.headerBg)}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">
+            {index + 1}
+          </span>
+          <h4 className="font-extrabold text-slate-900">{exercise.title}</h4>
+        </div>
+        <span className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider", typeConfig.badgeBg)}>
+          <TypeIcon size={12} />
+          {typeConfig.label}
         </span>
-        <h4 className="font-extrabold text-slate-800">{exercise.title}</h4>
       </div>
 
-      <p className="mb-4 text-sm leading-6 text-slate-600">{exercise.description}</p>
+      <p className="mb-4 text-sm leading-6 text-slate-700 whitespace-pre-line">{exercise.description}</p>
 
       {!submitted ? (
         <>
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Write your reflection here..."
-            className="w-full resize-none rounded-xl border border-cyan-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+            placeholder={typeConfig.placeholder}
+            className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             rows={4}
           />
           <div className="mt-3 flex items-center gap-2">
             <button
               onClick={() => setSubmitted(true)}
               disabled={!answer.trim()}
-              className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-cyan-500 disabled:opacity-40"
+              className={cn("rounded-xl px-4 py-2 text-sm font-bold text-white transition disabled:opacity-40", typeConfig.buttonBg)}
             >
-              Submit
+              Submit Solution
             </button>
             {exercise.solution_hint && (
               <button
                 onClick={() => setShowHint((v) => !v)}
-                className="flex items-center gap-1.5 rounded-xl border border-cyan-200 px-3 py-2 text-xs font-bold text-cyan-600"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
               >
-                <Lightbulb size={12} />
+                <Lightbulb size={12} className="text-amber-500" />
                 {showHint ? "Hide Hint" : "Hint"}
               </button>
             )}
           </div>
           {showHint && exercise.solution_hint && (
-            <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+            <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
               <strong>Hint:</strong> {exercise.solution_hint}
             </div>
           )}
         </>
       ) : (
-        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-bold text-emerald-700">
-            <CheckCircle2 size={14} />
-            Response saved
+        <div className="space-y-3">
+          <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+            <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-500">
+              <span className="flex items-center gap-1.5 text-emerald-600 font-extrabold">
+                <CheckCircle2 size={15} />
+                Your Submission
+              </span>
+              <button
+                onClick={() => setSubmitted(false)}
+                className="underline hover:text-slate-700"
+              >
+                Edit response
+              </button>
+            </div>
+            <p className="text-sm text-slate-800 whitespace-pre-line">{answer}</p>
           </div>
-          <p className="text-sm text-slate-600">{answer}</p>
-          <button
-            onClick={() => { setSubmitted(false); }}
-            className="mt-3 text-xs font-bold text-slate-400 underline"
-          >
-            Edit response
-          </button>
+
+          {exercise.expected_output && (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
+                  Model Solution / Expected Output
+                </span>
+                <button
+                  onClick={() => setShowExpected((v) => !v)}
+                  className="text-xs font-bold text-emerald-700 underline"
+                >
+                  {showExpected ? "Collapse" : "Show Details"}
+                </button>
+              </div>
+              {showExpected && (
+                <p className="mt-2 text-sm text-emerald-950 whitespace-pre-line leading-relaxed border-t border-emerald-200/60 pt-2">
+                  {exercise.expected_output}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function EditLessonModal({ lesson, contentId, onClose, onSaved }) {
+  const [title, setTitle] = useState(lesson.title || "");
+  const [overview, setOverview] = useState(lesson.overview || "");
+  const [estimatedTime, setEstimatedTime] = useState(lesson.estimated_time || "");
+  const [sections, setSections] = useState(() =>
+    (lesson.sections || []).map((s) => ({
+      id: s.id,
+      title: s.title || "",
+      content_markdown: s.content_markdown || s.body || "",
+      section_type: s.section_type || "explanation",
+      language: s.language || "",
+    }))
+  );
+  const [exercises, setExercises] = useState(() =>
+    (lesson.exercises || []).map((e) => ({
+      id: e.id,
+      title: e.title || "",
+      description: e.description || "",
+      exercise_type: e.exercise_type || "reflection",
+      starter_code: e.starter_code || "",
+      language: e.language || "",
+      solution_hint: e.solution_hint || "",
+      expected_output: e.expected_output || "",
+    }))
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateWizardCourseLesson(contentId, lesson.id, {
+        title,
+        overview,
+        estimated_time: estimatedTime,
+        sections,
+        exercises,
+      });
+      if (onSaved) onSaved(updated);
+      onClose();
+    } catch (err) {
+      setError(err.message || "Failed to save lesson updates.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
+      <div className="relative w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl my-8 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+              <Edit3 size={18} />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-slate-900">Edit Lesson</h3>
+              <p className="text-xs text-slate-400">Modify content and exercises before approval</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100">
+            <X size={18} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSave} className="flex-1 overflow-y-auto space-y-4 pr-1">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Lesson Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Estimated Time
+            </label>
+            <input
+              type="text"
+              value={estimatedTime}
+              onChange={(e) => setEstimatedTime(e.target.value)}
+              placeholder="e.g. 20 minutes"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Lesson Overview / Summary
+            </label>
+            <textarea
+              value={overview}
+              onChange={(e) => setOverview(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          {/* Sections */}
+          <div className="border-t border-slate-100 pt-4">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 mb-2">
+              Content Sections ({sections.length})
+            </h4>
+            <div className="space-y-3">
+              {sections.map((sec, idx) => (
+                <div key={sec.id || idx} className="rounded-xl border border-slate-200 p-3 bg-slate-50">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase text-slate-500">
+                      Section {idx + 1}: {sec.section_type}
+                    </span>
+                    <input
+                      type="text"
+                      value={sec.title || ""}
+                      onChange={(e) => {
+                        const next = [...sections];
+                        next[idx].title = e.target.value;
+                        setSections(next);
+                      }}
+                      placeholder="Section sub-heading"
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+                    />
+                  </div>
+                  <textarea
+                    value={sec.content_markdown}
+                    onChange={(e) => {
+                      const next = [...sections];
+                      next[idx].content_markdown = e.target.value;
+                      setSections(next);
+                    }}
+                    rows={4}
+                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800 font-mono focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Exercises */}
+          <div className="border-t border-slate-100 pt-4">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 mb-2">
+              Exercises ({exercises.length})
+            </h4>
+            <div className="space-y-3">
+              {exercises.map((ex, idx) => (
+                <div key={ex.id || idx} className="rounded-xl border border-slate-200 p-3 bg-slate-50 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={ex.title}
+                      onChange={(e) => {
+                        const next = [...exercises];
+                        next[idx].title = e.target.value;
+                        setExercises(next);
+                      }}
+                      placeholder="Exercise title"
+                      className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-800"
+                    />
+                    <select
+                      value={ex.exercise_type}
+                      onChange={(e) => {
+                        const next = [...exercises];
+                        next[idx].exercise_type = e.target.value;
+                        setExercises(next);
+                      }}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                    >
+                      <option value="reflection">Reflection</option>
+                      <option value="case_study">Case Study</option>
+                      <option value="calculation">Calculation</option>
+                      <option value="analysis">Analysis</option>
+                      <option value="coding">Coding</option>
+                    </select>
+                  </div>
+                  <textarea
+                    value={ex.description}
+                    onChange={(e) => {
+                      const next = [...exercises];
+                      next[idx].description = e.target.value;
+                      setExercises(next);
+                    }}
+                    placeholder="Problem description"
+                    rows={2}
+                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={ex.solution_hint || ""}
+                      onChange={(e) => {
+                        const next = [...exercises];
+                        next[idx].solution_hint = e.target.value;
+                        setExercises(next);
+                      }}
+                      placeholder="Solution hint"
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                    />
+                    <input
+                      type="text"
+                      value={ex.expected_output || ""}
+                      onChange={(e) => {
+                        const next = [...exercises];
+                        next[idx].expected_output = e.target.value;
+                        setExercises(next);
+                      }}
+                      placeholder="Expected model answer / output"
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-blue-500 disabled:opacity-50"
+            >
+              {saving ? <Loader size={15} className="animate-spin" /> : <Save size={15} />}
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -439,11 +761,12 @@ function TutorTab({ lesson }) {
 // Main LessonReader Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function LessonReader({ contentId, lessonId, onBack, onNext, onPrev, hasNext, hasPrev }) {
+export default function LessonReader({ contentId, lessonId, onBack, onNext, onPrev, hasNext, hasPrev, isReviewMode = false, onLessonUpdated }) {
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("read");
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!contentId || !lessonId) return;
@@ -507,17 +830,41 @@ export default function LessonReader({ contentId, lessonId, onBack, onNext, onPr
           </div>
         )}
 
-        <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-          {lesson.title}
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+              {lesson.title}
+            </h1>
 
-        {lesson.estimated_time && (
-          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500">
-            <Clock size={12} />
-            {lesson.estimated_time}
+            {lesson.estimated_time && (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500">
+                <Clock size={12} />
+                {lesson.estimated_time}
+              </div>
+            )}
           </div>
-        )}
+
+          <button
+            onClick={() => setIsEditing(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-700 shadow-sm transition hover:bg-blue-100"
+          >
+            <Edit3 size={14} />
+            {isReviewMode ? "Review & Edit Lesson" : "Edit Lesson"}
+          </button>
+        </div>
       </div>
+
+      {isEditing && (
+        <EditLessonModal
+          lesson={lesson}
+          contentId={contentId}
+          onClose={() => setIsEditing(false)}
+          onSaved={(updated) => {
+            setLesson(updated);
+            if (onLessonUpdated) onLessonUpdated(updated);
+          }}
+        />
+      )}
 
       {/* Tab bar */}
       <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">
