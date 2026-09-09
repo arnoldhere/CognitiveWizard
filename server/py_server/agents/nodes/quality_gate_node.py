@@ -272,7 +272,13 @@ async def quality_gate_node(state: CourseAgentState) -> Dict[str, Any]:
         return {
             "pipeline_status": "error",
             "error": f"Assembly failed: {exc}",
+            "course_draft": {
+                "content_type": "course",
+                "error": f"Course assembly failed: {exc}",
+                "phases": [],
+            },
             "raw_blueprint": blueprint,
+            "warnings": warnings + [f"Quality Gate assembly failed: {exc}"],
         }
 
     logger.info("[QualityGate|%s] Course package assembled.", job_id)

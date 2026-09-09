@@ -16,6 +16,7 @@ This module does NOT create or alter tables — it only reads/writes data.
 import asyncio
 import json
 import logging
+import threading
 from typing import Any, AsyncIterator, Dict, Iterator, Optional, Sequence, Tuple
 import pymysql
 import pymysql.cursors
@@ -45,6 +46,7 @@ class MySQLSaver(BaseCheckpointSaver):
     def __init__(self, conn: pymysql.connections.Connection) -> None:
         super().__init__()
         self.conn = conn
+        self._lock = threading.Lock()
 
     # ── Connection Health
 
@@ -69,41 +71,42 @@ class MySQLSaver(BaseCheckpointSaver):
 
     def get_tuple(self, config: Dict[str, Any]) -> Optional[CheckpointTuple]:
         """Fetch the latest (or specific) checkpoint for a thread."""
-        self._ensure_connection()
+        with self._lock:
+            self._ensure_connection()
 
-        thread_id = config["configurable"]["thread_id"]
-        checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
-        checkpoint_id = config["configurable"].get("checkpoint_id")
+            thread_id = config["configurable"]["thread_id"]
+            checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
+            checkpoint_id = config["configurable"].get("checkpoint_id")
 
-        try:
-            with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
-                if checkpoint_id:
-                    cursor.execute(
-                        "SELECT checkpoint_id, checkpoint, metadata, "
-                        "parent_checkpoint_id, type "
-                        "FROM langgraph_checkpoints "
-                        "WHERE thread_id = %s AND checkpoint_ns = %s "
-                        "AND checkpoint_id = %s",
-                        (thread_id, checkpoint_ns, checkpoint_id),
-                    )
-                else:
-                    cursor.execute(
-                        "SELECT checkpoint_id, checkpoint, metadata, "
-                        "parent_checkpoint_id, type "
-                        "FROM langgraph_checkpoints "
-                        "WHERE thread_id = %s AND checkpoint_ns = %s "
-                        "ORDER BY checkpoint_id DESC LIMIT 1",
-                        (thread_id, checkpoint_ns),
-                    )
+            try:
+                with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                    if checkpoint_id:
+                        cursor.execute(
+                            "SELECT checkpoint_id, checkpoint, metadata, "
+                            "parent_checkpoint_id, type "
+                            "FROM langgraph_checkpoints "
+                            "WHERE thread_id = %s AND checkpoint_ns = %s "
+                            "AND checkpoint_id = %s",
+                            (thread_id, checkpoint_ns, checkpoint_id),
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT checkpoint_id, checkpoint, metadata, "
+                            "parent_checkpoint_id, type "
+                            "FROM langgraph_checkpoints "
+                            "WHERE thread_id = %s AND checkpoint_ns = %s "
+                            "ORDER BY checkpoint_id DESC LIMIT 1",
+                            (thread_id, checkpoint_ns),
+                        )
 
-                row = cursor.fetchone()
-                if not row:
-                    return None
+                    row = cursor.fetchone()
+                    if not row:
+                        return None
 
-                return self._row_to_tuple(row, thread_id, checkpoint_ns, cursor)
-        except Exception as e:
-            logger.error(f"Error fetching checkpoint tuple: {e}")
-            return None
+                    return self._row_to_tuple(row, thread_id, checkpoint_ns, cursor)
+            except Exception as e:
+                logger.error(f"Error fetching checkpoint tuple: {e}")
+                return None
 
     def list(
         self,
@@ -114,39 +117,42 @@ class MySQLSaver(BaseCheckpointSaver):
         limit: Optional[int] = None,
     ) -> Iterator[CheckpointTuple]:
         """List checkpoint history for a thread, newest first."""
-        self._ensure_connection()
+        with self._lock:
+            self._ensure_connection()
 
-        thread_id = config["configurable"]["thread_id"]
-        checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
+            thread_id = config["configurable"]["thread_id"]
+            checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
 
-        query = (
-            "SELECT checkpoint_id, checkpoint, metadata, "
-            "parent_checkpoint_id, type "
-            "FROM langgraph_checkpoints "
-            "WHERE thread_id = %s AND checkpoint_ns = %s"
-        )
-        params = [thread_id, checkpoint_ns]
+            query = (
+                "SELECT checkpoint_id, checkpoint, metadata, "
+                "parent_checkpoint_id, type "
+                "FROM langgraph_checkpoints "
+                "WHERE thread_id = %s AND checkpoint_ns = %s"
+            )
+            params = [thread_id, checkpoint_ns]
 
-        if before and before.get("configurable", {}).get("checkpoint_id"):
-            query += " AND checkpoint_id < %s"
-            params.append(before["configurable"]["checkpoint_id"])
+            if before and before.get("configurable", {}).get("checkpoint_id"):
+                query += " AND checkpoint_id < %s"
+                params.append(before["configurable"]["checkpoint_id"])
 
-        query += " ORDER BY checkpoint_id DESC"
+            query += " ORDER BY checkpoint_id DESC"
 
-        if limit:
-            query += " LIMIT %s"
-            params.append(limit)
+            if limit:
+                query += " LIMIT %s"
+                params.append(limit)
 
-        try:
-            with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
-                cursor.execute(query, tuple(params))
-                rows = cursor.fetchall()
-                for row in rows:
-                    result = self._row_to_tuple(row, thread_id, checkpoint_ns, cursor)
-                    if result:
-                        yield result
-        except Exception as e:
-            logger.error(f"Error listing checkpoints: {e}")
+            try:
+                with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                    cursor.execute(query, tuple(params))
+                    rows = cursor.fetchall()
+            except Exception as e:
+                logger.error(f"Error listing checkpoints: {e}")
+                return
+
+            for row in rows:
+                result = self._row_to_tuple(row, thread_id, checkpoint_ns, cursor)
+                if result:
+                    yield result
 
     def put(
         self,
@@ -156,54 +162,55 @@ class MySQLSaver(BaseCheckpointSaver):
         new_versions: Dict[str, str],
     ) -> Dict[str, Any]:
         """Persist a checkpoint snapshot to MySQL."""
-        self._ensure_connection()
+        with self._lock:
+            self._ensure_connection()
 
-        thread_id = config["configurable"]["thread_id"]
-        checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
-        checkpoint_id = checkpoint["id"]
+            thread_id = config["configurable"]["thread_id"]
+            checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
+            checkpoint_id = checkpoint["id"]
 
-        if hasattr(self.serde, "dumps_typed"):
-            type_, serialized = self.serde.dumps_typed(checkpoint)
-        else:
-            type_, serialized = "json", self.serde.dumps(checkpoint)
+            if hasattr(self.serde, "dumps_typed"):
+                type_, serialized = self.serde.dumps_typed(checkpoint)
+            else:
+                type_, serialized = "json", self.serde.dumps(checkpoint)
 
-        serialized_metadata = json.dumps(metadata)
-        parent_checkpoint_id = config["configurable"].get("checkpoint_id")
+            serialized_metadata = json.dumps(metadata)
+            parent_checkpoint_id = config["configurable"].get("checkpoint_id")
 
-        try:
-            with self.conn.cursor() as cursor:
-                cursor.execute(
-                    "INSERT INTO langgraph_checkpoints "
-                    "(thread_id, checkpoint_ns, checkpoint_id, "
-                    "parent_checkpoint_id, type, checkpoint, metadata) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s) "
-                    "ON DUPLICATE KEY UPDATE "
-                    "checkpoint=VALUES(checkpoint), metadata=VALUES(metadata)",
-                    (
-                        thread_id,
-                        checkpoint_ns,
-                        checkpoint_id,
-                        parent_checkpoint_id,
-                        type_,
+            try:
+                with self.conn.cursor() as cursor:
+                    cursor.execute(
+                        "INSERT INTO langgraph_checkpoints "
+                        "(thread_id, checkpoint_ns, checkpoint_id, "
+                        "parent_checkpoint_id, type, checkpoint, metadata, created_at) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, NOW()) "
+                        "ON DUPLICATE KEY UPDATE "
+                        "checkpoint=VALUES(checkpoint), metadata=VALUES(metadata)",
                         (
-                            serialized.decode("utf-8")
-                            if isinstance(serialized, bytes)
-                            else serialized
+                            thread_id,
+                            checkpoint_ns,
+                            checkpoint_id,
+                            parent_checkpoint_id,
+                            type_,
+                            (
+                                serialized.decode("utf-8")
+                                if isinstance(serialized, bytes)
+                                else serialized
+                            ),
+                            serialized_metadata,
                         ),
-                        serialized_metadata,
-                    ),
-                )
-            self.conn.commit()
-        except Exception as e:
-            logger.error(f"Error putting checkpoint: {e}")
+                    )
+                self.conn.commit()
+            except Exception as e:
+                logger.error(f"Error putting checkpoint: {e}")
 
-        return {
-            "configurable": {
-                "thread_id": thread_id,
-                "checkpoint_ns": checkpoint_ns,
-                "checkpoint_id": checkpoint_id,
+            return {
+                "configurable": {
+                    "thread_id": thread_id,
+                    "checkpoint_ns": checkpoint_ns,
+                    "checkpoint_id": checkpoint_id,
+                }
             }
-        }
 
     def put_writes(
         self,
@@ -212,40 +219,41 @@ class MySQLSaver(BaseCheckpointSaver):
         task_id: str,
     ) -> None:
         """Persist granular channel writes for a checkpoint."""
-        self._ensure_connection()
+        with self._lock:
+            self._ensure_connection()
 
-        thread_id = config["configurable"]["thread_id"]
-        checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
-        checkpoint_id = config["configurable"]["checkpoint_id"]
+            thread_id = config["configurable"]["thread_id"]
+            checkpoint_ns = config["configurable"].get("checkpoint_ns", "")
+            checkpoint_id = config["configurable"]["checkpoint_id"]
 
-        try:
-            with self.conn.cursor() as cursor:
-                for idx, (channel, value) in enumerate(writes):
-                    if hasattr(self.serde, "dumps_typed"):
-                        type_, serialized = self.serde.dumps_typed(value)
-                    else:
-                        type_, serialized = "json", self.serde.dumps(value)
+            try:
+                with self.conn.cursor() as cursor:
+                    for idx, (channel, value) in enumerate(writes):
+                        if hasattr(self.serde, "dumps_typed"):
+                            type_, serialized = self.serde.dumps_typed(value)
+                        else:
+                            type_, serialized = "json", self.serde.dumps(value)
 
-                    cursor.execute(
-                        "INSERT INTO langgraph_writes "
-                        "(thread_id, checkpoint_ns, checkpoint_id, "
-                        "task_id, idx, channel, type, value, created_at) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW()) "
-                        "ON DUPLICATE KEY UPDATE value=VALUES(value)",
-                        (
-                            thread_id,
-                            checkpoint_ns,
-                            checkpoint_id,
-                            task_id,
-                            idx,
-                            channel,
-                            type_,
-                            serialized,
-                        ),
-                    )
-            self.conn.commit()
-        except Exception as e:
-            logger.error(f"Error putting writes: {e}")
+                        cursor.execute(
+                            "INSERT INTO langgraph_writes "
+                            "(thread_id, checkpoint_ns, checkpoint_id, "
+                            "task_id, idx, channel, type, value, created_at) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW()) "
+                            "ON DUPLICATE KEY UPDATE value=VALUES(value)",
+                            (
+                                thread_id,
+                                checkpoint_ns,
+                                checkpoint_id,
+                                task_id,
+                                idx,
+                                channel,
+                                type_,
+                                serialized,
+                            ),
+                        )
+                self.conn.commit()
+            except Exception as e:
+                logger.error(f"Error putting writes: {e}")
 
     # ── Async Methods (via asyncio.to_thread)
 

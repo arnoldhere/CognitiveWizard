@@ -364,7 +364,13 @@ async def lesson_generator_node(state: CourseAgentState) -> Dict[str, Any]:
                 )
 
         if webhook_tasks:
-            await asyncio.gather(*webhook_tasks, return_exceptions=True)
+            # Deliver incrementally and sequentially to prevent MySQL transaction deadlocks
+            # when Express upserts parent CoursePhase and CourseModule records.
+            for task_coro in webhook_tasks:
+                try:
+                    await task_coro
+                except Exception as exc:
+                    logger.warning("Incremental lesson webhook error: %s", exc)
 
         batch_num = batch_start // _LESSON_BATCH_SIZE + 1
         total_batches = (

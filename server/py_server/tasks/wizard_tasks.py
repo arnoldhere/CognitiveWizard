@@ -141,6 +141,105 @@ async def _run_agentic_workflow_async(initial_state: CourseAgentState, job_id: s
 # ── Celery Tasks
 
 
+async def _execute_workflow_and_notify(
+    task_instance,
+    content_id: int,
+    job_id: str,
+    initial_state: CourseAgentState,
+    retry_info: dict,
+):
+    """
+    Execute the LangGraph course generation workflow and send appropriate completion/error
+    webhooks within a single shared event loop.
+    """
+    current_retry = retry_info["retry_count"]
+    max_retries = retry_info["max_retries"]
+
+    try:
+        final_state = await _run_agentic_workflow_async(initial_state, job_id)
+        course_draft = final_state.get("course_draft", {}) if final_state else {}
+
+        # If pipeline ended in error or empty draft
+        if (
+            not final_state
+            or final_state.get("pipeline_status") == "error"
+            or not course_draft
+            or course_draft.get("error")
+            or not course_draft.get("phases")
+        ):
+            err_msg = (
+                (final_state and final_state.get("error"))
+                or (course_draft and course_draft.get("error"))
+                or "Course generation failed to produce valid course content."
+            )
+            logger.error(f"[Celery|{job_id}] Pipeline completed with error state: {err_msg}")
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=err_msg,
+                status="failed",
+                user_message=_DEFAULT_ERROR_MESSAGE,
+                retry_info=retry_info,
+            )
+            return {"status": "failed", "content_id": content_id, "error": err_msg}
+
+        await _send_complete_webhook(
+            content_id,
+            job_id,
+            data=course_draft,
+        )
+        return {"status": "success", "content_id": content_id}
+
+    except AllProvidersFailedError as e:
+        user_msg = _get_user_message(e)
+
+        if current_retry < max_retries:
+            logger.warning(
+                f"All LLM providers failed for {job_id} "
+                f"(retry {current_retry + 1}/{max_retries}): {e}"
+            )
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=str(e),
+                status="degraded",
+                user_message=user_msg,
+                retry_info=retry_info,
+            )
+            raise task_instance.retry(exc=e, countdown=60 * (current_retry + 1))
+        else:
+            logger.error(
+                f"All LLM providers failed for {job_id} — "
+                f"max retries ({max_retries}) exhausted: {e}"
+            )
+            final_msg = (
+                "Course generation could not be completed after multiple attempts. "
+                "Please try again later or contact support if the issue persists."
+            )
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=str(e),
+                status="failed",
+                user_message=final_msg,
+                retry_info=retry_info,
+            )
+            raise
+
+    except Exception as e:
+        user_msg = _get_user_message(e)
+        logger.exception(f"Unexpected error in agentic workflow for {job_id}: {e}")
+        await _send_complete_webhook(
+            content_id,
+            job_id,
+            error=str(e),
+            status="failed",
+            user_message=user_msg,
+            retry_info=retry_info,
+        )
+        raise
+
+
 @celery_app.task(bind=True, max_retries=3, acks_late=True)
 def run_agentic_workflow_task(
     self,
@@ -157,8 +256,8 @@ def run_agentic_workflow_task(
     """
     Celery background task that orchestrates the LangGraph pipeline.
 
-    Runs the async graph inside ``asyncio.run()`` so that async nodes
-    and the async MySQLSaver checkpointer work correctly.
+    Runs the async graph inside a single ``asyncio.run()`` invocation so that async
+    nodes, MySQLSaver checkpointer, and webhooks share one clean event loop.
     """
     current_retry = self.request.retries
     max_retries = self.max_retries
@@ -184,73 +283,15 @@ def run_agentic_workflow_task(
         "max_retries": max_retries,
     }
 
-    try:
-        final_state = asyncio.run(_run_agentic_workflow_async(initial_state, job_id))
-
-        asyncio.run(
-            _send_complete_webhook(
-                content_id,
-                job_id,
-                data=final_state.get("course_draft", {}),
-            )
+    return asyncio.run(
+        _execute_workflow_and_notify(
+            task_instance=self,
+            content_id=content_id,
+            job_id=job_id,
+            initial_state=initial_state,
+            retry_info=retry_info,
         )
-        return {"status": "success", "content_id": content_id}
-
-    except AllProvidersFailedError as e:
-        user_msg = _get_user_message(e)
-
-        if current_retry < max_retries:
-            # Recoverable — retry with backoff
-            logger.warning(
-                f"All LLM providers failed for {job_id} "
-                f"(retry {current_retry + 1}/{max_retries}): {e}"
-            )
-            asyncio.run(
-                _send_complete_webhook(
-                    content_id,
-                    job_id,
-                    error=str(e),
-                    status="degraded",
-                    user_message=user_msg,
-                    retry_info=retry_info,
-                )
-            )
-            raise self.retry(exc=e, countdown=60 * (current_retry + 1))
-        else:
-            # Final retry exhausted
-            logger.error(
-                f"All LLM providers failed for {job_id} — "
-                f"max retries ({max_retries}) exhausted: {e}"
-            )
-            final_msg = (
-                "Course generation could not be completed after multiple attempts. "
-                "Please try again later or contact support if the issue persists."
-            )
-            asyncio.run(
-                _send_complete_webhook(
-                    content_id,
-                    job_id,
-                    error=str(e),
-                    status="failed",
-                    user_message=final_msg,
-                    retry_info=retry_info,
-                )
-            )
-            raise
-
-    except Exception as e:
-        user_msg = _get_user_message(e)
-        logger.exception(f"Unexpected error in agentic workflow for {job_id}: {e}")
-        asyncio.run(
-            _send_complete_webhook(
-                content_id,
-                job_id,
-                error=str(e),
-                user_message=user_msg,
-                retry_info=retry_info,
-            )
-        )
-        raise
+    )
 
 
 @celery_app.task(bind=True)

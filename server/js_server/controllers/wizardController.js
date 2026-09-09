@@ -543,22 +543,35 @@ async function webhookAgenticComplete(req, res, next) {
       return res.status(200).json({ success: true });
     }
 
-    // ── New course format ──────────────────────────────────────────────────
-    if (data?.content_type === "course") {
-      // If we are doing incremental saves, we might just need to finalize structure here
-      await _persistCourseData(content, data, t); // This might need modification if we strictly append, but for now we'll allow overwrite or just rely on it updating missing pieces. Wait, if incremental saves exist, this will overwrite. We should change _persistCourseData to not destroy existing lessons if they are incremental, or we just rely on incremental. Let's rely on incremental and change _persistCourseData later if needed. For now, let's keep it but skip destroying if incremental. Let's modify _persistCourseData to UPSERT or only update.
+    // ── Course format ──────────────────────────────────────────────────────
+    const isCourse = content.content_type === "course" || data?.content_type === "course";
+    if (isCourse) {
+      if (!data || data.error || !Array.isArray(data.phases) || data.phases.length === 0) {
+        const errorMsg = data?.error || "Course package is incomplete or missing phases";
+        await content.update({ status: "error", content: { error: errorMsg } }, { transaction: t });
+        if (job_id) {
+          await GenerationJob.update(
+            { status: "failed", error_details: errorMsg, user_message: "Course generation could not be completed." },
+            { where: { thread_id: job_id }, transaction: t }
+          );
+        }
+        await t.commit();
+        logger.error(`[WEBHOOK] Course id=${content_id} failed package validation: ${errorMsg}`);
+        return res.status(400).json({ error: errorMsg });
+      }
+
+      await _persistCourseData(content, data, t);
       await content.update(
         { status: "pending_approval", content: { _course_stored_in_tables: true } },
         { transaction: t }
       );
       if (job_id) {
-        await GenerationJob.update({ status: 'completed' }, { where: { thread_id: job_id }, transaction: t });
+        await GenerationJob.update({ status: "completed" }, { where: { thread_id: job_id }, transaction: t });
       }
       await t.commit();
-      logger.info(`[WEBHOOK] Course id=${content_id} persisted successfully to relational tables`);
+      logger.info(`[WEBHOOK] Course id=${content_id} persisted successfully via bulkCreate`);
       return res.status(200).json({ success: true });
     }
-
 
     // ── Legacy flat modules (roadmap/guide/schedule) ───────────────────────
     await WizardModule.destroy({ where: { content_id: content.id }, transaction: t });
@@ -600,7 +613,8 @@ async function webhookAgenticComplete(req, res, next) {
 /**
  * _persistCourseData
  * Writes the full CoursePackageSchema into the relational tables.
- * Runs inside a transaction (passed from webhookAgenticComplete).
+ * Optimized with Sequelize bulkCreate for sections, resources, and exercises
+ * to reduce DB round-trips from ~250+ down to ~5-10.
  *
  * @param {WizardContent} content - Parent WizardContent record
  * @param {object} data - CoursePackageSchema JSON from py_server
@@ -609,6 +623,10 @@ async function webhookAgenticComplete(req, res, next) {
 async function _persistCourseData(content, data, t) {
   // Clear any previously generated course data for this content_id
   await CoursePhase.destroy({ where: { content_id: content.id }, transaction: t });
+
+  const sectionsToCreate = [];
+  const resourcesToCreate = [];
+  const exercisesToCreate = [];
 
   let phaseSeq = 1;
   for (const phase of data.phases || []) {
@@ -643,26 +661,26 @@ async function _persistCourseData(content, data, t) {
           overview: lesson.overview || "",
           estimated_time: lesson.estimated_time || "",
           sequence: lessonSeq++,
-          status: "reviewed", // Came through the reviewer node
+          status: "reviewed",
         }, { transaction: t });
 
-        // Write lesson sections
+        // Collect lesson sections for bulk insertion
         let secSeq = 1;
         for (const section of lesson.sections || []) {
-          await LessonSection.create({
+          sectionsToCreate.push({
             lesson_id: dbLesson.id,
             section_type: section.section_type || "explanation",
             title: section.title || null,
             body: section.body || "",
             language: section.language || null,
             sequence: section.sequence || secSeq++,
-          }, { transaction: t });
+          });
         }
 
-        // Write lesson resources (lesson-level references)
+        // Collect lesson resources for bulk insertion
         for (const resource of lesson.resources || []) {
           if (!resource.url) continue;
-          await LessonResource.create({
+          resourcesToCreate.push({
             lesson_id: dbLesson.id,
             content_id: content.id,
             title: resource.title || "Resource",
@@ -672,13 +690,13 @@ async function _persistCourseData(content, data, t) {
             description: resource.description || null,
             relevance_score: resource.relevance_score || 0.0,
             supports: resource.supports || [],
-          }, { transaction: t });
+          });
         }
 
-        // Write lesson exercises
+        // Collect lesson exercises for bulk insertion
         let exSeq = 1;
         for (const exercise of lesson.exercises || []) {
-          await LessonExercise.create({
+          exercisesToCreate.push({
             lesson_id: dbLesson.id,
             title: exercise.title || "Exercise",
             description: exercise.description || "",
@@ -689,14 +707,25 @@ async function _persistCourseData(content, data, t) {
             solution_hint: exercise.solution_hint || null,
             expected_output: exercise.expected_output || null,
             sequence: exercise.sequence || exSeq++,
-          }, { transaction: t });
+          });
         }
       }
     }
   }
 
+  // High-performance batch insertion for all child entities
+  if (sectionsToCreate.length > 0) {
+    await LessonSection.bulkCreate(sectionsToCreate, { transaction: t });
+  }
+  if (resourcesToCreate.length > 0) {
+    await LessonResource.bulkCreate(resourcesToCreate, { transaction: t });
+  }
+  if (exercisesToCreate.length > 0) {
+    await LessonExercise.bulkCreate(exercisesToCreate, { transaction: t });
+  }
+
   logger.info(
-    `[WEBHOOK] Course data persisted: content_id=${content.id}, phases=${data.phases?.length || 0}`
+    `[WEBHOOK] Course data persisted via bulkCreate: content_id=${content.id}, phases=${data.phases?.length || 0}, sections=${sectionsToCreate.length}, resources=${resourcesToCreate.length}, exercises=${exercisesToCreate.length}`
   );
 }
 
@@ -705,104 +734,115 @@ async function _persistCourseData(content, data, t) {
  * Incremental lesson save from py_server.
  */
 async function webhookAgenticLessonIncremental(req, res, next) {
-  const t = await sequelize.transaction();
-  try {
-    const { content_id, job_id, lesson_data, phase_title, module_title, sequence_info, state_cache } = req.body;
+  const { content_id, job_id, lesson_data, phase_title, module_title, sequence_info, state_cache } = req.body;
 
-    const content = await WizardContent.findByPk(content_id, { transaction: t });
-    if (!content) {
-      await t.rollback();
-      return res.status(404).json({ error: "Content not found" });
-    }
+  if (!content_id || !lesson_data || !lesson_data.title) {
+    return res.status(400).json({ error: "Missing required incremental payload (content_id or lesson_data.title)" });
+  }
 
-    if (state_cache) {
-      await content.update({
-        content: { ...(content.content || {}), langgraph_state: state_cache }
-      }, { transaction: t });
-    }
+  const MAX_RETRIES = 3;
+  let attempt = 0;
 
-    // Upsert Phase
-    let [dbPhase] = await CoursePhase.findOrCreate({
-      where: { content_id, title: phase_title },
-      defaults: {
-        description: "",
-        sequence: sequence_info.phase_seq,
-        estimated_duration: "",
-      },
-      transaction: t
-    });
+  while (attempt < MAX_RETRIES) {
+    attempt++;
+    const t = await sequelize.transaction();
+    try {
+      const content = await WizardContent.findByPk(content_id, { transaction: t });
+      if (!content) {
+        await t.rollback();
+        return res.status(404).json({ error: "Content not found" });
+      }
 
-    // Upsert Module
-    let [dbModule] = await CourseModule.findOrCreate({
-      where: { phase_id: dbPhase.id, content_id, title: module_title },
-      defaults: {
-        description: "",
-        learning_objectives: [],
-        key_takeaways: [],
-        difficulty: "beginner",
-        estimated_time: "",
-        sequence: sequence_info.module_seq,
-      },
-      transaction: t
-    });
+      if (state_cache) {
+        await content.update({
+          content: { ...(content.content || {}), langgraph_state: state_cache }
+        }, { transaction: t });
+      }
 
-    // Upsert Lesson
-    let [dbLesson] = await CourseLesson.findOrCreate({
-      where: { module_id: dbModule.id, content_id, title: lesson_data.title },
-      defaults: {
+      // Upsert Phase
+      const [dbPhase] = await CoursePhase.findOrCreate({
+        where: { content_id, title: phase_title },
+        defaults: {
+          description: "",
+          sequence: sequence_info?.phase_seq || 1,
+          estimated_duration: "",
+        },
+        transaction: t
+      });
+
+      // Upsert Module
+      const [dbModule] = await CourseModule.findOrCreate({
+        where: { phase_id: dbPhase.id, content_id, title: module_title },
+        defaults: {
+          description: "",
+          learning_objectives: [],
+          key_takeaways: [],
+          difficulty: "beginner",
+          estimated_time: "",
+          sequence: sequence_info?.module_seq || 1,
+        },
+        transaction: t
+      });
+
+      // Upsert Lesson
+      const [dbLesson] = await CourseLesson.findOrCreate({
+        where: { module_id: dbModule.id, content_id, title: lesson_data.title },
+        defaults: {
+          overview: lesson_data.overview || "",
+          estimated_time: lesson_data.estimated_time || "",
+          sequence: sequence_info?.lesson_seq || 1,
+          status: "draft",
+        },
+        transaction: t
+      });
+
+      // Update existing lesson fields
+      await dbLesson.update({
         overview: lesson_data.overview || "",
         estimated_time: lesson_data.estimated_time || "",
-        sequence: sequence_info.lesson_seq,
         status: "draft",
-      },
-      transaction: t
-    });
+      }, { transaction: t });
 
-    // Update it if it exists (e.g. reviewed status)
-    await dbLesson.update({
-      overview: lesson_data.overview || "",
-      estimated_time: lesson_data.estimated_time || "",
-      status: "draft", // Or reviewed if we send that info
-    }, { transaction: t });
+      // Clear old sections/resources/exercises for this lesson if re-generating
+      await LessonSection.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
+      await LessonResource.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
+      await LessonExercise.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
 
-    // Clear old sections/resources/exercises for this lesson if re-generating
-    await LessonSection.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
-    await LessonResource.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
-    await LessonExercise.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
-
-    // Write lesson sections
-    let secSeq = 1;
-    for (const section of lesson_data.sections || []) {
-      await LessonSection.create({
+      // Write lesson sections in bulk
+      let secSeq = 1;
+      const sectionsToCreate = (lesson_data.sections || []).map(section => ({
         lesson_id: dbLesson.id,
         section_type: section.section_type || "explanation",
         title: section.title || null,
         body: section.body || "",
         language: section.language || null,
         sequence: section.sequence || secSeq++,
-      }, { transaction: t });
-    }
+      }));
+      if (sectionsToCreate.length > 0) {
+        await LessonSection.bulkCreate(sectionsToCreate, { transaction: t });
+      }
 
-    // Write lesson resources
-    for (const resource of lesson_data.resources || []) {
-      if (!resource.url) continue;
-      await LessonResource.create({
-        lesson_id: dbLesson.id,
-        content_id,
-        title: resource.title || "Resource",
-        url: resource.url,
-        resource_type: resource.resource_type || "other",
-        source: resource.source || "",
-        description: resource.description || null,
-        relevance_score: resource.relevance_score || 0.0,
-        supports: resource.supports || [],
-      }, { transaction: t });
-    }
+      // Write lesson resources in bulk
+      const resourcesToCreate = (lesson_data.resources || [])
+        .filter(r => r && r.url)
+        .map(resource => ({
+          lesson_id: dbLesson.id,
+          content_id,
+          title: resource.title || "Resource",
+          url: resource.url,
+          resource_type: resource.resource_type || "other",
+          source: resource.source || "",
+          description: resource.description || null,
+          relevance_score: resource.relevance_score || 0.0,
+          supports: resource.supports || [],
+        }));
+      if (resourcesToCreate.length > 0) {
+        await LessonResource.bulkCreate(resourcesToCreate, { transaction: t });
+      }
 
-    // Write lesson exercises
-    let exSeq = 1;
-    for (const exercise of lesson_data.exercises || []) {
-      await LessonExercise.create({
+      // Write lesson exercises in bulk
+      let exSeq = 1;
+      const exercisesToCreate = (lesson_data.exercises || []).map(exercise => ({
         lesson_id: dbLesson.id,
         title: exercise.title || "Exercise",
         description: exercise.description || "",
@@ -813,17 +853,26 @@ async function webhookAgenticLessonIncremental(req, res, next) {
         solution_hint: exercise.solution_hint || null,
         expected_output: exercise.expected_output || null,
         sequence: exercise.sequence || exSeq++,
-      }, { transaction: t });
+      }));
+      if (exercisesToCreate.length > 0) {
+        await LessonExercise.bulkCreate(exercisesToCreate, { transaction: t });
+      }
+
+      await t.commit();
+      logger.info(`[WEBHOOK] Incremental lesson saved: ${lesson_data.title}`);
+      return res.status(200).json({ success: true });
+
+    } catch (err) {
+      await t.rollback();
+      const isDeadlock = err.original?.errno === 1213 || (err.message && err.message.includes('Deadlock'));
+      if (isDeadlock && attempt < MAX_RETRIES) {
+        logger.warn(`[WIZARD WEBHOOK] Deadlock detected during incremental save (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${attempt * 100}ms...`);
+        await new Promise(r => setTimeout(r, attempt * 100));
+        continue;
+      }
+      logger.error(`[WIZARD WEBHOOK] Incremental save error: ${err.message}`, err);
+      return res.status(500).json({ error: "Failed to save incremental lesson" });
     }
-
-    await t.commit();
-    logger.info(`[WEBHOOK] Incremental lesson saved: ${lesson_data.title}`);
-    return res.status(200).json({ success: true });
-
-  } catch (err) {
-    await t.rollback();
-    logger.error(`[WIZARD WEBHOOK] Incremental save error: ${err.message}`, err);
-    res.status(500).json({ error: "Failed to save incremental lesson" });
   }
 }
 
