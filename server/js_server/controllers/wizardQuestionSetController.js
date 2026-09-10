@@ -10,7 +10,7 @@
 const { WizardQuestionSet } = require('../models');
 const logger = require('../utils/logger');
 
-const ALLOWED_CONTENT_TYPES = ['Roadmap', 'Course/Syllabus', 'Guide', 'Schedule'];
+const ALLOWED_CONTENT_TYPES = ['Roadmap', 'Course/Syllabus', 'Guide'];
 
 function validateContentType(contentType) {
     return typeof contentType === 'string' && contentType.trim() && ALLOWED_CONTENT_TYPES.includes(contentType.trim());
@@ -64,7 +64,7 @@ async function createQuestionSet(req, res, next) {
         }
 
         if (!validateContentType(content_type)) {
-            return res.status(400).json({ error: 'content_type must be one of: Roadmap, Course/Syllabus, Guide, Schedule.' });
+            return res.status(400).json({ error: 'content_type must be one of: Roadmap, Course/Syllabus, Guide.' });
         }
 
         // Validate questions array
@@ -114,7 +114,7 @@ async function updateQuestionSet(req, res, next) {
         if (!set) return res.status(404).json({ error: 'Question set not found.' });
 
         if (content_type !== undefined && !validateContentType(content_type)) {
-            return res.status(400).json({ error: 'content_type must be one of: Roadmap, Course/Syllabus, Guide, Schedule.' });
+            return res.status(400).json({ error: 'content_type must be one of: Roadmap, Course/Syllabus, Guide.' });
         }
 
         if (questions !== undefined) {

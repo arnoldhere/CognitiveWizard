@@ -6,7 +6,7 @@
  * ALL routes require JWT authentication.
  *
  * Content type routing:
- *  - POST /generate         → Roadmap/Guide/Schedule (single LLM call)
+ *  - POST /generate         → Roadmap/Guide (single LLM call)
  *  - POST /generate-agentic → Course/Syllabus (multi-agent background pipeline)
  *
  * Course lesson access:
@@ -57,7 +57,7 @@ router.use(authenticate);
 
 // ── Generation ────────────────────────────────────────────────────────────────
 
-/** Generate Roadmap/Guide/Schedule via single LLM call. AI rate-limited. */
+/** Generate Roadmap/Guide via single LLM call. AI rate-limited. */
 router.post("/generate", aiLimiter, generateContent);
 
 /** Generate Course/Syllabus via multi-agent background pipeline. AI rate-limited. */

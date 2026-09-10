@@ -6,7 +6,7 @@
  *
  * Content type routing:
  *  - Course/Syllabus → agentic pipeline (py_server agent graph)
- *  - Roadmap/Guide/Schedule → legacy single-LLM call (py_server generate-raw)
+ *  - Roadmap/Guide   → legacy single-LLM call (py_server generate-raw)
  *
  * New course DB hierarchy:
  *   WizardContent → CourseChapter → CourseModule → CourseLesson
@@ -47,13 +47,20 @@ const isCourseType = (type) =>
 
 /**
  * POST /wizard/generate
- * Generate non-course content (Roadmap, Guide, Schedule) via single LLM call.
+ * Generate non-course content (Roadmap, Guide) via single LLM call.
  * Course/Syllabus is handled exclusively by generateAgentic.
  */
 async function generateContent(req, res, next) {
   try {
     const { topic, content_type, details, skill_level, goal, learning_style } = req.body || {};
     logger.info(`[WIZARD] Generate: topic="${topic}", type="${content_type}" by ${req.user?.email}`);
+
+    const normalizedType = (content_type || "").toLowerCase().trim();
+    if (normalizedType === "schedule") {
+      return res.status(400).json({
+        detail: "Schedule generation is no longer supported. Allowed types are: Course/Syllabus, Roadmap, Guide."
+      });
+    }
 
     // Redirect course generation to the agentic pipeline
     if (isCourseType(content_type)) {
@@ -218,7 +225,7 @@ async function getContent(req, res, next) {
       return res.json(json);
     }
 
-    // Legacy: Roadmap/Guide/Schedule with WizardModule/WizardResource
+    // Legacy: Roadmap/Guide with WizardModule/WizardResource
     const content = await WizardContent.findOne({
       where,
       include: [
@@ -839,7 +846,7 @@ async function webhookAgenticComplete(req, res, next) {
       return res.status(200).json({ success: true });
     }
 
-    // ── Legacy flat modules (roadmap/guide/schedule) ───────────────────────
+    // ── Legacy flat modules (roadmap/guide) ─────────────────────────────────
     await WizardModule.destroy({ where: { content_id: content.id }, transaction: t });
 
     let seq = 1;

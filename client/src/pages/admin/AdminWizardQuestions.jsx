@@ -29,7 +29,6 @@ const CONTENT_TYPE_OPTIONS = [
     { value: "Roadmap", label: "Roadmap" },
     { value: "Course/Syllabus", label: "Course / Syllabus" },
     { value: "Guide", label: "Guide" },
-    { value: "Schedule", label: "Schedule" },
 ];
 
 const BLANK_QUESTION = () => ({

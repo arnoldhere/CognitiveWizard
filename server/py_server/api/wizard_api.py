@@ -2,7 +2,7 @@
 Wizard API router.
 
 Orchestrates:
-1. LLM-based content generation (roadmap / course / syllabus / guide / schedule).
+1. LLM-based content generation (roadmap / course / syllabus / guide).
 2. Reference retriever agent (refr_retr) for roadmap requests — runs concurrently
     with LLM generation and injects curated web references into the response.
 
@@ -98,7 +98,14 @@ async def generate_raw_content(request: WizardRawRequest):
     - Only the LLM is invoked (agent integration will be added per type later).
     """
 
-    is_roadmap = request.content_type.lower().strip() == "roadmap"
+    ct_lower = (request.content_type or "").lower().strip()
+    if ct_lower == "schedule":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Schedule generation is not supported. Allowed types are: course, roadmap, guide.",
+        )
+
+    is_roadmap = ct_lower == "roadmap"
     agent_warnings: List[str] = []
     references: Dict[str, Any] = {}
     images: List[str] = []

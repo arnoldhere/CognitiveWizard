@@ -1645,7 +1645,7 @@ export default function WizardModule() {
 
               <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-500">
                 Revisit your previously generated learning plans,
-                roadmaps, and schedules.
+                roadmaps, and guides.
               </p>
             </div>
 

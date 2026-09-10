@@ -6,7 +6,7 @@
  * Routing logic (content_type-aware):
  *   Course/Syllabus   → <CourseViewer>   (new full learning experience)
  *   Roadmap           → <RoadmapDisplay> (existing visual roadmap)
- *   Guide/Schedule    → <ModuleList>     (existing flat module list)
+ *   Guide             → <ModuleList>     (existing flat module list)
  *
  * Status-aware rendering:
  *   generating* states → Show dynamic status messages (polling every 4s)
@@ -142,7 +142,7 @@ function GeneratingState({ status, statusLabel }) {
   );
 }
 
-// ── Simple module list (Guide/Schedule) ───────────────────────────────────────
+// ── Simple module list (Guide) ────────────────────────────────────────────────
 function ModuleItem({ mod }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -366,7 +366,7 @@ export default function WizardContentView() {
     );
   }
 
-  // ── Guide / Schedule (legacy module list) ──
+  // ── Guide (legacy module list) ──
   return (
     <div className="mx-auto min-h-screen max-w-4xl px-4 py-16 md:px-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

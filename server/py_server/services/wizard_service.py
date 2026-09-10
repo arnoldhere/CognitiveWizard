@@ -28,7 +28,7 @@ async def generate_wizard_content(
 
     Args:
         topic:          Subject matter to generate content for.
-        content_type:   One of roadmap / course / syllabus / guide / schedule.
+        content_type:   One of roadmap / course / syllabus / guide.
         details:        Optional extra instructions from the user.
         skill_level:    beginner / intermediate / advanced.
         goal:           User's learning goal.

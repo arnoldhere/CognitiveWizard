@@ -7,7 +7,7 @@ class WizardGenerateRequest(BaseModel):
     topic: str = Field(..., description="The main topic or subject")
     content_type: str = Field(
         ...,
-        description="The type of content to generate (e.g., plan, roadmap, schedule, course, curriculum, syllabus)",
+        description="The type of content to generate (e.g., plan, roadmap, guide, course, curriculum, syllabus)",
     )
     details: Optional[str] = Field(
         None,

@@ -4,13 +4,13 @@ utils/builders/wizard_prompt.py
 Prompt builders for the Wizard course generation pipeline.
 
 Contains:
-  build_wizard_prompt()             — existing builder for Roadmap/Guide/Schedule (unchanged)
+  build_wizard_prompt()             — existing builder for Roadmap/Guide (unchanged)
   build_learning_architect_prompt() — NEW: blueprint-only structural prompt
   build_lesson_content_prompt()     — NEW: full lesson content generation prompt
   build_pedagogical_review_prompt() — NEW: reviewer checklist prompt (used internally)
 
 Design notes:
- - Roadmap/Guide/Schedule prompts are preserved exactly to avoid breaking existing flows
+ - Roadmap/Guide prompts are preserved exactly to avoid breaking existing flows
  - New prompts are strict about JSON output — no markdown, no extra text
  - Evidence/resources from Research Agent are injected into lesson prompts
    to ground content in real references (evidence-grounded generation)
@@ -20,7 +20,7 @@ from typing import Optional, List, Dict, Any
 from utils.builders.System_Prompt import sys_prompt
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# EXISTING BUILDER — preserved unchanged for Roadmap/Guide/Schedule
+# EXISTING BUILDER — preserved unchanged for Roadmap/Guide
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -36,11 +36,11 @@ def build_wizard_prompt(
 ) -> str:
     """
     Builds the complete prompt for the Study-Learning AI Assistant.
-    Used for Roadmap / Guide / Schedule content types.
+    Used for Roadmap / Guide content types.
 
     Args:
         topic: The subject matter to generate content for.
-        content_type: One of roadmap / guide / schedule.
+        content_type: One of roadmap / guide.
         details: Optional free-form extra instructions from the user.
         target_audience: Intended learner group (default: General Learners).
         skill_level: Beginner / intermediate / advanced.
@@ -497,16 +497,6 @@ def _get_content_type_instruction(content_type: str) -> str:
           - include best practices
           - mention common mistakes
         """,
-        "schedule": """
-          Create a realistic study schedule.
-          Balance:
-          - theory
-          - practice
-          - revision
-          - projects
-          - assessment
-          Avoid learner overload.
-          """,
     }
 
     return instructions.get(
@@ -561,28 +551,6 @@ def _get_json_schema(content_type: str) -> str:
           "details": "",
           "tips": [],
           "common_mistakes": []
-        }
-      ]
-    }
-  ]
-}
-""",
-        "schedule": """
-{
-  "title": "",
-  "description": "",
-  "target_audience": "",
-  "study_duration": "",
-  "daily_commitment": "",
-  "modules": [
-    {
-      "title": "",
-      "description": "",
-      "estimated_time": "",
-      "topics": [
-        {
-          "name": "",
-          "details": ""
         }
       ]
     }

@@ -30,7 +30,7 @@ const WizardQuestionSet = sequelize.define('WizardQuestionSet', {
     content_type: {
         type: DataTypes.STRING(100),
         allowNull: false,
-        comment: 'Content type identifier e.g. Roadmap, Guide, Schedule',
+        comment: 'Content type identifier e.g. Roadmap, Guide, Course/Syllabus',
     },
     label: {
         type: DataTypes.STRING(100),

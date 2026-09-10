@@ -28,7 +28,7 @@ const RAGQueryLog = require('./RAGLog');
 const LLMConfig = require('./LLMConfig');
 const WizardQuestionSet = require('./WizardQuestionSet');
 
-// ─── Legacy Wizard models (kept for Roadmap/Guide/Schedule content types) ────
+// ─── Legacy Wizard models (kept for Roadmap/Guide content types) ────
 const WizardModule = require('./WizardModule');
 const WizardResource = require('./WizardResource');
 
@@ -106,18 +106,6 @@ const DEFAULT_WIZARD_QUESTION_SETS = [
       { key: 'constraints', label: 'Any specific tools or constraints?', type: 'text', placeholder: 'e.g., Open-source tools only', required: false },
     ],
   },
-  {
-    content_type: 'Schedule',
-    label: 'Schedule',
-    description: 'Time-managed study plan',
-    icon: 'ScheduleRounded',
-    sort_order: 3,
-    is_active: true,
-    questions: [
-      { key: 'deadline', label: 'When is your deadline?', type: 'date', required: true },
-      { key: 'dailyHours', label: 'Hours per day?', type: 'number', placeholder: 'e.g., 2', required: true },
-    ],
-  },
 ];
 
 // ─── DB sync + seeding ─────────────────────────────────────────────────────────
@@ -177,6 +165,9 @@ sequelize.sync({ alter: true }).then(async () => {
       );
     }
   }
+
+  // Remove any legacy Schedule question sets from DB
+  await WizardQuestionSet.destroy({ where: { content_type: 'Schedule' } });
 }).catch(console.error);
 
 // ─── Exports
@@ -191,7 +182,7 @@ module.exports = {
   RAGQueryLog,
   LLMConfig,
   WizardQuestionSet,
-  // Legacy wizard models (roadmap / guide / schedule)
+  // Legacy wizard models (roadmap / guide)
   WizardModule,
   WizardResource,
   // New course generation models (CourseChapter -> CourseModule -> CourseLesson)
