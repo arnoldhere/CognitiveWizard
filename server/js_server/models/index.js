@@ -131,6 +131,22 @@ sequelize.sync({ alter: true }).then(async () => {
     // Ignore if table not yet created
   }
 
+  // Ensure composite indexes for high-performance listing queries
+  const ensureIndexes = [
+    { name: 'idx_wc_status_created_at_id', table: 'wizard_contents', cols: '(status, created_at DESC, id DESC)' },
+    { name: 'idx_wc_status_type_created', table: 'wizard_contents', cols: '(status, content_type, created_at DESC, id DESC)' },
+    { name: 'idx_wc_user_created_at', table: 'wizard_contents', cols: '(user_id, created_at DESC, id DESC)' },
+    { name: 'idx_wc_created_at_id', table: 'wizard_contents', cols: '(created_at DESC, id DESC)' },
+    { name: 'idx_users_role', table: 'users', cols: '(role)' }
+  ];
+  for (const idx of ensureIndexes) {
+    try {
+      await sequelize.query(`CREATE INDEX ${idx.name} ON ${idx.table} ${idx.cols}`);
+    } catch (_) {
+      // Ignore if index already exists
+    }
+  }
+
   // Seed LLM configs on first run
   const llmCount = await LLMConfig.count();
   if (llmCount === 0) {

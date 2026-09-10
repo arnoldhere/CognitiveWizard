@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Search, BookOpen, RefreshCw, Eye, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, X, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getAdminCourses } from "../../services/admin";
+import { getAdminCourses, getAdminCourseById } from "../../services/admin";
 import dayjs from "dayjs";
 
 export default function AdminCourses({ title, description, userRole }) {
@@ -26,6 +26,7 @@ export default function AdminCourses({ title, description, userRole }) {
 
     // View Dialog
     const [viewData, setViewData] = useState(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
     // Handle search debounce
     useEffect(() => {
@@ -73,6 +74,21 @@ export default function AdminCourses({ title, description, userRole }) {
             return isDark ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-emerald-50 text-emerald-600 border-emerald-100";
         }
         return isDark ? "bg-slate-700/50 text-slate-300 border-slate-600" : "bg-slate-100 text-slate-600 border-slate-200";
+    };
+
+    const handleViewCourse = async (course) => {
+        setViewData(course);
+        setLoadingDetail(true);
+        try {
+            const detail = await getAdminCourseById(course.id);
+            if (detail) {
+                setViewData(detail);
+            }
+        } catch (err) {
+            console.error("Failed to load full course detail", err);
+        } finally {
+            setLoadingDetail(false);
+        }
     };
 
     return (
@@ -182,10 +198,10 @@ export default function AdminCourses({ title, description, userRole }) {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className={`font-bold truncate max-w-[200px] sm:max-w-[250px] ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
-                                                {course.content?.title || course.topic}
+                                                {course.topic}
                                             </div>
                                             <div className={`text-xs truncate max-w-[200px] sm:max-w-[250px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-                                                {course.content?.description || "No description"}
+                                                {course.content_type || "Course"}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -209,7 +225,7 @@ export default function AdminCourses({ title, description, userRole }) {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <button
-                                                onClick={() => setViewData(course)}
+                                                onClick={() => handleViewCourse(course)}
                                                 className={`p-2 rounded-lg transition-colors ${isDark ? 'text-primary hover:bg-primary/10' : 'text-primary hover:bg-primary/10'}`}
                                                 title="View Details"
                                             >
@@ -278,10 +294,10 @@ export default function AdminCourses({ title, description, userRole }) {
                             <div className={`flex justify-between items-center p-6 border-b shrink-0 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                                 <div>
                                     <h2 className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                        {viewData.content?.title || viewData.topic}
+                                        {viewData.topic || viewData.content?.title || "Course Details"}
                                     </h2>
                                     <div className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                        By {viewData.user?.email} • {viewData.content_type}
+                                        By {viewData.user?.email || "Unknown"} • {viewData.content_type}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -299,58 +315,89 @@ export default function AdminCourses({ title, description, userRole }) {
 
                             {/* Modal Body */}
                             <div className="p-6 overflow-y-auto flex-1">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-                                    <div className="sm:col-span-2">
-                                        <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Description</h3>
-                                        <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                                            {viewData.content?.description || "N/A"}
+                                {loadingDetail ? (
+                                    <div className="py-16 text-center">
+                                        <Loader2 size={32} className="animate-spin text-primary mx-auto mb-3" />
+                                        <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                            Fetching full course hierarchy...
                                         </p>
                                     </div>
-                                    <div>
-                                        <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Skill Level</h3>
-                                        <p className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                                            {viewData.content?.skill_level || "N/A"}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Target Audience</h3>
-                                        <p className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                                            {viewData.content?.target_audience || "N/A"}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-4">
-                                        Modules / Phases ({viewData.content?.modules?.length || 0})
-                                    </h3>
-                                    <div className="space-y-3">
-                                        {viewData.content?.modules?.map((m, i) => (
-                                            <div key={i} className={`p-4 rounded-xl border ${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
-                                                <div className="flex justify-between items-start gap-4 mb-2">
-                                                    <h4 className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                                                        {i + 1}. {m.title}
-                                                    </h4>
-                                                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${isDark ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-500 border border-slate-200'}`}>
-                                                        {m.duration}
-                                                    </span>
-                                                </div>
-                                                <p className={`text-sm mb-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                                    {m.description}
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+                                            <div className="sm:col-span-2">
+                                                <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Topic</h3>
+                                                <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                                    {viewData.topic || "N/A"}
                                                 </p>
-                                                {m.topics?.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {m.topics.map((t, idx) => (
-                                                            <span key={idx} className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${isDark ? 'bg-slate-900/50 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>
-                                                                {t}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                            <div>
+                                                <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Type</h3>
+                                                <p className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                                    {viewData.content_type || "N/A"}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Created</h3>
+                                                <p className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                                    {dayjs(viewData.created_at).format("MMM D, YYYY h:mm A")}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {viewData.chapters && viewData.chapters.length > 0 ? (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-4">
+                                                    Chapters ({viewData.chapters.length})
+                                                </h3>
+                                                <div className="space-y-4">
+                                                    {viewData.chapters.map((ch, i) => (
+                                                        <div key={ch.id || i} className={`p-4 rounded-xl border ${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                                                            <h4 className={`font-bold text-sm mb-2 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                                                                {i + 1}. {ch.title}
+                                                            </h4>
+                                                            <div className="space-y-2 pl-3">
+                                                                {ch.modules?.map((m, j) => (
+                                                                    <div key={m.id || j} className="text-xs flex justify-between py-1 border-b border-slate-200/50 dark:border-slate-700/50">
+                                                                        <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                                                                            Module {j + 1}: {m.title}
+                                                                        </span>
+                                                                        <span className="text-slate-400 font-mono">
+                                                                            {m.lessons?.length || 0} lessons
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : viewData.content?.modules ? (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-primary uppercase tracking-widest mb-4">
+                                                    Modules / Phases ({viewData.content?.modules?.length || 0})
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {viewData.content?.modules?.map((m, i) => (
+                                                        <div key={i} className={`p-4 rounded-xl border ${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                                                            <div className="flex justify-between items-start gap-4 mb-2">
+                                                                <h4 className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                                                                    {i + 1}. {m.title}
+                                                                </h4>
+                                                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${isDark ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-500 border border-slate-200'}`}>
+                                                                    {m.duration}
+                                                                </span>
+                                                            </div>
+                                                            <p className={`text-sm mb-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                                                {m.description}
+                                                            </p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                    </>
+                                )}
                             </div>
                             
                             {/* Modal Footer */}

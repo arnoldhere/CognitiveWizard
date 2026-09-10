@@ -206,7 +206,13 @@ export const deleteWizardContent = async (id) => {
   return res.data;
 };
 
-export const getPublishedCourses = async () => {
-  const res = await API.get("/wizard/published");
+export const getPublishedCourses = async (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  const res = await API.get(`/wizard/published${query ? `?${query}` : ''}`);
+  return res.data;
+};
+
+export const getPublishedCourseById = async (id) => {
+  const res = await API.get(`/wizard/published/${id}`);
   return res.data;
 };

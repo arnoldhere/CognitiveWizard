@@ -19,6 +19,7 @@ const { pyAxios } = require("../utils/apiProxy");
 const logger = require("../utils/logger");
 const { sequelize } = require("../config/db");
 const { Op } = require("sequelize");
+const { encodeCursor, decodeCursor, buildCursorWhere } = require("../utils/paginationHelper");
 const {
   WizardContent,
   WizardModule,
@@ -575,13 +576,37 @@ async function updateCourseLesson(req, res, next) {
 
 /**
  * GET /wizard/published
- * Retrieve published content for the marketplace.
+ * Retrieve published content for the marketplace with cursor pagination.
+ * Excludes heavy `content` JSON column to prevent memory exhaustion and high network payload.
  */
 async function getPublishedCourses(req, res, next) {
   try {
-    const publishedContent = await WizardContent.findAll({
-      where: { status: "published" },
-      attributes: ["id", "topic", "content_type", "status", "content", "created_at"],
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 12, 1), 50);
+    const contentType = req.query.contentType || req.query.content_type || "";
+    const search = req.query.search || "";
+    const cursor = req.query.cursor || "";
+
+    const where = { status: "published" };
+
+    if (contentType && contentType !== "all") {
+      where.content_type = contentType;
+    }
+
+    if (search && search.trim()) {
+      where.topic = { [Op.like]: `%${search.trim()}%` };
+    }
+
+    if (cursor) {
+      const cursorData = decodeCursor(cursor);
+      const cursorWhere = buildCursorWhere(cursorData, "created_at", "DESC");
+      if (cursorWhere) {
+        where[Op.and] = where[Op.and] ? [...where[Op.and], cursorWhere] : [cursorWhere];
+      }
+    }
+
+    const rows = await WizardContent.findAll({
+      where,
+      attributes: ["id", "user_id", "topic", "content_type", "status", "created_at", "updated_at"],
       include: [
         {
           model: User,
@@ -589,11 +614,76 @@ async function getPublishedCourses(req, res, next) {
           attributes: ["id", "full_name", "email", "role"],
         },
       ],
-      order: [["created_at", "DESC"]],
+      order: [
+        ["created_at", "DESC"],
+        ["id", "DESC"],
+      ],
+      limit: limit + 1,
     });
-    res.json(publishedContent);
+
+    const hasMore = rows.length > limit;
+    if (hasMore) {
+      rows.pop();
+    }
+
+    const nextCursor = hasMore && rows.length > 0 ? encodeCursor(rows[rows.length - 1], "created_at") : null;
+
+    res.json({
+      data: rows,
+      pagination: {
+        next_cursor: nextCursor,
+        has_more: hasMore,
+        limit,
+      },
+    });
   } catch (err) {
     logger.error(`[WIZARD] Error fetching published courses: ${err.message}`);
+    next(err);
+  }
+}
+
+/**
+ * GET /wizard/published/:id
+ * Retrieve a single published course detail by ID.
+ */
+async function getPublishedCourseById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const course = await WizardContent.findOne({
+      where: { id, status: "published" },
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "full_name", "email", "role"],
+        },
+        {
+          model: CourseChapter,
+          as: "chapters",
+          include: [
+            {
+              model: CourseModule,
+              as: "modules",
+              include: [
+                {
+                  model: CourseLesson,
+                  as: "lessons",
+                  attributes: ["id", "title", "sequence", "estimated_time"],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!course) {
+      return res.status(404).json({ error: "Published course not found" });
+    }
+
+    res.json(course);
+  } catch (err) {
+    logger.error(`[WIZARD] Error fetching published course ${req.params.id}: ${err.message}`);
     next(err);
   }
 }
@@ -1307,6 +1397,7 @@ module.exports = {
   publishContent,
   updateCourseLesson,
   getPublishedCourses,
+  getPublishedCourseById,
   webhookAgenticStatus,
   webhookAgenticComplete,
   webhookAgenticLessonIncremental,

@@ -44,6 +44,7 @@ const {
   publishContent,
   updateCourseLesson,
   getPublishedCourses,
+  getPublishedCourseById,
   getGenerationStatus,
 } = require("../../controllers/wizardController");
 
@@ -75,8 +76,9 @@ router.get("/history", getHistory);
 /** Dynamic wizard question sets (admin-managed) */
 router.get("/question-sets", getActiveQuestionSets);
 
-/** Marketplace: all published content */
+/** Marketplace: all published content (paginated) */
 router.get("/published", getPublishedCourses);
+router.get("/published/:id", getPublishedCourseById);
 
 /** Poll generation status (checkpoint progress) */
 router.get("/generation/:content_id", getGenerationStatus);

@@ -14,6 +14,7 @@ router.patch('/users/:id/status', adminController.toggleUserStatus);
 router.get('/llm-configs', adminController.getLLMConfigs);
 router.put('/llm-configs/:task_name', adminController.updateLLMConfig);
 router.get('/courses', adminController.getCourses);
+router.get('/courses/:id', adminController.getCourseById);
 
 // Wizard question set management
 router.get('/wizard-questions', wizardQSController.getAllQuestionSets);

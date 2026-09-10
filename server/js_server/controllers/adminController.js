@@ -6,8 +6,24 @@
  */
 
 const { Op, fn, col, literal } = require("sequelize");
-const { User, ChatSession, LLMConfig } = require("../models");
+const { User, ChatSession, LLMConfig, CourseChapter, CourseModule, CourseLesson } = require("../models");
 const logger = require("../utils/logger");
+const {
+  encodeCursor,
+  decodeCursor,
+  buildCursorWhere,
+  validateSortField,
+  validateSortOrder,
+} = require("../utils/paginationHelper");
+
+const ALLOWED_COURSE_SORT_FIELDS = [
+  "created_at",
+  "updated_at",
+  "topic",
+  "content_type",
+  "status",
+  "id",
+];
 
 // Lazy-load optional models to avoid crashes if tables don't exist yet
 let Quiz, RAGQueryLog, WizardContent;
@@ -253,19 +269,23 @@ async function updateLLMConfig(req, res, next) {
 
 async function getCourses(req, res, next) {
   try {
-    const page = parseInt(req.query.page) || 0;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || "";
-    const sortField = req.query.sortField || "created_at";
-    const sortOrder = req.query.sortOrder || "desc";
-    const contentType = req.query.contentType || "";
-    const userRole = req.query.userRole || "";
-    const offset = page * limit;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 100);
+    const page = Math.max(parseInt(req.query.page, 10) || 0, 0);
+    const search = (req.query.search || "").trim();
+    const contentType = (req.query.contentType || "").trim();
+    const userRole = (req.query.userRole || "").trim();
+    const cursor = (req.query.cursor || "").trim();
+
+    // Whitelist sort field and order
+    const sortField = validateSortField(req.query.sortField, ALLOWED_COURSE_SORT_FIELDS, "created_at");
+    const sortOrder = validateSortOrder(req.query.sortOrder, "DESC");
 
     const where = {};
     if (contentType && contentType !== "all") {
       where.content_type = contentType;
     }
+
+    const hasUserFilter = Boolean(userRole) || Boolean(search);
 
     if (search) {
       where[Op.or] = [
@@ -275,13 +295,58 @@ async function getCourses(req, res, next) {
       ];
     }
 
-    // Add user role filter if provided
     if (userRole) {
       where['$user.role$'] = userRole;
     }
 
-    const { count, rows } = await WizardContent.findAndCountAll({
+    // Determine pagination mode: Cursor vs Offset
+    const cursorData = cursor ? decodeCursor(cursor) : null;
+    let isCursorPaging = false;
+
+    if (cursorData) {
+      const cursorWhere = buildCursorWhere(cursorData, sortField, sortOrder);
+      if (cursorWhere) {
+        where[Op.and] = where[Op.and] ? [...where[Op.and], cursorWhere] : [cursorWhere];
+        isCursorPaging = true;
+      }
+    }
+
+    const offset = isCursorPaging ? 0 : page * limit;
+
+    // Build order array with secondary deterministic sort key (id)
+    const order = [
+      [sortField, sortOrder],
+      ["id", sortOrder],
+    ];
+
+    // Optimize Count Query: Decouple from heavy row fetching & avoid joining User unless required by filters
+    const countPromise = hasUserFilter
+      ? WizardContent.count({
+          where,
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: [],
+            },
+          ],
+          distinct: true,
+          col: "id",
+        })
+      : WizardContent.count({ where });
+
+    // Rows Query: NEVER fetch large JSON `content` in list view!
+    const rowsPromise = WizardContent.findAll({
       where,
+      attributes: [
+        "id",
+        "user_id",
+        "topic",
+        "content_type",
+        "status",
+        "created_at",
+        "updated_at",
+      ],
       include: [
         {
           model: User,
@@ -289,19 +354,74 @@ async function getCourses(req, res, next) {
           attributes: ["id", "full_name", "email", "role"],
         },
       ],
-      order: [[sortField, sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC"]],
-      limit,
+      order,
+      limit: limit + 1,
       offset,
     });
+
+    const [count, rawRows] = await Promise.all([countPromise, rowsPromise]);
+
+    const hasMore = rawRows.length > limit;
+    const rows = hasMore ? rawRows.slice(0, limit) : rawRows;
+    const nextCursor = hasMore && rows.length > 0 ? encodeCursor(rows[rows.length - 1], sortField) : null;
 
     res.json({
       data: rows,
       total: count,
-      page,
+      page: isCursorPaging ? null : page,
       totalPages: Math.ceil(count / limit),
+      pagination: {
+        next_cursor: nextCursor,
+        has_more: hasMore,
+        limit,
+      },
     });
   } catch (err) {
     logger.error("[ADMIN] getCourses error:", err);
+    next(err);
+  }
+}
+
+/**
+ * GET /admin/courses/:id
+ * Fetch complete course details on-demand (when modal is opened).
+ */
+async function getCourseById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const course = await WizardContent.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "full_name", "email", "role"],
+        },
+        {
+          model: CourseChapter,
+          as: "chapters",
+          include: [
+            {
+              model: CourseModule,
+              as: "modules",
+              include: [
+                {
+                  model: CourseLesson,
+                  as: "lessons",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!course) {
+      return res.status(404).json({ error: "Course not found" });
+    }
+
+    res.json(course);
+  } catch (err) {
+    logger.error(`[ADMIN] getCourseById error for id ${req.params.id}:`, err);
     next(err);
   }
 }
@@ -313,4 +433,5 @@ module.exports = {
   getLLMConfigs,
   updateLLMConfig,
   getCourses,
+  getCourseById,
 };

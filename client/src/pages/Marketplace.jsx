@@ -13,7 +13,7 @@ import {
   Award,
   Loader2,
 } from "lucide-react";
-import { getPublishedCourses } from "../services/api";
+import { getPublishedCourses, getPublishedCourseById } from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -24,38 +24,47 @@ export default function Marketplace() {
 
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const formatCourseItem = (item) => {
+    const c = item.content || {};
+    return {
+      id: item.id,
+      title: c.title || item.topic,
+      contentType: item.content_type?.toLowerCase() || "course",
+      topic: item.topic,
+      tutorName: item.user?.full_name || item.user?.email || "Unknown Tutor",
+      tutorTitle: item.user?.role === "tutor" ? "Verified Faculty / Tutor" : "Instructor",
+      tutorAvatar: (item.user?.full_name || item.user?.email || "T").charAt(0).toUpperCase(),
+      tutorVerified: item.user?.role === "tutor",
+      rating: (4.5 + Math.random() * 0.5).toFixed(1),
+      reviewsCount: Math.floor(Math.random() * 200) + 10,
+      enrolledCount: Math.floor(Math.random() * 1000) + 50,
+      difficulty: c.skill_level || "Intermediate",
+      estimatedTime: c.duration || "Self-paced",
+      modulesCount: c.modules?.length || 0,
+      description: c.description || "Comprehensive learning curriculum curated by verified tutors.",
+      tags: c.tags || [item.topic],
+      modules: (c.modules || []).map((m) => ({
+        name: m.title || "Module",
+        duration: m.duration || "",
+        detail: m.description || "",
+      })),
+    };
+  };
 
   useEffect(() => {
     async function fetchCourses() {
+      setLoading(true);
       try {
-        const data = await getPublishedCourses();
-        const formatted = data.map((item) => {
-          const c = item.content || {};
-          return {
-            id: item.id,
-            title: c.title || item.topic,
-            contentType: item.content_type?.toLowerCase() || "course",
-            topic: item.topic,
-            tutorName: item.user?.full_name || item.user?.email || "Unknown Tutor",
-            tutorTitle: item.user?.role === "tutor" ? "Verified Faculty / Tutor" : "Instructor",
-            tutorAvatar: (item.user?.full_name || item.user?.email || "T").charAt(0).toUpperCase(),
-            tutorVerified: item.user?.role === "tutor",
-            rating: (4.5 + Math.random() * 0.5).toFixed(1),
-            reviewsCount: Math.floor(Math.random() * 200) + 10,
-            enrolledCount: Math.floor(Math.random() * 1000) + 50,
-            difficulty: c.skill_level || "Intermediate",
-            estimatedTime: c.duration || "Self-paced",
-            modulesCount: c.modules?.length || 0,
-            description: c.description || "No description provided.",
-            tags: c.tags || [item.topic],
-            modules: (c.modules || []).map((m) => ({
-              name: m.title || "Module",
-              duration: m.duration || "",
-              detail: m.description || "",
-            })),
-          };
-        });
-        setCourses(formatted);
+        const res = await getPublishedCourses({ limit: 12 });
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        setCourses(items.map(formatCourseItem));
+        setNextCursor(res?.pagination?.next_cursor || null);
+        setHasMore(Boolean(res?.pagination?.has_more));
       } catch (err) {
         console.error("Failed to fetch published courses", err);
       } finally {
@@ -64,6 +73,57 @@ export default function Marketplace() {
     }
     fetchCourses();
   }, []);
+
+  const handleLoadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await getPublishedCourses({ limit: 12, cursor: nextCursor });
+      const items = Array.isArray(res) ? res : (res?.data || []);
+      setCourses(prev => [...prev, ...items.map(formatCourseItem)]);
+      setNextCursor(res?.pagination?.next_cursor || null);
+      setHasMore(Boolean(res?.pagination?.has_more));
+    } catch (err) {
+      console.error("Failed to load more courses", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleSelectCourse = async (item) => {
+    setSelectedItem(item);
+    if (!item.modules || item.modules.length === 0) {
+      setLoadingDetail(true);
+      try {
+        const detail = await getPublishedCourseById(item.id);
+        if (detail) {
+          const chapters = detail.chapters || [];
+          const extractedModules = [];
+          chapters.forEach(ch => {
+            (ch.modules || []).forEach(m => {
+              extractedModules.push({
+                name: m.title || "Module",
+                duration: m.duration_minutes ? `${m.duration_minutes} min` : "Self-paced",
+                detail: m.description || (m.lessons ? `${m.lessons.length} lessons` : ""),
+              });
+            });
+          });
+
+          if (extractedModules.length > 0) {
+            setSelectedItem(prev => ({
+              ...prev,
+              modules: extractedModules,
+              modulesCount: extractedModules.length,
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load course details", err);
+      } finally {
+        setLoadingDetail(false);
+      }
+    }
+  };
 
   const filteredItems = useMemo(() => {
     return courses.filter((item) => {
@@ -251,7 +311,7 @@ export default function Marketplace() {
 
                   {/* Action Button */}
                   <button
-                    onClick={() => setSelectedItem(item)}
+                    onClick={() => handleSelectCourse(item)}
                     className="w-full flex justify-center items-center gap-2 py-3 bg-slate-900 group-hover:bg-primary text-white font-bold rounded-xl transition-all shadow-md"
                   >
                     Explore Material
@@ -260,6 +320,26 @@ export default function Marketplace() {
                 </div>
               </motion.div>
             ))}
+          </div>
+        )}
+
+        {/* Load More Pagination */}
+        {hasMore && (
+          <div className="mt-12 text-center">
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="px-8 py-3.5 bg-white border border-slate-200 hover:border-primary text-slate-800 font-bold rounded-2xl shadow-sm hover:shadow transition-all disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer"
+            >
+              {loadingMore ? (
+                <>
+                  <Loader2 size={18} className="animate-spin text-primary" />
+                  Loading more courses...
+                </>
+              ) : (
+                "Load More Courses"
+              )}
+            </button>
           </div>
         )}
 
@@ -343,21 +423,30 @@ export default function Marketplace() {
                   <h3 className="text-xl font-bold text-slate-900 mb-4">
                     Syllabus & Module Breakdown
                   </h3>
-                  <div className="flex flex-col gap-3">
-                    {selectedItem.modules.map((mod, idx) => (
-                      <div key={idx} className="p-5 bg-white border border-slate-200 rounded-2xl hover:border-primary/30 transition-colors shadow-sm">
-                        <div className="flex justify-between items-start gap-4 mb-2">
-                          <h4 className="font-bold text-primary text-lg">{mod.name}</h4>
-                          <span className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-md text-[10px] font-bold uppercase tracking-wider shrink-0">
-                            {mod.duration}
-                          </span>
+                  {loadingDetail ? (
+                    <div className="py-12 text-center">
+                      <Loader2 size={28} className="animate-spin text-primary mx-auto mb-2" />
+                      <p className="text-sm font-medium text-slate-500">Loading syllabus breakdown...</p>
+                    </div>
+                  ) : selectedItem.modules && selectedItem.modules.length > 0 ? (
+                    <div className="flex flex-col gap-3">
+                      {selectedItem.modules.map((mod, idx) => (
+                        <div key={idx} className="p-5 bg-white border border-slate-200 rounded-2xl hover:border-primary/30 transition-colors shadow-sm">
+                          <div className="flex justify-between items-start gap-4 mb-2">
+                            <h4 className="font-bold text-primary text-lg">{mod.name}</h4>
+                            <span className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-md text-[10px] font-bold uppercase tracking-wider shrink-0">
+                              {mod.duration}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 text-sm leading-relaxed">
+                            {mod.detail}
+                          </p>
                         </div>
-                        <p className="text-slate-600 text-sm leading-relaxed">
-                          {mod.detail}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 italic py-4">No module breakdown available for this content.</p>
+                  )}
                 </div>
 
                 {/* Modal Footer */}

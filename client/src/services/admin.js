@@ -74,3 +74,8 @@ export const getAdminCourses = async (params = {}) => {
     const res = await API.get(`/admin/courses?${query}`);
     return res.data;
 };
+
+export const getAdminCourseById = async (id) => {
+    const res = await API.get(`/admin/courses/${id}`);
+    return res.data;
+};

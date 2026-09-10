@@ -85,6 +85,10 @@ const User = sequelize.define('User', {
       fields: ['email'],
       name: 'email',
     },
+    {
+      name: 'idx_users_role',
+      fields: ['role'],
+    },
   ],
 });
 

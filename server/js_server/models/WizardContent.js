@@ -39,6 +39,28 @@ const WizardContent = sequelize.define('WizardContent', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  indexes: [
+    {
+      name: 'idx_wc_status_created_at_id',
+      fields: ['status', 'created_at', 'id'],
+    },
+    {
+      name: 'idx_wc_status_type_created',
+      fields: ['status', 'content_type', 'created_at', 'id'],
+    },
+    {
+      name: 'idx_wc_user_created_at',
+      fields: ['user_id', 'created_at', 'id'],
+    },
+    {
+      name: 'idx_wc_created_at_id',
+      fields: ['created_at', 'id'],
+    },
+    {
+      name: 'idx_wc_topic',
+      fields: ['topic'],
+    },
+  ],
 });
 
 User.hasMany(WizardContent, { foreignKey: 'user_id', as: 'wizard_contents' });
