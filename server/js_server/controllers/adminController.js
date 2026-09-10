@@ -6,7 +6,7 @@
  */
 
 const { Op, fn, col, literal } = require("sequelize");
-const { User, ChatSession, LLMConfig, CourseChapter, CourseModule, CourseLesson } = require("../models");
+const { User, ChatSession, LLMConfig, Course, CourseSection, Lesson } = require("../models");
 const logger = require("../utils/logger");
 const {
   encodeCursor,
@@ -389,7 +389,7 @@ async function getCourses(req, res, next) {
 async function getCourseById(req, res, next) {
   try {
     const { id } = req.params;
-    const course = await WizardContent.findByPk(id, {
+    const content = await WizardContent.findByPk(id, {
       include: [
         {
           model: User,
@@ -397,16 +397,18 @@ async function getCourseById(req, res, next) {
           attributes: ["id", "full_name", "email", "role"],
         },
         {
-          model: CourseChapter,
-          as: "chapters",
+          model: Course,
+          as: "course",
           include: [
             {
-              model: CourseModule,
-              as: "modules",
+              model: CourseSection,
+              as: "sections",
+              order: [["sequence", "ASC"]],
               include: [
                 {
-                  model: CourseLesson,
+                  model: Lesson,
                   as: "lessons",
+                  order: [["sequence", "ASC"]],
                 },
               ],
             },
@@ -415,11 +417,32 @@ async function getCourseById(req, res, next) {
       ],
     });
 
-    if (!course) {
+    if (!content) {
       return res.status(404).json({ error: "Course not found" });
     }
 
-    res.json(course);
+    const json = content.toJSON();
+    // Provide backwards-compatible chapters alias for admin UI
+    if (json.course && json.course.sections) {
+      json.chapters = json.course.sections.map((sec, idx) => ({
+        id: sec.id,
+        title: sec.title,
+        description: sec.description,
+        sequence: sec.sequence,
+        estimated_duration: sec.estimated_duration,
+        modules: [
+          {
+            id: sec.id,
+            title: sec.title,
+            description: sec.description,
+            sequence: 1,
+            lessons: sec.lessons || [],
+          },
+        ],
+      }));
+    }
+
+    res.json(json);
   } catch (err) {
     logger.error(`[ADMIN] getCourseById error for id ${req.params.id}:`, err);
     next(err);

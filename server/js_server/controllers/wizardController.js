@@ -1,18 +1,25 @@
 /**
  * controllers/wizardController.js
  * =================================
- * Wizard feature controller — handles course generation, content retrieval,
- * publishing, and internal webhooks from the py_server agent pipeline.
+ * AI Wizard feature controller — handles course generation, content retrieval,
+ * publishing, tutor review, and internal webhooks from the py_server agent pipeline.
  *
- * Content type routing:
- *  - Course/Syllabus → agentic pipeline (py_server agent graph)
- *  - Roadmap/Guide   → legacy single-LLM call (py_server generate-raw)
+ * New normalized database architecture:
+ *   wizard_contents (common metadata / root)
+ *     ├── 1:1 wizard_roadmaps
+ *     ├── 1:1 wizard_guides
+ *     ├── 1:1 wizard_courses
+ *     │         └── 1:N wizard_course_sections
+ *     │                   └── 1:N wizard_lessons
+ *     │                             ├── 1:N wizard_lesson_sections
+ *     │                             └── 1:N wizard_lesson_exercises
+ *     ├── 1:N wizard_generation_jobs
+ *     ├── 1:N wizard_content_versions
+ *     └── 1:N wizard_content_metadata
  *
- * New course DB hierarchy:
- *   WizardContent → CourseChapter → CourseModule → CourseLesson
- *                                                → LessonSection
- *                                                → LessonResource
- *                                                → LessonExercise
+ * Polymorphic resources:
+ *   wizard_resources (linked to roadmap, guide, course, or lesson)
+ *     └── 1:N wizard_resource_links
  */
 
 const { pyAxios } = require("../utils/apiProxy");
@@ -22,22 +29,24 @@ const { Op } = require("sequelize");
 const { encodeCursor, decodeCursor, buildCursorWhere } = require("../utils/paginationHelper");
 const {
   WizardContent,
-  WizardModule,
-  WizardResource,
-  User,
-  CourseChapter,
-  CourseModule,
-  CourseLesson,
+  Roadmap,
+  Guide,
+  Course,
+  CourseSection,
+  Lesson,
   LessonSection,
-  LessonResource,
   LessonExercise,
+  Resource,
+  ResourceLink,
   GenerationJob,
-  GenerationCheckpoint,
+  ContentVersion,
+  ContentMetadata,
+  User,
   LanggraphCheckpoint,
   LanggraphWrite,
 } = require("../models");
 
-/** Check if a content_type is a full course (uses new relational hierarchy) */
+/** Check if a content_type is a full course (uses relational course hierarchy) */
 const isCourseType = (type) =>
   ["course/syllabus", "course", "syllabus"].includes((type || "").toLowerCase().trim());
 
@@ -76,12 +85,111 @@ async function generateContent(req, res, next) {
       return res.status(500).json({ detail: "Failed to generate structured wizard content" });
     }
 
+    const payload = aiResponse.data.content;
+    const title = payload.title || topic;
+    const description = payload.description || "";
+
+    // 1. Create root WizardContent
     const wizardContent = await WizardContent.create({
       user_id: req.user.id,
       topic,
-      content_type,
+      title,
+      description,
+      content_type: normalizedType === "roadmap" ? "Roadmap" : "Guide",
       status: "generated",
-      content: aiResponse.data.content,
+      skill_level: (skill_level || "beginner").toLowerCase(),
+      content: payload, // Preserved for immediate frontend compatibility
+    });
+
+    // 2. Persist type-specific specialization (Roadmap or Guide)
+    if (normalizedType === "roadmap") {
+      const rawModules = payload.phasewise_modules || payload.modules || [];
+      const dbRoadmap = await Roadmap.create({
+        content_id: wizardContent.id,
+        title,
+        description,
+        learning_style: learning_style || null,
+        total_modules: rawModules.length,
+        modules_data: rawModules,
+        prerequisites: payload.prerequisites || [],
+        outcomes: payload.outcomes || [],
+        graph_data: payload.graph_data || null,
+      });
+
+      // Persist common references if returned
+      const references = payload.references || {};
+      const refCategories = Object.keys(references);
+      for (const cat of refCategories) {
+        const items = references[cat] || [];
+        for (const item of items) {
+          if (!item.url && !item.link) continue;
+          const resource = await Resource.create({
+            entity_type: "roadmap",
+            entity_id: dbRoadmap.id,
+            title: item.title || item.name || "Learning Reference",
+            description: item.description || null,
+            category: cat,
+            resource_type: item.resource_type || "article",
+            provider: item.source || item.provider || null,
+          });
+          await ResourceLink.create({
+            resource_id: resource.id,
+            url: item.url || item.link,
+            link_type: "primary",
+            domain: item.domain || null,
+          });
+        }
+      }
+    } else {
+      // Guide specialization
+      const rawModules = payload.modules || [];
+      const dbGuide = await Guide.create({
+        content_id: wizardContent.id,
+        title,
+        description,
+        summary: payload.summary || "",
+        guide_style: payload.guide_style || null,
+        reading_time_minutes: payload.reading_time_minutes || 0,
+        tools_required: payload.tools_required || [],
+        modules_data: rawModules,
+        body_markdown: payload.body_markdown || null,
+      });
+
+      // Persist references if any
+      const references = payload.references || {};
+      const refCategories = Object.keys(references);
+      for (const cat of refCategories) {
+        const items = references[cat] || [];
+        for (const item of items) {
+          if (!item.url && !item.link) continue;
+          const resource = await Resource.create({
+            entity_type: "guide",
+            entity_id: dbGuide.id,
+            title: item.title || item.name || "Learning Reference",
+            description: item.description || null,
+            category: cat,
+            resource_type: item.resource_type || "article",
+            provider: item.source || item.provider || null,
+          });
+          await ResourceLink.create({
+            resource_id: resource.id,
+            url: item.url || item.link,
+            link_type: "primary",
+            domain: item.domain || null,
+          });
+        }
+      }
+    }
+
+    // 3. Create initial ContentVersion snapshot
+    await ContentVersion.create({
+      wizard_content_id: wizardContent.id,
+      version_number: 1,
+      title,
+      change_summary: "Initial AI Generation",
+      snapshot_data: payload,
+      created_by_user_id: req.user.id,
+      is_current: true,
     });
 
     res.json(wizardContent);
@@ -94,35 +202,49 @@ async function generateContent(req, res, next) {
 /**
  * POST /wizard/generate-agentic
  * Start background agentic generation (Course/Syllabus only).
- * Creates a WizardContent record immediately and returns it.
- * The py_server agent pipeline runs in the background and calls webhooks.
+ * Creates a WizardContent + Course record and returns it immediately.
+ * The py_server agent pipeline runs in the background and posts webhooks.
  */
 async function generateAgentic(req, res, next) {
   try {
     const { topic, content_type, details, skill_level, goal, learning_style } = req.body || {};
     logger.info(`[WIZARD] Generate Agentic: topic="${topic}", type="${content_type}" by ${req.user?.email}`);
 
-    // Create skeleton record — py_server will fill in via webhook
+    // Create skeleton root record
     const wizardContent = await WizardContent.create({
       user_id: req.user.id,
       topic,
-      content_type,
+      title: topic,
+      content_type: "Course/Syllabus",
       status: "generating",
+      skill_level: (skill_level || "beginner").toLowerCase(),
       content: {},
+    });
+
+    // Create skeleton Course record
+    await Course.create({
+      content_id: wizardContent.id,
+      title: topic,
+      domain: "general",
+      domain_label: "General",
+      exercise_paradigm: "mixed",
     });
 
     const user_role = req.user?.role || "user";
     const input_payload = { topic, content_type, details, skill_level, goal, learning_style, user_role };
-
     const thread_id = `job_${wizardContent.id}_${Date.now()}`;
+
+    // Create GenerationJob tracker
     await GenerationJob.create({
       wizard_content_id: wizardContent.id,
       status: "queued",
       thread_id,
       input_payload,
+      total_steps: 6,
+      stage_progress_percent: 5,
     });
 
-    // Fire off agentic pipeline — do not await (background task)
+    // Fire off agentic pipeline in background
     pyAxios.post("/wizard/generate-agentic", {
       content_id: wizardContent.id,
       job_id: thread_id,
@@ -130,7 +252,7 @@ async function generateAgentic(req, res, next) {
     }).catch((err) => {
       logger.error(`[WIZARD] py_server agentic failed to start: ${err.message}`);
       wizardContent.update({ status: "error" }).catch(() => { });
-      GenerationJob.update({ status: 'failed', error_details: err.message }, { where: { thread_id } }).catch(() => { });
+      GenerationJob.update({ status: "failed", error_details: err.message }, { where: { thread_id } }).catch(() => { });
     });
 
     res.json(wizardContent);
@@ -138,7 +260,6 @@ async function generateAgentic(req, res, next) {
     next(err);
   }
 }
-
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Read
@@ -150,16 +271,15 @@ async function generateAgentic(req, res, next) {
  */
 async function getHistory(req, res, next) {
   try {
-    const skip = parseInt(req.query.skip) || 0;
-    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const skip = parseInt(req.query.skip, 10) || 0;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
 
     const records = await WizardContent.findAll({
       where: { user_id: req.user.id },
       order: [["created_at", "DESC"]],
       offset: skip,
       limit,
-      // Return lightweight list — no nested content
-      attributes: ["id", "topic", "content_type", "status", "created_at", "updated_at"],
+      attributes: ["id", "topic", "title", "content_type", "status", "created_at", "updated_at"],
     });
 
     res.json(records);
@@ -171,43 +291,40 @@ async function getHistory(req, res, next) {
 /**
  * GET /wizard/:content_id
  * Full content retrieval.
- * For courses: returns the full chapter→module→lesson hierarchy.
- * For other types: returns WizardContent with legacy WizardModule/WizardResource.
+ * For courses: returns the course with sections and lessons.
+ * For roadmaps: returns the roadmap with modules and resources.
+ * For guides: returns the guide with mastery sections and resources.
  */
 async function getContent(req, res, next) {
   try {
     const where = { id: req.params.content_id, user_id: req.user.id };
 
-    // Check content type first to determine include strategy
     const baseContent = await WizardContent.findOne({ where, attributes: ["id", "content_type", "status"] });
     if (!baseContent) return res.status(404).json({ detail: "Content not found" });
 
+    // ── Course Content Type ───────────────────────────────────────────────────
     if (isCourseType(baseContent.content_type)) {
-      // Full course hierarchy
-      const isFinished = ["published", "pending_approval", "error"].includes(baseContent.status);
       const content = await WizardContent.findOne({
         where,
         include: [
           {
             model: GenerationJob,
-            as: "generation_job"
+            as: "generation_job",
           },
           {
-            model: CourseChapter,
-            as: "chapters",
-            order: [["sequence", "ASC"]],
+            model: Course,
+            as: "course",
             include: [
               {
-                model: CourseModule,
-                as: "modules",
+                model: CourseSection,
+                as: "sections",
                 order: [["sequence", "ASC"]],
                 include: [
                   {
-                    model: CourseLesson,
+                    model: Lesson,
                     as: "lessons",
                     order: [["sequence", "ASC"]],
-                    // List view: lightweight (no sections/exercises for performance)
-                    attributes: ["id", "title", "overview", "estimated_time", "sequence", "status"],
+                    attributes: ["id", "title", "slug", "overview", "estimated_time", "sequence", "status"],
                   },
                 ],
               },
@@ -215,34 +332,103 @@ async function getContent(req, res, next) {
           },
         ],
         order: [
-          [{ model: CourseChapter, as: "chapters" }, "sequence", "ASC"],
-          [{ model: CourseChapter, as: "chapters" }, { model: CourseModule, as: "modules" }, "sequence", "ASC"],
-          [{ model: CourseChapter, as: "chapters" }, { model: CourseModule, as: "modules" }, { model: CourseLesson, as: "lessons" }, "sequence", "ASC"],
+          [{ model: Course, as: "course" }, { model: CourseSection, as: "sections" }, "sequence", "ASC"],
+          [{ model: Course, as: "course" }, { model: CourseSection, as: "sections" }, { model: Lesson, as: "lessons" }, "sequence", "ASC"],
+        ],
+      });
+
+      if (!content) return res.status(404).json({ detail: "Content not found" });
+      const json = content.toJSON();
+
+      // Backwards-compatible `chapters` alias for existing frontend components (CourseViewer, etc.)
+      if (json.course && Array.isArray(json.course.sections)) {
+        json.chapters = json.course.sections.map((sec, idx) => ({
+          id: sec.id,
+          title: sec.title,
+          description: sec.description,
+          sequence: sec.sequence,
+          estimated_duration: sec.estimated_duration,
+          modules: [
+            {
+              id: sec.id,
+              title: sec.title,
+              description: sec.description,
+              sequence: 1,
+              lessons: sec.lessons || [],
+            },
+          ],
+        }));
+      }
+
+      return res.json(json);
+    }
+
+    // ── Roadmap Content Type ──────────────────────────────────────────────────
+    if ((baseContent.content_type || "").toLowerCase() === "roadmap") {
+      const content = await WizardContent.findOne({
+        where,
+        include: [
+          { model: GenerationJob, as: "generation_job" },
+          { model: Roadmap, as: "roadmap" },
         ],
       });
       if (!content) return res.status(404).json({ detail: "Content not found" });
       const json = content.toJSON();
+
+      // Load resources for roadmap
+      if (json.roadmap) {
+        const resources = await Resource.findAll({
+          where: { entity_type: "roadmap", entity_id: json.roadmap.id },
+          include: [{ model: ResourceLink, as: "links" }],
+        });
+        json.roadmap.resources = resources;
+
+        // Populate content object for existing RoadmapDisplay component
+        json.content = {
+          ...(json.content || {}),
+          title: json.roadmap.title || json.topic,
+          description: json.roadmap.description,
+          modules: json.roadmap.modules_data,
+          phasewise_modules: json.roadmap.modules_data,
+          prerequisites: json.roadmap.prerequisites,
+          outcomes: json.roadmap.outcomes,
+          graph_data: json.roadmap.graph_data,
+        };
+      }
       return res.json(json);
     }
 
-    // Legacy: Roadmap/Guide with WizardModule/WizardResource
+    // ── Guide Content Type ────────────────────────────────────────────────────
     const content = await WizardContent.findOne({
       where,
       include: [
-        {
-          model: GenerationJob,
-          as: "generation_job"
-        },
-        {
-          model: WizardModule,
-          as: "modules",
-          include: [{ model: WizardResource, as: "resources" }],
-        },
+        { model: GenerationJob, as: "generation_job" },
+        { model: Guide, as: "guide" },
       ],
-      order: [[{ model: WizardModule, as: "modules" }, "sequence", "ASC"]],
     });
+    if (!content) return res.status(404).json({ detail: "Content not found" });
+    const json = content.toJSON();
 
-    res.json(content);
+    if (json.guide) {
+      const resources = await Resource.findAll({
+        where: { entity_type: "guide", entity_id: json.guide.id },
+        include: [{ model: ResourceLink, as: "links" }],
+      });
+      json.guide.resources = resources;
+
+      json.content = {
+        ...(json.content || {}),
+        title: json.guide.title || json.topic,
+        description: json.guide.description,
+        summary: json.guide.summary,
+        modules: json.guide.modules_data,
+        body_markdown: json.guide.body_markdown,
+        reading_time_minutes: json.guide.reading_time_minutes,
+        tools_required: json.guide.tools_required,
+      };
+    }
+    return res.json(json);
+
   } catch (err) {
     next(err);
   }
@@ -251,15 +437,22 @@ async function getContent(req, res, next) {
 /**
  * GET /wizard/:content_id/lesson/:lesson_id
  * Full lesson detail — all sections, resources, and exercises.
- * Used when learner opens a specific lesson in the CourseViewer.
+ * Used when learner opens a specific lesson in the CourseViewer / LessonReader.
  */
 async function getCourseLesson(req, res, next) {
   try {
     const { content_id, lesson_id } = req.params;
 
-    // Verify the lesson belongs to the user's content
-    const lesson = await CourseLesson.findOne({
-      where: { id: lesson_id, content_id },
+    // Verify parent content belongs to user
+    const content = await WizardContent.findOne({
+      where: { id: content_id, user_id: req.user.id },
+      attributes: ["id"],
+    });
+    if (!content) return res.status(403).json({ detail: "Access denied" });
+
+    // Fetch lesson with sections and exercises
+    const lesson = await Lesson.findOne({
+      where: { id: lesson_id },
       include: [
         {
           model: LessonSection,
@@ -267,24 +460,19 @@ async function getCourseLesson(req, res, next) {
           order: [["sequence", "ASC"]],
         },
         {
-          model: LessonResource,
-          as: "resources",
-          order: [["relevance_score", "DESC"]],
-        },
-        {
           model: LessonExercise,
           as: "exercises",
           order: [["sequence", "ASC"]],
         },
         {
-          model: CourseModule,
-          as: "module",
+          model: CourseSection,
+          as: "section",
           attributes: ["id", "title", "description"],
           include: [
             {
-              model: CourseChapter,
-              as: "chapter",
-              attributes: ["id", "title"],
+              model: Course,
+              as: "course",
+              attributes: ["id", "title", "content_id"],
             },
           ],
         },
@@ -293,14 +481,48 @@ async function getCourseLesson(req, res, next) {
 
     if (!lesson) return res.status(404).json({ detail: "Lesson not found" });
 
-    // Verify the content belongs to the requesting user
-    const content = await WizardContent.findOne({
-      where: { id: content_id, user_id: req.user.id },
-      attributes: ["id"],
-    });
-    if (!content) return res.status(403).json({ detail: "Access denied" });
+    // Verify lesson belongs to the expected course
+    if (lesson.section?.course?.content_id !== parseInt(content_id, 10)) {
+      return res.status(403).json({ detail: "Lesson does not belong to this content" });
+    }
 
-    res.json(lesson);
+    // Load resources linked to this lesson
+    const rawResources = await Resource.findAll({
+      where: { entity_type: "lesson", entity_id: lesson.id },
+      include: [{ model: ResourceLink, as: "links" }],
+      order: [["relevance_score", "DESC"]],
+    });
+
+    const json = lesson.toJSON();
+
+    // Map resources to format expected by LessonReader.jsx
+    json.resources = rawResources.map((r) => {
+      const primaryLink = r.links?.[0];
+      return {
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        resource_type: r.resource_type,
+        source: r.provider,
+        url: primaryLink ? primaryLink.url : "",
+        relevance_score: r.relevance_score,
+        tags: r.tags,
+        links: r.links || [],
+      };
+    });
+
+    // Provide module/chapter context adapter for LessonReader header
+    json.module = {
+      id: lesson.section?.id,
+      title: lesson.section?.title,
+      description: lesson.section?.description,
+      chapter: {
+        id: lesson.section?.id,
+        title: lesson.section?.title,
+      },
+    };
+
+    res.json(json);
   } catch (err) {
     next(err);
   }
@@ -323,7 +545,7 @@ async function deleteContent(req, res, next) {
 
     if (!content) return res.status(404).json({ detail: "Content not found" });
 
-    // Cascade handled by DB (onDelete: CASCADE on all child models)
+    // Foreign keys with CASCADE will automatically remove children
     await content.destroy();
     res.json({ detail: "Content deleted successfully" });
   } catch (err) {
@@ -388,50 +610,64 @@ async function provideFeedback(req, res, next) {
 
 /**
  * POST /wizard/:content_id/publish
- * Publish a reviewed course draft with tutor author attribution,
- * and clean up intermediate generation checkpoints, writes, and jobs.
+ * Publish a reviewed course draft with tutor author attribution.
  */
 async function publishContent(req, res, next) {
   try {
     const content = await WizardContent.findOne({
       where: { id: req.params.content_id, user_id: req.user.id },
+      include: [{ model: Course, as: "course" }],
     });
     if (!content) return res.status(404).json({ detail: "Content not found" });
 
-    if (isCourseType(content.content_type)) {
-      // Verify the course has at least one lesson before publishing
-      const lessonCount = await CourseLesson.count({ where: { content_id: content.id } });
+    if (isCourseType(content.content_type) && content.course) {
+      // Find all sections for this course
+      const sections = await CourseSection.findAll({
+        where: { course_id: content.course.id },
+        attributes: ["id"],
+      });
+      const sectionIds = sections.map((s) => s.id);
+
+      const lessonCount = await Lesson.count({
+        where: { section_id: { [Op.in]: sectionIds } },
+      });
+
       if (lessonCount === 0) {
         return res.status(400).json({ detail: "Cannot publish a course with no lessons" });
       }
 
       // Mark all lessons as published
-      await CourseLesson.update(
-        { status: "published" },
-        { where: { content_id: content.id } }
-      );
+      if (sectionIds.length > 0) {
+        await Lesson.update(
+          { status: "published" },
+          { where: { section_id: { [Op.in]: sectionIds } } }
+        );
+      }
     }
 
-    // Capture tutor author attribution
     const authorName = (req.body && req.body.author_name && req.body.author_name.trim())
       ? req.body.author_name.trim()
       : (req.user.full_name || req.user.email);
 
-    const currentContent = content.content || {};
-    const updatedContentPayload = {
-      ...currentContent,
-      author: authorName,
-      author_id: req.user.id,
-      author_role: req.user.role || "tutor",
-      published_at: new Date().toISOString(),
-    };
-
     await content.update({
       status: "published",
-      content: updatedContentPayload,
+      published_at: new Date(),
+      author_name: authorName,
+      author_role: req.user.role || "tutor",
     });
 
-    // Clean up unnecessary checkpoints, writes, and completed generation jobs to optimize storage and performance
+    // Record published version snapshot
+    await ContentVersion.create({
+      wizard_content_id: content.id,
+      version_number: 2,
+      title: content.title || content.topic,
+      change_summary: `Published by ${authorName}`,
+      snapshot_data: { published_at: new Date().toISOString(), status: "published" },
+      created_by_user_id: req.user.id,
+      is_current: true,
+    });
+
+    // Clean up temporary execution checkpoints
     try {
       const jobs = await GenerationJob.findAll({
         where: { wizard_content_id: content.id },
@@ -445,12 +681,11 @@ async function publishContent(req, res, next) {
         await LanggraphCheckpoint.destroy({ where: { thread_id: threadIds } });
       }
       if (jobIds.length > 0) {
-        await GenerationCheckpoint.destroy({ where: { job_id: jobIds } });
         await GenerationJob.destroy({ where: { id: jobIds } });
       }
       logger.info(`[WIZARD] Cleaned up generation checkpoints and jobs for published content_id=${content.id}`);
     } catch (cleanupErr) {
-      logger.warn(`[WIZARD] Non-critical: Checkpoint cleanup failed for content_id=${content.id}: ${cleanupErr.message}`);
+      logger.warn(`[WIZARD] Non-critical checkpoint cleanup warning: ${cleanupErr.message}`);
     }
 
     res.json(content);
@@ -467,9 +702,9 @@ async function updateCourseLesson(req, res, next) {
   const t = await sequelize.transaction();
   try {
     const { content_id, lesson_id } = req.params;
-    const { title, summary, estimated_time, learning_objectives, sections, exercises } = req.body;
+    const { title, summary, overview, estimated_time, learning_objectives, sections, exercises } = req.body;
 
-    // Verify content ownership
+    // Verify ownership
     const content = await WizardContent.findOne({
       where: { id: content_id, user_id: req.user.id },
       transaction: t,
@@ -479,32 +714,29 @@ async function updateCourseLesson(req, res, next) {
       return res.status(404).json({ detail: "Content not found or unauthorized" });
     }
 
-    const lesson = await CourseLesson.findOne({
-      where: { id: lesson_id, content_id },
-      transaction: t,
-    });
+    const lesson = await Lesson.findByPk(lesson_id, { transaction: t });
     if (!lesson) {
       await t.rollback();
       return res.status(404).json({ detail: "Lesson not found" });
     }
 
-    // Update basic fields
+    // Update lesson core attributes
     const updateFields = { status: "reviewed" };
     if (title !== undefined) updateFields.title = title;
-    if (summary !== undefined) updateFields.summary = summary;
+    if (overview !== undefined || summary !== undefined) updateFields.overview = overview || summary;
     if (estimated_time !== undefined) updateFields.estimated_time = estimated_time;
     if (learning_objectives !== undefined) updateFields.learning_objectives = learning_objectives;
 
     await lesson.update(updateFields, { transaction: t });
 
-    // If sections provided, update existing sections or create new
+    // Update or insert sections
     if (Array.isArray(sections)) {
       for (const sec of sections) {
         if (sec.id) {
           await LessonSection.update(
             {
               title: sec.title,
-              content_markdown: sec.content_markdown || sec.body,
+              body: sec.content_markdown || sec.body,
               section_type: sec.section_type || "explanation",
               language: sec.language || null,
             },
@@ -515,7 +747,7 @@ async function updateCourseLesson(req, res, next) {
             {
               lesson_id: lesson.id,
               title: sec.title || null,
-              content_markdown: sec.content_markdown || sec.body,
+              body: sec.content_markdown || sec.body,
               section_type: sec.section_type || "explanation",
               language: sec.language || null,
               sequence: sec.sequence || 1,
@@ -526,7 +758,7 @@ async function updateCourseLesson(req, res, next) {
       }
     }
 
-    // If exercises provided, update existing or create new
+    // Update or insert exercises
     if (Array.isArray(exercises)) {
       for (const ex of exercises) {
         if (ex.id) {
@@ -564,12 +796,11 @@ async function updateCourseLesson(req, res, next) {
 
     await t.commit();
 
-    // Return updated lesson with all children
-    const updated = await CourseLesson.findOne({
+    // Return updated lesson
+    const updated = await Lesson.findOne({
       where: { id: lesson_id },
       include: [
         { model: LessonSection, as: "sections", order: [["sequence", "ASC"]] },
-        { model: LessonResource, as: "resources", order: [["relevance_score", "DESC"]] },
         { model: LessonExercise, as: "exercises", order: [["sequence", "ASC"]] },
       ],
     });
@@ -584,7 +815,6 @@ async function updateCourseLesson(req, res, next) {
 /**
  * GET /wizard/published
  * Retrieve published content for the marketplace with cursor pagination.
- * Excludes heavy `content` JSON column to prevent memory exhaustion and high network payload.
  */
 async function getPublishedCourses(req, res, next) {
   try {
@@ -613,7 +843,7 @@ async function getPublishedCourses(req, res, next) {
 
     const rows = await WizardContent.findAll({
       where,
-      attributes: ["id", "user_id", "topic", "content_type", "status", "created_at", "updated_at"],
+      attributes: ["id", "user_id", "topic", "title", "description", "content_type", "status", "created_at", "updated_at"],
       include: [
         {
           model: User,
@@ -656,7 +886,7 @@ async function getPublishedCourses(req, res, next) {
 async function getPublishedCourseById(req, res, next) {
   try {
     const { id } = req.params;
-    const course = await WizardContent.findOne({
+    const content = await WizardContent.findOne({
       where: { id, status: "published" },
       include: [
         {
@@ -665,15 +895,15 @@ async function getPublishedCourseById(req, res, next) {
           attributes: ["id", "full_name", "email", "role"],
         },
         {
-          model: CourseChapter,
-          as: "chapters",
+          model: Course,
+          as: "course",
           include: [
             {
-              model: CourseModule,
-              as: "modules",
+              model: CourseSection,
+              as: "sections",
               include: [
                 {
-                  model: CourseLesson,
+                  model: Lesson,
                   as: "lessons",
                   attributes: ["id", "title", "sequence", "estimated_time"],
                 },
@@ -684,11 +914,31 @@ async function getPublishedCourseById(req, res, next) {
       ],
     });
 
-    if (!course) {
+    if (!content) {
       return res.status(404).json({ error: "Published course not found" });
     }
 
-    res.json(course);
+    const json = content.toJSON();
+    if (json.course && Array.isArray(json.course.sections)) {
+      json.chapters = json.course.sections.map((sec) => ({
+        id: sec.id,
+        title: sec.title,
+        description: sec.description,
+        sequence: sec.sequence,
+        estimated_duration: sec.estimated_duration,
+        modules: [
+          {
+            id: sec.id,
+            title: sec.title,
+            description: sec.description,
+            sequence: 1,
+            lessons: sec.lessons || [],
+          },
+        ],
+      }));
+    }
+
+    res.json(json);
   } catch (err) {
     logger.error(`[WIZARD] Error fetching published course ${req.params.id}: ${err.message}`);
     next(err);
@@ -701,17 +951,13 @@ async function getPublishedCourseById(req, res, next) {
 
 /**
  * POST /internal/wizard-webhook/status
- * Granular status update during generation — used by each agent node.
- * Body: { content_id, status, label }
- *   status: machine-readable key (e.g. 'generating_lessons')
- *   label:  human-readable message (e.g. '✍️ Writing content for 12 lessons...')
+ * Granular status update during generation.
  */
 async function webhookAgenticStatus(req, res, next) {
   try {
     const { content_id, status, label, job_id, state_cache } = req.body;
     const content = await WizardContent.findByPk(content_id);
     if (content) {
-      // Store both machine status + human label for frontend polling
       const updatedContent = { ...(content.content || {}), _status_label: label };
       if (state_cache) {
         updatedContent.langgraph_state = state_cache;
@@ -721,8 +967,30 @@ async function webhookAgenticStatus(req, res, next) {
         content: updatedContent,
       });
     }
+
     if (job_id) {
-      await GenerationJob.update({ current_stage: status, status: 'running' }, { where: { thread_id: job_id } });
+      // Map stage progress percentages
+      const STAGE_PROGRESS = {
+        queued: 5,
+        generating_blueprint: 15,
+        blueprint_ready: 25,
+        generating_evidence: 40,
+        generating_lessons: 65,
+        reviewing_content: 85,
+        quality_check: 95,
+        completed: 100,
+      };
+
+      const progress = STAGE_PROGRESS[status] || 50;
+      await GenerationJob.update(
+        {
+          current_stage: status,
+          status: "running",
+          stage_progress_percent: progress,
+          user_message: label || null,
+        },
+        { where: { thread_id: job_id } }
+      );
     }
     res.status(200).json({ success: true });
   } catch (err) {
@@ -733,16 +1001,16 @@ async function webhookAgenticStatus(req, res, next) {
 
 /**
  * GET /internal/wizard-webhook/incomplete
- * Retrieves jobs that were abandoned mid-generation (e.g. server crash).
+ * Retrieves jobs that were abandoned mid-generation.
  */
 async function getIncompleteGenerations(req, res, next) {
   try {
     const jobs = await GenerationJob.findAll({
-      where: { status: { [Op.in]: ['queued', 'running'] } },
-      include: [{ model: WizardContent, as: 'wizard_content' }]
+      where: { status: { [Op.in]: ["queued", "running"] } },
+      include: [{ model: WizardContent, as: "wizard_content" }],
     });
 
-    const result = jobs.map(j => {
+    const result = jobs.map((j) => {
       const wc = j.wizard_content;
       const input = j.input_payload || {};
       return {
@@ -755,7 +1023,7 @@ async function getIncompleteGenerations(req, res, next) {
         goal: input.goal,
         learning_style: input.learning_style,
         user_role: input.user_role,
-        state_cache: wc.content?.langgraph_state || null
+        state_cache: wc.content?.langgraph_state || null,
       };
     });
 
@@ -768,11 +1036,7 @@ async function getIncompleteGenerations(req, res, next) {
 
 /**
  * POST /internal/wizard-webhook/complete
- * Final payload from py_server after the agent pipeline completes.
- *
- * Handles two content shapes:
- *  1. `data.content_type === 'course'` → write CourseChapter/Module/Lesson/Section/Resource/Exercise tables
- *  2. Legacy flat modules → write WizardModule/WizardResource tables
+ * Final payload from py_server after the multi-agent pipeline completes.
  */
 async function webhookAgenticComplete(req, res, next) {
   const t = await sequelize.transaction();
@@ -788,15 +1052,15 @@ async function webhookAgenticComplete(req, res, next) {
     const userMessage = req.body.user_message;
     const retryInfo = req.body.retry_info;
 
-    if (error || reqStatus === 'failed' || reqStatus === 'degraded') {
-      const contentStatus = reqStatus === 'degraded' ? 'generating' : 'error';
+    if (error || reqStatus === "failed" || reqStatus === "degraded") {
+      const contentStatus = reqStatus === "degraded" ? "generating" : "error";
       await content.update({ status: contentStatus, content: { error } }, { transaction: t });
-      
+
       if (job_id) {
         const updatePayload = {
-          status: reqStatus || 'failed',
+          status: reqStatus || "failed",
           error_details: error || null,
-          user_message: userMessage || "Something unexpected happened. Our system will try again automatically."
+          user_message: userMessage || "Something unexpected happened. Our system will try again automatically.",
         };
         if (retryInfo && retryInfo.retry_count !== undefined) {
           updatePayload.retry_count = retryInfo.retry_count;
@@ -807,8 +1071,8 @@ async function webhookAgenticComplete(req, res, next) {
       return res.status(200).json({ success: true });
     }
 
-    // ── Course format ──────────────────────────────────────────────────────
-    const isCourse = content.content_type === "course" || data?.content_type === "course";
+    // ── Course Format Handling ───────────────────────────────────────────────
+    const isCourse = isCourseType(content.content_type) || data?.content_type === "course";
     if (isCourse) {
       if (!data || data.error || !Array.isArray(data.chapters) || data.chapters.length === 0) {
         const errorMsg = data?.error || "Course package is incomplete or missing chapters";
@@ -820,14 +1084,17 @@ async function webhookAgenticComplete(req, res, next) {
           );
         }
         await t.commit();
-        logger.error(`[WEBHOOK] Course id=${content_id} failed package validation: ${errorMsg}`);
+        logger.error(`[WEBHOOK] Course id=${content_id} failed validation: ${errorMsg}`);
         return res.status(400).json({ error: errorMsg });
       }
 
       await _persistCourseData(content, data, t);
+
       await content.update(
         {
           status: "pending_approval",
+          title: data.title || content.topic,
+          description: data.description || "",
           content: {
             ...(content.content || {}),
             _course_stored_in_tables: true,
@@ -838,38 +1105,84 @@ async function webhookAgenticComplete(req, res, next) {
         },
         { transaction: t }
       );
+
+      // Save complete snapshot in ContentVersion
+      await ContentVersion.create(
+        {
+          wizard_content_id: content.id,
+          version_number: 1,
+          title: data.title || content.topic,
+          change_summary: "AI Course Generation completed",
+          snapshot_data: data,
+          is_current: true,
+        },
+        { transaction: t }
+      );
+
       if (job_id) {
-        await GenerationJob.update({ status: "completed" }, { where: { thread_id: job_id }, transaction: t });
+        await GenerationJob.update(
+          {
+            status: "completed",
+            stage_progress_percent: 100,
+            completed_at: new Date(),
+          },
+          { where: { thread_id: job_id }, transaction: t }
+        );
       }
       await t.commit();
-      logger.info(`[WEBHOOK] Course id=${content_id} persisted successfully via bulkCreate`);
+      logger.info(`[WEBHOOK] Course id=${content_id} persisted successfully in normalized tables`);
       return res.status(200).json({ success: true });
     }
 
-    // ── Legacy flat modules (roadmap/guide) ─────────────────────────────────
-    await WizardModule.destroy({ where: { content_id: content.id }, transaction: t });
+    // ── Non-Course Format Handling (Roadmap / Guide) ───────────────────────────
+    if ((content.content_type || "").toLowerCase() === "roadmap") {
+      const rawModules = data.phasewise_modules || data.modules || [];
+      const [dbRoadmap] = await Roadmap.findOrCreate({
+        where: { content_id: content.id },
+        defaults: {
+          title: data.title || content.topic,
+          description: data.description || "",
+          total_modules: rawModules.length,
+          modules_data: rawModules,
+          prerequisites: data.prerequisites || [],
+          outcomes: data.outcomes || [],
+        },
+        transaction: t,
+      });
 
-    let seq = 1;
-    for (const mod of data.modules || []) {
-      const dbMod = await WizardModule.create({
-        content_id: content.id,
-        title: mod.title || "Untitled Module",
-        description: mod.description || "",
-        duration: mod.duration || "",
-        sequence: seq++,
-        details_json: mod.topics || [],
-      }, { transaction: t });
+      await dbRoadmap.update(
+        {
+          title: data.title || content.topic,
+          description: data.description || "",
+          total_modules: rawModules.length,
+          modules_data: rawModules,
+          prerequisites: data.prerequisites || [],
+          outcomes: data.outcomes || [],
+        },
+        { transaction: t }
+      );
+    } else {
+      // Guide
+      const [dbGuide] = await Guide.findOrCreate({
+        where: { content_id: content.id },
+        defaults: {
+          title: data.title || content.topic,
+          description: data.description || "",
+          summary: data.summary || "",
+          modules_data: data.modules || [],
+        },
+        transaction: t,
+      });
 
-      for (const ref of mod.references || []) {
-        await WizardResource.create({
-          content_id: content.id,
-          module_id: dbMod.id,
-          title: ref.title || "Reference",
-          url: ref.url || "",
-          description: ref.description || "",
-          source: ref.source || "web",
-        }, { transaction: t });
-      }
+      await dbGuide.update(
+        {
+          title: data.title || content.topic,
+          description: data.description || "",
+          summary: data.summary || "",
+          modules_data: data.modules || [],
+        },
+        { transaction: t }
+      );
     }
 
     await content.update({ status: "pending_approval", content: data }, { transaction: t });
@@ -885,61 +1198,97 @@ async function webhookAgenticComplete(req, res, next) {
 
 /**
  * _persistCourseData
- * Writes the full CoursePackageSchema into the relational tables.
- * Optimized with Sequelize bulkCreate for sections, resources, and exercises
- * to reduce DB round-trips from ~250+ down to ~5-10.
- *
- * @param {WizardContent} content - Parent WizardContent record
- * @param {object} data - CoursePackageSchema JSON from py_server
- * @param {Transaction} t - Sequelize transaction
+ * Writes the CoursePackageSchema into the normalized tables:
+ * Course → CourseSection → Lesson → LessonSection / LessonExercise / Resource
  */
 async function _persistCourseData(content, data, t) {
-  // Clear any previously generated course data for this content_id
-  await CourseChapter.destroy({ where: { content_id: content.id }, transaction: t });
+  // 1. Find or create Course record
+  let course = await Course.findOne({ where: { content_id: content.id }, transaction: t });
+  if (!course) {
+    course = await Course.create(
+      {
+        content_id: content.id,
+        title: data.title || content.topic,
+        description: data.description || "",
+        domain: data.domain || "general",
+        domain_label: data.domain_label || "General",
+        exercise_paradigm: data.exercise_paradigm || "mixed",
+        target_audience: data.target_audience || "General Learners",
+        course_outcomes: data.course_outcomes || [],
+        prerequisites: data.prerequisites || [],
+      },
+      { transaction: t }
+    );
+  } else {
+    await course.update(
+      {
+        title: data.title || content.topic,
+        description: data.description || "",
+        domain: data.domain || "general",
+        domain_label: data.domain_label || "General",
+        exercise_paradigm: data.exercise_paradigm || "mixed",
+        target_audience: data.target_audience || "General Learners",
+        course_outcomes: data.course_outcomes || [],
+        prerequisites: data.prerequisites || [],
+      },
+      { transaction: t }
+    );
+  }
+
+  // Clear previously generated course sections (cascades to lessons, sections, exercises)
+  await CourseSection.destroy({ where: { course_id: course.id }, transaction: t });
 
   const sectionsToCreate = [];
-  const resourcesToCreate = [];
   const exercisesToCreate = [];
+  const resourcesToCreate = [];
+  const resourceLinksToCreate = [];
 
-  const chaptersData = data.chapters || [];
-  let chapSeq = 1;
-  for (const chapter of chaptersData) {
-    const dbChapter = await CourseChapter.create({
-      content_id: content.id,
-      title: chapter.title || "Chapter",
-      description: chapter.description || "",
-      sequence: chapSeq++,
-      estimated_duration: chapter.estimated_duration || "",
-    }, { transaction: t });
+  let totalSections = 0;
+  let totalLessons = 0;
+  let totalExercises = 0;
 
-    let modSeq = 1;
-    for (const module of chapter.modules || []) {
-      const dbModule = await CourseModule.create({
-        chapter_id: dbChapter.id,
-        content_id: content.id,
-        title: module.title || "Module",
-        description: module.description || "",
-        learning_objectives: module.learning_objectives || [],
-        key_takeaways: module.key_takeaways || [],
-        difficulty: module.difficulty || "beginner",
-        estimated_time: module.estimated_time || "",
-        sequence: modSeq++,
-      }, { transaction: t });
+  let secSeq = 1;
+  for (const chapter of data.chapters || []) {
+    const modules = chapter.modules || [];
+
+    // If chapter has multiple modules, create a section per module; otherwise per chapter
+    for (const module of modules) {
+      totalSections++;
+      const sectionTitle = modules.length > 1
+        ? `${chapter.title}: ${module.title}`
+        : (module.title || chapter.title);
+
+      const dbSection = await CourseSection.create(
+        {
+          course_id: course.id,
+          title: sectionTitle,
+          description: module.description || chapter.description || "",
+          learning_objectives: module.learning_objectives || [],
+          key_takeaways: module.key_takeaways || [],
+          difficulty: module.difficulty || "beginner",
+          estimated_duration: module.estimated_time || chapter.estimated_duration || "",
+          sequence: secSeq++,
+        },
+        { transaction: t }
+      );
 
       let lessonSeq = 1;
       for (const lesson of module.lessons || []) {
-        const dbLesson = await CourseLesson.create({
-          module_id: dbModule.id,
-          content_id: content.id,
-          title: lesson.title || "Lesson",
-          overview: lesson.overview || "",
-          estimated_time: lesson.estimated_time || "",
-          sequence: lessonSeq++,
-          status: "reviewed",
-        }, { transaction: t });
+        totalLessons++;
+        const dbLesson = await Lesson.create(
+          {
+            section_id: dbSection.id,
+            title: lesson.title || "Lesson",
+            overview: lesson.overview || "",
+            estimated_time: lesson.estimated_time || "",
+            sequence: lessonSeq++,
+            status: "reviewed",
+          },
+          { transaction: t }
+        );
 
-        // Collect lesson sections for bulk insertion
-        let secSeq = 1;
+        // Collect lesson content sections
+        let blockSeq = 1;
         for (const section of lesson.sections || []) {
           sectionsToCreate.push({
             lesson_id: dbLesson.id,
@@ -947,29 +1296,14 @@ async function _persistCourseData(content, data, t) {
             title: section.title || null,
             body: section.body || "",
             language: section.language || null,
-            sequence: section.sequence || secSeq++,
+            sequence: section.sequence || blockSeq++,
           });
         }
 
-        // Collect lesson resources for bulk insertion
-        for (const resource of lesson.resources || []) {
-          if (!resource.url) continue;
-          resourcesToCreate.push({
-            lesson_id: dbLesson.id,
-            content_id: content.id,
-            title: resource.title || "Resource",
-            url: resource.url,
-            resource_type: resource.resource_type || "other",
-            source: resource.source || "",
-            description: resource.description || null,
-            relevance_score: resource.relevance_score || 0.0,
-            supports: resource.supports || [],
-          });
-        }
-
-        // Collect lesson exercises for bulk insertion
+        // Collect exercises
         let exSeq = 1;
         for (const exercise of lesson.exercises || []) {
+          totalExercises++;
           exercisesToCreate.push({
             lesson_id: dbLesson.id,
             title: exercise.title || "Exercise",
@@ -977,29 +1311,64 @@ async function _persistCourseData(content, data, t) {
             exercise_type: exercise.exercise_type || "reflection",
             difficulty: exercise.difficulty || "medium",
             starter_code: exercise.starter_code || null,
-            language: exercise.language || null,
+            language: exercise.language || "python",
             solution_hint: exercise.solution_hint || null,
             expected_output: exercise.expected_output || null,
             sequence: exercise.sequence || exSeq++,
+          });
+        }
+
+        // Collect resources
+        for (const resource of lesson.resources || []) {
+          if (!resource.url) continue;
+          const dbResource = await Resource.create(
+            {
+              entity_type: "lesson",
+              entity_id: dbLesson.id,
+              title: resource.title || "Resource",
+              description: resource.description || null,
+              resource_type: resource.resource_type || "other",
+              provider: resource.source || "",
+              relevance_score: resource.relevance_score || 0.0,
+              tags: resource.supports || [],
+            },
+            { transaction: t }
+          );
+
+          resourceLinksToCreate.push({
+            resource_id: dbResource.id,
+            url: resource.url,
+            link_type: "primary",
+            domain: resource.source || null,
           });
         }
       }
     }
   }
 
-  // High-performance batch insertion for all child entities
+  // Batch insert sections, exercises, and resource links for high performance
   if (sectionsToCreate.length > 0) {
     await LessonSection.bulkCreate(sectionsToCreate, { transaction: t });
-  }
-  if (resourcesToCreate.length > 0) {
-    await LessonResource.bulkCreate(resourcesToCreate, { transaction: t });
   }
   if (exercisesToCreate.length > 0) {
     await LessonExercise.bulkCreate(exercisesToCreate, { transaction: t });
   }
+  if (resourceLinksToCreate.length > 0) {
+    await ResourceLink.bulkCreate(resourceLinksToCreate, { transaction: t });
+  }
+
+  // Update course counters
+  await course.update(
+    {
+      total_sections: totalSections,
+      total_lessons: totalLessons,
+      total_exercises: totalExercises,
+    },
+    { transaction: t }
+  );
 
   logger.info(
-    `[WEBHOOK] Course data persisted via bulkCreate: content_id=${content.id}, chapters=${data.chapters?.length || 0}, sections=${sectionsToCreate.length}, resources=${resourcesToCreate.length}, exercises=${exercisesToCreate.length}`
+    `[WEBHOOK] Course persisted: content_id=${content.id}, sections=${totalSections}, lessons=${totalLessons}, exercises=${totalExercises}`
   );
 }
 
@@ -1009,11 +1378,12 @@ async function _persistCourseData(content, data, t) {
  */
 async function webhookAgenticLessonIncremental(req, res, next) {
   const { content_id, job_id, lesson_data, chapter_title, module_title, sequence_info, state_cache } = req.body;
-  const targetChapterTitle = chapter_title || "Chapter 1";
-  const targetChapterSeq = sequence_info?.chapter_seq || 1;
+  const targetSectionTitle = module_title
+    ? `${chapter_title || "Chapter 1"}: ${module_title}`
+    : (chapter_title || "Chapter 1");
 
   if (!content_id || !lesson_data || !lesson_data.title) {
-    return res.status(400).json({ error: "Missing required incremental payload (content_id or lesson_data.title)" });
+    return res.status(400).json({ error: "Missing required incremental payload" });
   }
 
   const MAX_RETRIES = 3;
@@ -1035,106 +1405,108 @@ async function webhookAgenticLessonIncremental(req, res, next) {
         }, { transaction: t });
       }
 
-      // Upsert Chapter
-      const [dbChapter] = await CourseChapter.findOrCreate({
-        where: { content_id, title: targetChapterTitle },
-        defaults: {
-          description: "",
-          sequence: targetChapterSeq,
-          estimated_duration: "",
-        },
-        transaction: t
+      // 1. Ensure Course exists
+      const [course] = await Course.findOrCreate({
+        where: { content_id },
+        defaults: { title: content.topic },
+        transaction: t,
       });
 
-      // Upsert Module
-      const [dbModule] = await CourseModule.findOrCreate({
-        where: { chapter_id: dbChapter.id, content_id, title: module_title },
+      // 2. Ensure CourseSection exists
+      const [dbSection] = await CourseSection.findOrCreate({
+        where: { course_id: course.id, title: targetSectionTitle },
         defaults: {
-          chapter_id: dbChapter.id,
-          content_id,
-          title: module_title,
+          course_id: course.id,
+          title: targetSectionTitle,
           description: "",
-          learning_objectives: [],
-          key_takeaways: [],
-          difficulty: "beginner",
-          estimated_time: "",
-          sequence: sequence_info?.module_seq || 1,
+          sequence: sequence_info?.chapter_seq || 1,
         },
-        transaction: t
+        transaction: t,
       });
 
-      // Upsert Lesson
-      const [dbLesson] = await CourseLesson.findOrCreate({
-        where: { module_id: dbModule.id, content_id, title: lesson_data.title },
+      // 3. Ensure Lesson exists
+      const [dbLesson] = await Lesson.findOrCreate({
+        where: { section_id: dbSection.id, title: lesson_data.title },
         defaults: {
+          section_id: dbSection.id,
+          title: lesson_data.title,
           overview: lesson_data.overview || "",
           estimated_time: lesson_data.estimated_time || "",
           sequence: sequence_info?.lesson_seq || 1,
           status: "draft",
         },
-        transaction: t
+        transaction: t,
       });
 
-      // Update existing lesson fields
       await dbLesson.update({
         overview: lesson_data.overview || "",
         estimated_time: lesson_data.estimated_time || "",
         status: "draft",
       }, { transaction: t });
 
-      // Clear old sections/resources/exercises for this lesson if re-generating
+      // Clear old content blocks & exercises on regeneration
       await LessonSection.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
-      await LessonResource.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
       await LessonExercise.destroy({ where: { lesson_id: dbLesson.id }, transaction: t });
+      await Resource.destroy({ where: { entity_type: "lesson", entity_id: dbLesson.id }, transaction: t });
 
-      // Write lesson sections in bulk
-      let secSeq = 1;
-      const sectionsToCreate = (lesson_data.sections || []).map(section => ({
+      // Write lesson sections
+      let blockSeq = 1;
+      const sectionsToCreate = (lesson_data.sections || []).map((s) => ({
         lesson_id: dbLesson.id,
-        section_type: section.section_type || "explanation",
-        title: section.title || null,
-        body: section.body || "",
-        language: section.language || null,
-        sequence: section.sequence || secSeq++,
+        section_type: s.section_type || "explanation",
+        title: s.title || null,
+        body: s.body || "",
+        language: s.language || null,
+        sequence: s.sequence || blockSeq++,
       }));
       if (sectionsToCreate.length > 0) {
         await LessonSection.bulkCreate(sectionsToCreate, { transaction: t });
       }
 
-      // Write lesson resources in bulk
-      const resourcesToCreate = (lesson_data.resources || [])
-        .filter(r => r && r.url)
-        .map(resource => ({
-          lesson_id: dbLesson.id,
-          content_id,
-          title: resource.title || "Resource",
-          url: resource.url,
-          resource_type: resource.resource_type || "other",
-          source: resource.source || "",
-          description: resource.description || null,
-          relevance_score: resource.relevance_score || 0.0,
-          supports: resource.supports || [],
-        }));
-      if (resourcesToCreate.length > 0) {
-        await LessonResource.bulkCreate(resourcesToCreate, { transaction: t });
-      }
-
-      // Write lesson exercises in bulk
+      // Write lesson exercises
       let exSeq = 1;
-      const exercisesToCreate = (lesson_data.exercises || []).map(exercise => ({
+      const exercisesToCreate = (lesson_data.exercises || []).map((e) => ({
         lesson_id: dbLesson.id,
-        title: exercise.title || "Exercise",
-        description: exercise.description || "",
-        exercise_type: exercise.exercise_type || "reflection",
-        difficulty: exercise.difficulty || "medium",
-        starter_code: exercise.starter_code || null,
-        language: exercise.language || null,
-        solution_hint: exercise.solution_hint || null,
-        expected_output: exercise.expected_output || null,
-        sequence: exercise.sequence || exSeq++,
+        title: e.title || "Exercise",
+        description: e.description || "",
+        exercise_type: e.exercise_type || "reflection",
+        difficulty: e.difficulty || "medium",
+        starter_code: e.starter_code || null,
+        language: e.language || "python",
+        solution_hint: e.solution_hint || null,
+        expected_output: e.expected_output || null,
+        sequence: e.sequence || exSeq++,
       }));
       if (exercisesToCreate.length > 0) {
         await LessonExercise.bulkCreate(exercisesToCreate, { transaction: t });
+      }
+
+      // Write lesson resources
+      for (const resItem of lesson_data.resources || []) {
+        if (!resItem.url) continue;
+        const dbRes = await Resource.create(
+          {
+            entity_type: "lesson",
+            entity_id: dbLesson.id,
+            title: resItem.title || "Resource",
+            description: resItem.description || null,
+            resource_type: resItem.resource_type || "other",
+            provider: resItem.source || "",
+            relevance_score: resItem.relevance_score || 0.0,
+            tags: resItem.supports || [],
+          },
+          { transaction: t }
+        );
+
+        await ResourceLink.create(
+          {
+            resource_id: dbRes.id,
+            url: resItem.url,
+            link_type: "primary",
+            domain: resItem.source || null,
+          },
+          { transaction: t }
+        );
       }
 
       await t.commit();
@@ -1143,10 +1515,10 @@ async function webhookAgenticLessonIncremental(req, res, next) {
 
     } catch (err) {
       await t.rollback();
-      const isDeadlock = err.original?.errno === 1213 || (err.message && err.message.includes('Deadlock'));
+      const isDeadlock = err.original?.errno === 1213 || (err.message && err.message.includes("Deadlock"));
       if (isDeadlock && attempt < MAX_RETRIES) {
         logger.warn(`[WIZARD WEBHOOK] Deadlock detected during incremental save (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${attempt * 100}ms...`);
-        await new Promise(r => setTimeout(r, attempt * 100));
+        await new Promise((r) => setTimeout(r, attempt * 100));
         continue;
       }
       logger.error(`[WIZARD WEBHOOK] Incremental save error: ${err.message}`, err);
@@ -1163,30 +1535,27 @@ async function getGenerationStatus(req, res, next) {
   try {
     const { content_id } = req.params;
     const content = await WizardContent.findOne({
-      where: { id: content_id, user_id: req.user.id }
+      where: { id: content_id, user_id: req.user.id },
     });
     if (!content) return res.status(404).json({ error: "Content not found" });
 
     const job = await GenerationJob.findOne({
       where: { wizard_content_id: content_id },
-      order: [['created_at', 'DESC']]
+      order: [["created_at", "DESC"]],
     });
 
     if (!job) return res.status(404).json({ error: "Job not found" });
-
-    // Try to get progress from checkpoints
-    const { GenerationCheckpoint } = require('../models');
-    const checkpoints = await GenerationCheckpoint.findAll({ where: { job_id: job.id } });
 
     res.json({
       job_id: job.thread_id,
       status: job.status,
       content_type: content.content_type,
       current_stage: job.current_stage,
+      progress: job.stage_progress_percent,
       retry_count: job.retry_count,
       error: job.error_details,
-      checkpoints: checkpoints.map(c => ({ stage: c.stage, status: c.status, node: c.node })),
-      label: content.content?._status_label
+      user_message: job.user_message,
+      label: content.content?._status_label || job.user_message,
     });
   } catch (err) {
     next(err);
@@ -1214,12 +1583,10 @@ async function retryJob(req, res, next) {
     const job = await GenerationJob.findOne({ where: { thread_id: req.params.job_id } });
     if (!job) return res.status(404).json({ error: "Job not found" });
 
-    await job.update({ status: 'pending', retry_count: job.retry_count + 1 });
+    await job.update({ status: "pending", retry_count: job.retry_count + 1 });
+    pyAxios.post(`/wizard/generation/${job.thread_id}/retry`).catch((e) => logger.error(`Retry ping failed: ${e.message}`));
 
-    // Trigger python pyAxios
-    pyAxios.post(`/wizard/generation/${job.thread_id}/retry`).catch(e => logger.error(`Retry ping failed: ${e.message}`));
-
-    res.json({ success: true, status: 'pending' });
+    res.json({ success: true, status: "pending" });
   } catch (err) {
     res.status(500).json({ error: "Internal error" });
   }
@@ -1233,10 +1600,8 @@ async function cancelJob(req, res, next) {
     const job = await GenerationJob.findOne({ where: { thread_id: req.params.job_id } });
     if (!job) return res.status(404).json({ error: "Job not found" });
 
-    await job.update({ status: 'cancelled' });
-
-    // Trigger python pyAxios
-    pyAxios.post(`/wizard/generation/${job.thread_id}/cancel`).catch(e => logger.error(`Cancel ping failed: ${e.message}`));
+    await job.update({ status: "cancelled" });
+    pyAxios.post(`/wizard/generation/${job.thread_id}/cancel`).catch((e) => logger.error(`Cancel ping failed: ${e.message}`));
 
     res.json({ success: true });
   } catch (err) {
@@ -1246,7 +1611,7 @@ async function cancelJob(req, res, next) {
 
 /**
  * POST /internal/wizard-webhook/checkpoint
- * Upserts a GenerationCheckpoint
+ * Updates checkpoint state in GenerationJob
  */
 async function webhookAgenticCheckpoint(req, res, next) {
   try {
@@ -1254,18 +1619,10 @@ async function webhookAgenticCheckpoint(req, res, next) {
     const job = await GenerationJob.findOne({ where: { thread_id: job_id } });
     if (!job) return res.status(404).json({ error: "Job not found" });
 
-    const { GenerationCheckpoint } = require('../models');
+    const currentCheckpoints = job.checkpoint_data || {};
+    currentCheckpoints[stage] = { node, status, updated_at: new Date().toISOString() };
 
-    // Upsert using Sequelize findOrCreate + update or native upsert
-    const [checkpoint, created] = await GenerationCheckpoint.findOrCreate({
-      where: { job_id: job.id, stage },
-      defaults: { node, status }
-    });
-
-    if (!created) {
-      await checkpoint.update({ node, status });
-    }
-
+    await job.update({ checkpoint_data: currentCheckpoints, current_stage: stage });
     res.json({ success: true });
   } catch (err) {
     logger.error(`[WIZARD WEBHOOK] Checkpoint error: ${err.message}`);
@@ -1274,18 +1631,15 @@ async function webhookAgenticCheckpoint(req, res, next) {
 }
 
 /**
- * Resume waiting, queued, or failed generation tasks.
-/**
  * Get count of resumable failed/pending generation tasks for a user.
- * Used for login notifications.
  */
 async function getFailedGenerationsCount(userId) {
   try {
     const contents = await WizardContent.findAll({
       where: { user_id: userId },
-      attributes: ['id']
+      attributes: ["id"],
     });
-    const contentIds = contents.map(c => c.id);
+    const contentIds = contents.map((c) => c.id);
     if (contentIds.length === 0) return 0;
 
     const limitDate = new Date();
@@ -1294,10 +1648,10 @@ async function getFailedGenerationsCount(userId) {
     const count = await GenerationJob.count({
       where: {
         wizard_content_id: { [Op.in]: contentIds },
-        status: { [Op.in]: ['queued', 'failed', 'degraded', 'pending', 'resuming'] },
+        status: { [Op.in]: ["queued", "failed", "degraded", "pending", "resuming"] },
         retry_count: { [Op.lt]: 3 },
-        created_at: { [Op.gte]: limitDate }
-      }
+        created_at: { [Op.gte]: limitDate },
+      },
     });
     return count;
   } catch (err) {
@@ -1308,24 +1662,22 @@ async function getFailedGenerationsCount(userId) {
 
 /**
  * Resume waiting, queued, or failed generation tasks.
- * Applies max age (48h) and max retry (< 3) guards.
- * Stale jobs (> 48h) are permanently marked as cancelled and their checkpoints cleaned.
  */
 async function resumePendingGenerations(userId = null) {
   const result = { resumed: 0, skipped: 0, reasons: [] };
   try {
     const whereClause = {
       status: {
-        [Op.in]: ['queued', 'failed', 'degraded', 'pending', 'resuming']
-      }
+        [Op.in]: ["queued", "failed", "degraded", "pending", "resuming"],
+      },
     };
-    
+
     if (userId) {
       const contents = await WizardContent.findAll({
         where: { user_id: userId },
-        attributes: ['id']
+        attributes: ["id"],
       });
-      const contentIds = contents.map(c => c.id);
+      const contentIds = contents.map((c) => c.id);
       if (contentIds.length === 0) return result;
       whereClause.wizard_content_id = { [Op.in]: contentIds };
     }
@@ -1335,21 +1687,17 @@ async function resumePendingGenerations(userId = null) {
     limitDate.setHours(limitDate.getHours() - 48);
 
     for (const job of jobs) {
-      // 1. Max age guard & Cleanup
       if (new Date(job.created_at) < limitDate) {
-        logger.info(`[RESUME] Skipping and cleaning stale job ${job.thread_id} (created: ${job.created_at})`);
-        job.status = 'cancelled';
+        logger.info(`[RESUME] Skipping and cleaning stale job ${job.thread_id}`);
+        job.status = "cancelled";
         job.user_message = "Generation expired and was cancelled automatically.";
         await job.save();
 
-        // Mark associated wizard content as error
         await WizardContent.update(
-          { status: 'error' },
+          { status: "error" },
           { where: { id: job.wizard_content_id } }
         );
 
-        // Cleanup stale checkpointer data from DB to maintain performance
-        const { LanggraphCheckpoint, LanggraphWrite } = require('../models');
         await LanggraphCheckpoint.destroy({ where: { thread_id: job.thread_id } });
         await LanggraphWrite.destroy({ where: { thread_id: job.thread_id } });
 
@@ -1358,7 +1706,6 @@ async function resumePendingGenerations(userId = null) {
         continue;
       }
 
-      // 2. Max retry guard
       if (job.retry_count >= 3) {
         logger.info(`[RESUME] Skipping job ${job.thread_id} - max retries reached`);
         result.skipped++;
@@ -1366,14 +1713,12 @@ async function resumePendingGenerations(userId = null) {
         continue;
       }
 
-      // 3. Resume execution
-      logger.info(`[RESUME] Triggering retry for GenerationJob ${job.thread_id} (status: ${job.status})`);
-      job.status = 'resuming';
+      logger.info(`[RESUME] Triggering retry for GenerationJob ${job.thread_id}`);
+      job.status = "resuming";
       await job.save();
 
-      // Update associated content status to generating so UI updates correctly
       await WizardContent.update(
-        { status: 'generating' },
+        { status: "generating" },
         { where: { id: job.wizard_content_id } }
       );
 
@@ -1417,5 +1762,3 @@ module.exports = {
   resumePendingGenerations,
   getFailedGenerationsCount,
 };
-
-
