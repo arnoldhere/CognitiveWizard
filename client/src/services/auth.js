@@ -19,3 +19,11 @@ export const forgotPassword = async (email) => {
 export const resetPassword = async (email, otp, newPassword) => {
     return API.post("/auth/reset-password", { email, otp, new_password: newPassword });
 };
+
+export const getOAuthUrl = async (provider, params = {}) => {
+    return API.get(`/auth/oauth/${provider}/url`, { params });
+};
+
+export const handleOAuthCallback = async (provider, payload) => {
+    return API.post(`/auth/oauth/${provider}/callback`, payload);
+};

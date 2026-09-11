@@ -23,6 +23,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { Card, CardContent } from "../components/ui/Card";
 import { motion } from "framer-motion";
+import OAuthButtons from "../components/auth/OAuthButtons";
 
 export default function Signup() {
     const { signup } = useAuth();
@@ -38,21 +39,27 @@ export default function Signup() {
     });
 
     const [error, setError] = useState(null);
+    const [conflictProvider, setConflictProvider] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
         setError(null);
+        setConflictProvider(null);
         setLoading(true);
 
         try {
             await signup(form);
             navigate("/login", { replace: true });
         } catch (err) {
+            const data = err.response?.data;
+            if (data?.provider) {
+                setConflictProvider(data.provider);
+            }
             setError(
-                err.response?.data?.detail ||
-                err.response?.data?.error ||
+                data?.error ||
+                data?.detail ||
                 "Unable to create account. Please check your information and try again."
             );
         } finally {
@@ -62,6 +69,7 @@ export default function Signup() {
 
     const updateField = (field) => (event) => {
         setError(null);
+        if (conflictProvider) setConflictProvider(null);
 
         const value =
             event.target.type === "checkbox"
@@ -568,19 +576,30 @@ export default function Signup() {
                                                     y: 0,
                                                 }}
                                                 role="alert"
-                                                className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+                                                className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${
+                                                    conflictProvider
+                                                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                                                        : "border-red-200 bg-red-50 text-red-700"
+                                                }`}
                                             >
-                                                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold">
+                                                <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                                                    conflictProvider ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"
+                                                }`}>
                                                     !
                                                 </div>
 
                                                 <div>
                                                     <p className="font-bold">
-                                                        Account creation failed
+                                                        {conflictProvider ? "Account already exists" : "Account creation failed"}
                                                     </p>
                                                     <p className="mt-0.5 leading-5">
                                                         {error}
                                                     </p>
+                                                    {conflictProvider && (
+                                                        <p className="mt-1.5 text-xs font-semibold text-primary">
+                                                            Click the highlighted button below to continue with {conflictProvider.charAt(0).toUpperCase() + conflictProvider.slice(1)}.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </motion.div>
                                         )}
@@ -604,6 +623,31 @@ export default function Signup() {
                                                 )}
                                             </Button>
                                         </div>
+
+                                        {/* Social Signup Divider */}
+                                        <div className="relative py-1">
+                                            <div className="absolute inset-x-0 top-1/2 flex items-center">
+                                                <div className="w-full border-t border-slate-200" />
+                                            </div>
+                                            <div className="relative flex justify-center">
+                                                <span className="bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                                    Or sign up with
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Social Signup Buttons */}
+                                        <OAuthButtons
+                                            role={form.is_tutor ? "tutor" : "user"}
+                                            onRoleChange={(newRole) =>
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    is_tutor: newRole === "tutor",
+                                                }))
+                                            }
+                                            conflictProvider={conflictProvider}
+                                            onError={(msg) => setError(msg)}
+                                        />
 
                                         {/* Security */}
                                         <div className="flex items-center justify-center gap-2 text-center text-xs text-slate-400">

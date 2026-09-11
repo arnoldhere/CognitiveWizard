@@ -119,12 +119,13 @@ export const getQuizResults = async ({
   return res.data;
 };
 
-export const deleteProfile = async (password) => {
-  const res = await API.delete("/auth/profile", {
-    data: {
-      password,
-    },
-  });
+export const deleteProfile = async (payloadOrPassword) => {
+  const data =
+    typeof payloadOrPassword === "string"
+      ? { password: payloadOrPassword, confirmation: payloadOrPassword }
+      : payloadOrPassword || { confirm: true };
+
+  const res = await API.delete("/auth/profile", { data });
   return res.data;
 };
 

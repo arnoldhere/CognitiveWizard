@@ -48,6 +48,7 @@ export default function Profile() {
     /* Delete profile */
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [deletePassword, setDeletePassword] = useState("");
+    const [deleteConfirmText, setDeleteConfirmText] = useState("");
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
 
@@ -116,24 +117,46 @@ export default function Profile() {
         }
     };
 
+    const isOAuthUser = Boolean(user?.auth_provider && user.auth_provider !== "local");
+    const providerName = user?.auth_provider
+        ? user.auth_provider.charAt(0).toUpperCase() + user.auth_provider.slice(1)
+        : "";
+
     const handleDeleteProfile = async () => {
-        if (!deletePassword.trim()) {
-            setDeleteError("Please enter your password");
-            return;
+        if (isOAuthUser) {
+            if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+                setDeleteError("Please type DELETE to confirm");
+                return;
+            }
+        } else {
+            if (!deletePassword.trim()) {
+                setDeleteError("Please enter your password");
+                return;
+            }
         }
+
         try {
             setDeleteLoading(true);
             setDeleteError(null);
-            await deleteProfile(deletePassword);
+            if (isOAuthUser) {
+                await deleteProfile({ confirmation: "DELETE", confirm: true });
+            } else {
+                await deleteProfile({ password: deletePassword });
+            }
             setDeleteModalOpen(false);
             setDeletePassword("");
+            setDeleteConfirmText("");
             await new Promise((resolve) => setTimeout(resolve, 500));
             await logout();
             navigate("/login", {
                 state: { message: "Your profile has been successfully deleted" },
             });
         } catch (err) {
-            setDeleteError("Failed to delete profile, Invalid password.");
+            setDeleteError(
+                err.response?.data?.error ||
+                err.response?.data?.detail ||
+                (isOAuthUser ? "Failed to delete account. Please try again." : "Failed to delete profile, Invalid password.")
+            );
         } finally {
             setDeleteLoading(false);
         }
@@ -342,6 +365,7 @@ export default function Profile() {
                             <InfoRow icon={<Shield />} label="User Role" value={user?.role} />
                             <InfoRow icon={<Phone />} label="Phone Number" value={user?.phone || "Not provided"} />
                             <InfoRow icon={<Calendar />} label="Date of Birth" value={user?.dob || "Not provided"} />
+                            <InfoRow icon={<Shield />} label="Authentication" value={isOAuthUser ? `${providerName} OAuth` : "Email & Password"} />
                         </div>
                     </div>
 
@@ -553,7 +577,17 @@ export default function Profile() {
             )}
 
             {/* Modal: Delete Profile */}
-            <Modal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setDeletePassword(""); setDeleteError(null); }} title="Confirm Delete Profile" maxWidth="sm">
+            <Modal
+                isOpen={deleteModalOpen}
+                onClose={() => {
+                    setDeleteModalOpen(false);
+                    setDeletePassword("");
+                    setDeleteConfirmText("");
+                    setDeleteError(null);
+                }}
+                title="Confirm Delete Profile"
+                maxWidth="sm"
+            >
                 <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl">
                     <div className="flex items-start gap-3">
                         <AlertTriangle className="text-rose-600 shrink-0 mt-0.5" size={20} />
@@ -562,28 +596,85 @@ export default function Profile() {
                             <p className="text-rose-700 text-sm font-medium mb-1">Deleting your profile will:</p>
                             <ul className="list-disc list-inside text-rose-700 text-sm font-medium ml-2 space-y-1">
                                 <li>Remove your login account permanently</li>
-                                <li>Delete facial bio template metadata</li>
+                                <li>Delete your saved courses, notes, and study history</li>
                                 <li>Wipe quiz result archives</li>
                                 <li>Delete all uploaded files & embeddings</li>
                             </ul>
                         </div>
                     </div>
                 </div>
-                <div className="mb-6">
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Enter your password to verify your identity:</label>
-                    <input
-                        type="password"
-                        placeholder="Enter password to confirm"
-                        value={deletePassword}
-                        onChange={(e) => { setDeletePassword(e.target.value); if (deleteError) setDeleteError(null); }}
-                        disabled={deleteLoading}
-                        className={`w-full px-4 py-3 rounded-xl border ${deleteError ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200 focus:border-primary focus:ring-primary/20'} outline-none focus:ring-2 transition-all`}
-                    />
-                    {deleteError && <p className="text-rose-600 text-xs font-semibold mt-2">{deleteError}</p>}
-                </div>
+
+                {isOAuthUser ? (
+                    <div className="mb-6">
+                        <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+                            Signed in via <span className="font-bold">{providerName}</span> ({user?.email}).
+                            Because your account was created using {providerName}, password verification is not required.
+                        </div>
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">
+                            To verify and delete your account, type <span className="font-extrabold text-rose-600">DELETE</span> below:
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Type DELETE to confirm"
+                            value={deleteConfirmText}
+                            onChange={(e) => {
+                                setDeleteConfirmText(e.target.value);
+                                if (deleteError) setDeleteError(null);
+                            }}
+                            disabled={deleteLoading}
+                            className={`w-full px-4 py-3 rounded-xl border ${
+                                deleteError
+                                    ? "border-rose-500 focus:ring-rose-500/20"
+                                    : "border-slate-200 focus:border-primary focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800"
+                            } outline-none focus:ring-2 transition-all`}
+                        />
+                        {deleteError && <p className="text-rose-600 text-xs font-semibold mt-2">{deleteError}</p>}
+                    </div>
+                ) : (
+                    <div className="mb-6">
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Enter your password to verify your identity:</label>
+                        <input
+                            type="password"
+                            placeholder="Enter password to confirm"
+                            value={deletePassword}
+                            onChange={(e) => {
+                                setDeletePassword(e.target.value);
+                                if (deleteError) setDeleteError(null);
+                            }}
+                            disabled={deleteLoading}
+                            className={`w-full px-4 py-3 rounded-xl border ${
+                                deleteError
+                                    ? "border-rose-500 focus:ring-rose-500/20"
+                                    : "border-slate-200 focus:border-primary focus:ring-primary/20"
+                            } outline-none focus:ring-2 transition-all`}
+                        />
+                        {deleteError && <p className="text-rose-600 text-xs font-semibold mt-2">{deleteError}</p>}
+                    </div>
+                )}
+
                 <div className="flex items-center justify-end gap-3">
-                    <button onClick={() => { setDeleteModalOpen(false); setDeletePassword(""); setDeleteError(null); }} disabled={deleteLoading} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
-                    <button onClick={handleDeleteProfile} disabled={deleteLoading || !deletePassword.trim()} className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all">
+                    <button
+                        onClick={() => {
+                            setDeleteModalOpen(false);
+                            setDeletePassword("");
+                            setDeleteConfirmText("");
+                            setDeleteError(null);
+                        }}
+                        disabled={deleteLoading}
+                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleDeleteProfile}
+                        disabled={
+                            deleteLoading ||
+                            (isOAuthUser
+                                ? deleteConfirmText.trim().toUpperCase() !== "DELETE"
+                                : !deletePassword.trim())
+                        }
+                        className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all cursor-pointer"
+                    >
                         {deleteLoading ? "Deleting..." : "Permanently Delete"}
                     </button>
                 </div>

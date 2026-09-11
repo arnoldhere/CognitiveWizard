@@ -18,6 +18,7 @@ import { useAuth } from "../hooks/useAuth";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { Card, CardContent } from "../components/ui/Card";
+import OAuthButtons from "../components/auth/OAuthButtons";
 
 const highlights = [
     {
@@ -42,6 +43,7 @@ export default function Login() {
         password: "",
     });
     const [error, setError] = useState(null);
+    const [conflictProvider, setConflictProvider] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -54,6 +56,7 @@ export default function Login() {
         }));
 
         if (error) setError(null);
+        if (conflictProvider) setConflictProvider(null);
     };
 
     const handleSubmit = async (event) => {
@@ -61,6 +64,7 @@ export default function Login() {
 
         setLoading(true);
         setError(null);
+        setConflictProvider(null);
 
         try {
             const payload = await login(form);
@@ -68,7 +72,7 @@ export default function Login() {
 
             if (role === "admin") {
                 navigate("/admin/dashboard", { replace: true });
-            } else if (role === "user") {
+            } else if (role === "user" || role === "tutor") {
                 navigate(from, { replace: true });
             } else {
                 setError("Unknown user role. Please contact support.");
@@ -77,8 +81,12 @@ export default function Login() {
             if (err.response?.status === 403) {
                 navigate("/blocked", { replace: true });
             } else {
+                const responseData = err.response?.data;
+                if (responseData?.provider) {
+                    setConflictProvider(responseData.provider);
+                }
                 setError(
-                    err.response?.data?.error ||
+                    responseData?.error ||
                     err.response?.detail?.message ||
                     "Login failed. Try again later."
                 );
@@ -314,7 +322,11 @@ export default function Login() {
                                             opacity: 1,
                                             y: 0,
                                         }}
-                                        className="flex items-start gap-2.5 rounded-xl border border-red-100 bg-red-50 px-3.5 py-3.5 text-sm leading-5 text-red-600 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400"
+                                        className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-3.5 text-sm leading-5 ${
+                                            conflictProvider
+                                                ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+                                                : "border-red-100 bg-red-50 text-red-600 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400"
+                                        }`}
                                         role="alert"
                                         aria-live="polite"
                                     >
@@ -322,7 +334,14 @@ export default function Login() {
                                             size={18}
                                             className="mt-0.5 shrink-0"
                                         />
-                                        <span>{error}</span>
+                                        <div>
+                                            <span>{error}</span>
+                                            {conflictProvider && (
+                                                <p className="mt-1.5 text-xs font-semibold text-[#6A89A7] dark:text-[#88BDF2]">
+                                                    Click the highlighted button below to continue with {conflictProvider.charAt(0).toUpperCase() + conflictProvider.slice(1)}.
+                                                </p>
+                                            )}
+                                        </div>
                                     </motion.div>
                                 )}
 
@@ -342,6 +361,23 @@ export default function Login() {
                                 >
                                     Sign in
                                 </Button>
+
+                                {/* Social Login Divider */}
+                                <div className="relative flex items-center gap-3 py-1">
+                                    <div className="h-px flex-1 bg-slate-100 dark:bg-slate-700" />
+
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                                        Or continue with
+                                    </span>
+
+                                    <div className="h-px flex-1 bg-slate-100 dark:bg-slate-700" />
+                                </div>
+
+                                {/* Social Login Buttons */}
+                                <OAuthButtons
+                                    conflictProvider={conflictProvider}
+                                    onError={(msg) => setError(msg)}
+                                />
 
                                 {/* Divider */}
                                 <div className="relative flex items-center gap-3 py-1">

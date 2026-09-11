@@ -19,6 +19,7 @@ import WizardModule from "./pages/WizardModule";
 import WizardContentView from "./pages/WizardContentView";
 import ForgotPassword from "./pages/ForgotPassword";
 import Marketplace from "./pages/Marketplace";
+import OAuthCallback from "./pages/OAuthCallback";
 
 // Admin Imports
 import AdminRoute from "./components/AdminRoute";
@@ -129,6 +130,7 @@ function AppRoutes() {
               </PublicRoute>
             }
           />
+          <Route path="/auth/callback/:provider" element={<OAuthCallback />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

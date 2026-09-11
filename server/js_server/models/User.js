@@ -19,6 +19,19 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING(255),
     allowNull: true,
   },
+  auth_provider: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'local',
+  },
+  oauth_id: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  avatar_url: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   role: {
     type: DataTypes.STRING(50),
     allowNull: false,
@@ -88,6 +101,10 @@ const User = sequelize.define('User', {
     {
       name: 'idx_users_role',
       fields: ['role'],
+    },
+    {
+      name: 'idx_users_auth_provider',
+      fields: ['auth_provider', 'oauth_id'],
     },
   ],
 });

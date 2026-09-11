@@ -34,6 +34,8 @@ const {
   deleteProfile,
   forgotPassword,
   resetPassword,
+  getOAuthUrl,
+  oauthCallback,
 } = require("../../controllers/authController");
 
 const router = Router();
@@ -46,6 +48,12 @@ router.post("/signup", authLimiter, signup);
 
 /** Standard email + password login */
 router.post("/login", authLimiter, login);
+
+/** Get OAuth authorization URL for Google / GitHub */
+router.get("/oauth/:provider/url", getOAuthUrl);
+
+/** Exchange OAuth authorization code for session */
+router.post("/oauth/:provider/callback", authLimiter, oauthCallback);
 
 /** Initiate password-reset OTP flow */
 router.post("/forgot-password", authLimiter, forgotPassword);
