@@ -1,3 +1,7 @@
+const path = require('path');
+if (!process.env.DATABASE_URL) {
+  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+}
 const { Sequelize } = require('sequelize');
 const logger = require('../utils/logger');
 

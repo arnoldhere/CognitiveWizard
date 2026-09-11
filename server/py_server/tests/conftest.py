@@ -6,6 +6,11 @@ from pathlib import Path
 server_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(server_dir))
 
+from dotenv import load_dotenv
+env_path = server_dir.parent / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+
 
 @pytest.fixture
 def sample_valid_quiz():

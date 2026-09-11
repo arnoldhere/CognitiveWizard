@@ -1,3 +1,7 @@
+const path = require('path');
+if (!process.env.REDIS_URL) {
+  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+}
 const { createClient } = require('redis');
 const logger = require('../utils/logger');
 

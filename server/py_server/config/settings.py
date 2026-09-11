@@ -4,7 +4,10 @@ from dotenv import load_dotenv
 
 # Load from server/.env (two directories up from py_server/config/settings.py)
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
-load_dotenv(dotenv_path=env_path)
+if os.path.exists(env_path):
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
 
 
 @dataclass
@@ -55,6 +58,7 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     MONGO_URI: str = os.getenv("MONGO_URI", "")
     MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # ===========
     # ===========

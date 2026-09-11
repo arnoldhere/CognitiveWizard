@@ -1,8 +1,8 @@
 import os
 from celery import Celery
+from config.settings import settings
 
-# Redis is running on localhost:6379 in this environment.
-redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+redis_url = settings.REDIS_URL or os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 celery_app = Celery(
     "wizard_tasks",
