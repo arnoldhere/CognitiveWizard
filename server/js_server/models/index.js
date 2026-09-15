@@ -57,14 +57,23 @@ const LanggraphWrite = require('./LanggraphWrite');
 // ─── Cross-model associations ─────────────────────────────────────────────────
 
 // User relationships
-User.hasMany(Quiz, { foreignKey: 'user_id', as: 'quizzes' });
+User.hasMany(Quiz, { foreignKey: 'user_id', as: 'quizzes', onDelete: 'CASCADE' });
 Quiz.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-User.hasMany(PaymentTransaction, { foreignKey: 'user_id', as: 'payment_transactions' });
+User.hasMany(PaymentTransaction, { foreignKey: 'user_id', as: 'payment_transactions', onDelete: 'CASCADE' });
 PaymentTransaction.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-User.hasMany(WizardContent, { foreignKey: 'user_id', as: 'wizard_contents' });
+User.hasMany(WizardContent, { foreignKey: 'user_id', as: 'wizard_contents', onDelete: 'CASCADE' });
 WizardContent.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+User.hasMany(ChatSession, { foreignKey: 'user_id', as: 'chat_sessions', onDelete: 'CASCADE' });
+ChatSession.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+User.hasMany(RAGDocument, { foreignKey: 'user_id', as: 'rag_documents', onDelete: 'CASCADE' });
+RAGDocument.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+User.hasMany(RAGQueryLog, { foreignKey: 'user_id', as: 'rag_query_logs', onDelete: 'CASCADE' });
+RAGQueryLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // 1:1 Specializations from WizardContent root
 WizardContent.hasOne(Roadmap, { foreignKey: 'content_id', as: 'roadmap', onDelete: 'CASCADE' });

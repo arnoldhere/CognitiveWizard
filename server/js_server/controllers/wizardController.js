@@ -96,7 +96,7 @@ async function generateContent(req, res, next) {
       title,
       description,
       content_type: normalizedType === "roadmap" ? "Roadmap" : "Guide",
-      status: "generated",
+      status: "pending_approval",
       skill_level: (skill_level || "beginner").toLowerCase(),
       content: payload, // Preserved for immediate frontend compatibility
     });

@@ -9,9 +9,21 @@ const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const { pyAxios } = require("../utils/apiProxy");
 const logger = require("../utils/logger");
-const User = require("../models/User");
+const {
+  User,
+  ChatSession,
+  Quiz,
+  PaymentTransaction,
+  RAGDocument,
+  RAGQueryLog,
+  WizardContent,
+  GenerationJob,
+  LanggraphCheckpoint,
+  LanggraphWrite,
+} = require("../models");
 const { generateToken } = require("../utils/jwtHelper");
 const { redisClient } = require("../config/redis");
+const { mongoose } = require("../config/mongo");
 
 // ─── Native Auth Controllers ───────────────────────────────────────────────
 
@@ -185,14 +197,70 @@ async function deleteProfile(req, res, next) {
       }
     }
 
-    // Delete RAG embeddings and uploaded media on py_server
+    // 1. Purge RAG embeddings, Chroma collections, uploaded files & Mongo chat messages on py_server
     try {
-      await pyAxios.delete(`/auth/profile/data-raw/${user.id}`);
+      const pyRes = await pyAxios.delete(`/auth/profile/data-raw/${user.id}`);
+      logger.info(`[AUTH] Successfully purged AI data on py_server for user ${user.id}: ${JSON.stringify(pyRes.data?.message || pyRes.data)}`);
     } catch (pyErr) {
       logger.warn(`[AUTH] Could not delete AI data for user ${user.id}: ${pyErr.message}`);
     }
 
+    // 2. Clean up LangGraph checkpoints and writes tied to this user's wizard jobs
+    try {
+      const userContents = await WizardContent.findAll({
+        where: { user_id: user.id },
+        attributes: ["id"],
+      });
+      const contentIds = userContents.map((c) => c.id);
+      if (contentIds.length > 0) {
+        const jobs = await GenerationJob.findAll({
+          where: { wizard_content_id: contentIds },
+          attributes: ["id", "thread_id"],
+        });
+        const threadIds = jobs.map((j) => j.thread_id).filter(Boolean);
+        if (threadIds.length > 0) {
+          await LanggraphWrite.destroy({ where: { thread_id: threadIds } });
+          await LanggraphCheckpoint.destroy({ where: { thread_id: threadIds } });
+        }
+      }
+    } catch (lgErr) {
+      logger.warn(`[AUTH] Non-critical warning cleaning up LangGraph checkpoints for user ${user.id}: ${lgErr.message}`);
+    }
+
+    // 3. Purge user-owned relational records across MySQL tables
+    try {
+      await ChatSession.destroy({ where: { user_id: user.id } });
+      await RAGDocument.destroy({ where: { user_id: user.id } });
+      await RAGQueryLog.destroy({ where: { user_id: user.id } });
+      await Quiz.destroy({ where: { user_id: user.id } });
+      await PaymentTransaction.destroy({ where: { user_id: user.id } });
+      await WizardContent.destroy({ where: { user_id: user.id } });
+    } catch (dbErr) {
+      logger.warn(`[AUTH] Warning purging related DB records for user ${user.id}: ${dbErr.message}`);
+    }
+
+    // 4. Purge MongoDB chat history directly from js_server (defense-in-depth)
+    try {
+      if (mongoose && mongoose.connection && mongoose.connection.readyState === 1) {
+        await mongoose.connection.collection("chat_messages").deleteMany({
+          user_id: { $in: [user.id, String(user.id)] },
+        });
+      }
+    } catch (mongoErr) {
+      logger.warn(`[AUTH] Direct Mongo chat cleanup warning for user ${user.id}: ${mongoErr.message}`);
+    }
+
+    // 5. Purge Redis cache/OTP keys
+    try {
+      await redisClient.del(`reset_password_otp:${email}`);
+    } catch (redisErr) {
+      logger.warn(`[AUTH] Redis OTP cleanup warning for user ${user.id}: ${redisErr.message}`);
+    }
+
+    // 6. Permanently delete user record
     await user.destroy();
+    logger.info(`[AUTH] Account and all associated records permanently deleted for user: ${email} (id: ${user.id})`);
+
     res.json({ status: "success", message: "Profile and associated data deleted successfully." });
   } catch (err) {
     next(err);

@@ -4,7 +4,7 @@ from config.settings import settings
 params = {
     "chat": {
         "temperature": 0.5,
-        "max_new_tokens": 512,
+        "max_new_tokens": 1024,
         "top_p": None,
         "top_k": None,
         "model_override": None,  # use provider default
@@ -31,7 +31,7 @@ params = {
         "top_p": None,
         "top_k": None,
         "temperature": 0.3,  # factual, grounded
-        "max_new_tokens": 768,
+        "max_new_tokens": 1024,
         "model_override": None,
         "use_chat": True,
     },
@@ -43,11 +43,9 @@ params = {
         "model_override": None,
         "use_chat": True,
     },
-
     # ── Course generation pipeline task profiles ───────────────────────────
     # These are used exclusively via get_llm_for_course_task.
     # Tuned for deep content generation; larger max_new_tokens than wizard.
-
     "course_architect": {
         # Blueprint-only pass: needs structure, moderate creativity
         "temperature": 0.4,
@@ -88,4 +86,3 @@ params = {
 
 # Backward compatibility alias
 TASK_PROFILES = params
-

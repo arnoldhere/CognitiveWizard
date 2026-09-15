@@ -8,6 +8,7 @@ import datetime
 import json
 import logging
 import os
+import shutil
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -444,6 +445,77 @@ class LangChainRAGService:
                 f"Failed to delete document {document_name} for user {user_id}: {e}"
             )
             return False
+
+    def delete_user_knowledge_base(self, user_id: str) -> Dict[str, Any]:
+        """
+        Delete all RAG collections, chunks, uploaded source files, and on-disk caches for a specific user.
+        """
+        user_id_str = str(user_id)
+        results = {
+            "vectordb_deleted": False,
+            "vector_dir_deleted": False,
+            "media_dir_deleted": False,
+            "metadata_deleted": False,
+        }
+
+        # 1. Delete Chroma Vector DB collection if loaded
+        try:
+            if user_id_str in self._vectordbs:
+                vectordb = self._vectordbs[user_id_str]
+                if hasattr(vectordb, "delete_collection"):
+                    vectordb.delete_collection()
+                results["vectordb_deleted"] = True
+            else:
+                index_path = self._get_user_index_path(user_id_str)
+                collection_name = self._rag_collection_name(user_id_str)
+                try:
+                    vectordb = VectorDBFactory.load_embeddings(
+                        str(index_path), self.embedder, collection_name=collection_name
+                    )
+                    if hasattr(vectordb, "delete_collection"):
+                        vectordb.delete_collection()
+                    results["vectordb_deleted"] = True
+                except Exception:
+                    pass
+        except Exception as exc:
+            logger.warning("Error deleting Chroma collection for user %s: %s", user_id_str, exc)
+
+        # 2. Delete user vector directory on disk
+        try:
+            index_path = Path(settings.RAG_USER_VECTOR_DIR) / user_id_str
+            if index_path.exists():
+                shutil.rmtree(index_path, ignore_errors=True)
+                results["vector_dir_deleted"] = True
+        except Exception as exc:
+            logger.warning("Error removing vector index path %s: %s", index_path, exc)
+
+        # 3. Clear in-memory references
+        self._vectordbs.pop(user_id_str, None)
+        self._retrievers.pop(user_id_str, None)
+        self._rag_chains.pop(user_id_str, None)
+        self._chunk_store.pop(user_id_str, None)
+        self._documents_ingested.pop(user_id_str, None)
+        self._user_documents.pop(user_id_str, None)
+
+        # 4. Delete uploaded media/documents directory
+        try:
+            user_media_dir = Path(settings.MEDIA_DIR) / "rag_uploads" / user_id_str
+            if user_media_dir.exists():
+                shutil.rmtree(user_media_dir, ignore_errors=True)
+                results["media_dir_deleted"] = True
+        except Exception as exc:
+            logger.warning("Error removing media upload dir for user %s: %s", user_id_str, exc)
+
+        # 5. Delete user JSON state file if present
+        try:
+            state_file = Path(settings.RAG_USER_DATA_DIR) / f"{user_id_str}.json"
+            if state_file.exists():
+                state_file.unlink(missing_ok=True)
+                results["metadata_deleted"] = True
+        except Exception as exc:
+            logger.warning("Error removing state file for user %s: %s", user_id_str, exc)
+
+        return results
 
     def has_knowledge_base(self, user_id: Optional[str] = None) -> bool:
         """Check if the user has any ingested documents."""

@@ -6,6 +6,7 @@ from api.rag_api import router as rag_router
 from api.summarization_api import router as summarization_router
 from api.subscription_api import router as subscription_router
 from api.wizard_api import router as wizard_router
+from api.auth_api import router as auth_router
 import logging
 
 # Setup logging
@@ -26,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Note: auth_api (facial recognition endpoints) deprecated/currently unavailable → server/py_server/deprecated/
+app.include_router(auth_router)
 app.include_router(quiz_router)
 app.include_router(summarization_router)
 app.include_router(rag_router)
