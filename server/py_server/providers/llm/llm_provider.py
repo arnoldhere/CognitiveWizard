@@ -43,6 +43,7 @@ class Provider:
                     temperature=self.temperature,
                     api_key=settings.GROQ_API_KEY,
                     max_tokens=min(self.max_new_tokens, 4096),
+                    max_retries=2,
                 )
             case "openai":
                 from langchain_openai import ChatOpenAI
@@ -52,6 +53,7 @@ class Provider:
                     temperature=self.temperature,
                     api_key=settings.OPENAI_API_KEY,
                     max_tokens=self.max_new_tokens,  # NOTE: OpenAI uses max_tokens
+                    max_retries=2,
                 )
 
             case "anthropic":
@@ -62,6 +64,7 @@ class Provider:
                     temperature=self.temperature,
                     api_key=settings.ANTHROPIC_API_KEY,
                     max_tokens=self.max_new_tokens,
+                    max_retries=2,
                 )
 
             case "huggingface":
