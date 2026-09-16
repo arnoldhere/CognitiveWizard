@@ -47,6 +47,8 @@ const LessonExercise = require('./LessonExercise');
 const Resource = require('./Resource');
 const ResourceLink = require('./ResourceLink');
 const GenerationJob = require('./GenerationJob');
+const GenerationAttempt = require('./GenerationAttempt');
+const GenerationEvent = require('./GenerationEvent');
 const ContentVersion = require('./ContentVersion');
 const ContentMetadata = require('./ContentMetadata');
 
@@ -105,6 +107,13 @@ ResourceLink.belongsTo(Resource, { foreignKey: 'resource_id', as: 'resource' });
 // Direct child operations from WizardContent
 WizardContent.hasOne(GenerationJob, { foreignKey: 'wizard_content_id', as: 'generation_job', onDelete: 'CASCADE' });
 GenerationJob.belongsTo(WizardContent, { foreignKey: 'wizard_content_id', as: 'wizard_content' });
+
+// Generation tracking: attempts and granular events
+GenerationJob.hasMany(GenerationAttempt, { foreignKey: 'generation_job_id', as: 'attempts', onDelete: 'CASCADE' });
+GenerationAttempt.belongsTo(GenerationJob, { foreignKey: 'generation_job_id', as: 'job' });
+
+GenerationJob.hasMany(GenerationEvent, { foreignKey: 'generation_job_id', as: 'events', onDelete: 'CASCADE' });
+GenerationEvent.belongsTo(GenerationJob, { foreignKey: 'generation_job_id', as: 'job' });
 
 WizardContent.hasMany(ContentVersion, { foreignKey: 'wizard_content_id', as: 'versions', onDelete: 'CASCADE' });
 ContentVersion.belongsTo(WizardContent, { foreignKey: 'wizard_content_id', as: 'wizard_content' });
@@ -244,6 +253,8 @@ module.exports = {
   Resource,
   ResourceLink,
   GenerationJob,
+  GenerationAttempt,
+  GenerationEvent,
   ContentVersion,
   ContentMetadata,
   // LangGraph internal tables

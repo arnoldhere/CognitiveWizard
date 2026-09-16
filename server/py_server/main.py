@@ -43,3 +43,9 @@ def health():
 @app.on_event("startup")
 async def startup_event():
     logger.info("FastAPI startup complete")
+    try:
+        from services.generation.recovery_service import generation_recovery_service
+        recovery_summary = generation_recovery_service.scan_and_recover_incomplete_jobs()
+        logger.info("[Startup] Incomplete generation recovery scan result: %s", recovery_summary)
+    except Exception as exc:
+        logger.warning("[Startup] Generation recovery scan failed (non-fatal): %s", exc)

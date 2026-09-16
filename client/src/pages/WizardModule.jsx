@@ -392,8 +392,11 @@ function GeneratingState({ contentType, isTutor, generatedData }) {
   }
 
   const statusConfig = PIPELINE_STATUS_CONFIG[currentStatus] || PIPELINE_STATUS_CONFIG.generating;
-  // Dynamic label from webhook (e.g. '✍️ Writing lessons... (3/4 batches done)')
-  const dynamicLabel = generatedData?.content?._status_label || null;
+  // Dynamic label from webhook or GenerationJob (e.g. 'Mapping out milestones and learning phases...')
+  const dynamicLabel =
+    generatedData?.generation_job?.user_message ||
+    generatedData?.content?._status_label ||
+    null;
 
   return (
     <motion.div
@@ -736,10 +739,15 @@ export default function WizardModule() {
           await generateWizardContent(payload);
 
         setGeneratedData(response);
-        setMessage(
-          `Successfully generated your ${answers.contentType.toLowerCase()}!`
-        );
-        setIsLoading(false);
+
+        if (response.status === "generating") {
+          startPolling(response.id);
+        } else {
+          setMessage(
+            `Successfully generated your ${answers.contentType.toLowerCase()}!`
+          );
+          setIsLoading(false);
+        }
       }
     } catch (err) {
       console.error(err);

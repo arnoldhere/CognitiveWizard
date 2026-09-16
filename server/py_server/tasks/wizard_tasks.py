@@ -1,90 +1,85 @@
 """
 tasks/wizard_tasks.py
-=======================
-Celery background tasks for the multi-agent course generation pipeline.
+=====================
+Celery background tasks for the multi-agent AI Wizard generation platform.
+
+Supports asynchronous generation with isolated task queues for:
+- Course: `wizard_course` queue (Architect → Research → Lesson Generator → Reviewer → Quality Gate)
+- Roadmap: `wizard_roadmap` queue (Normalizer → Planner → Research → Composer → Validator → Quality Gate)
+- Guide: `wizard_guide` queue (Planner → Research → Writer → Reviewer → Validator → Quality Gate)
+- Retries: `wizard_retry` queue
+- Startup Recovery: `wizard_recovery` queue
 
 Architecture:
     Celery task (sync) → asyncio.run(...)
-    ├── await graph.aget_state()   — check for resumable checkpoint
-    └── await graph.ainvoke()      — run the LangGraph agent pipeline
-        ├── async nodes          — use await httpx.AsyncClient
-        └── async checkpointer   — MySQLSaver with aget_tuple/aput/aput_writes
-
-Error handling strategy:
-- AllProvidersFailedError → recoverable, retry with backoff (max 3 retries)
-- Other exceptions       → non-recoverable, mark as failed with user-friendly message
-- Final retry failure    → send clear user message, stop retrying
+    ├── await graph.aget_state()   — check for resumable checkpoint in MySQLSaver
+    └── await graph.ainvoke()      — execute the LangGraph agent pipeline
 """
 
 import asyncio
+import gc
 import httpx
 import logging
+from typing import Any, Dict, Optional
+
 from agents.graphs.course_generation_graph import get_compiled_course_graph
+from agents.graphs.roadmap_generation_graph import get_compiled_roadmap_graph
+from agents.graphs.guide_generation_graph import get_compiled_guide_graph
 from agents.states.course_agent_state import CourseAgentState
+from agents.states.roadmap_agent_state import RoadmapAgentState
+from agents.states.guide_agent_state import GuideAgentState
 from config.settings import settings
 from providers.llm.provider_errors import AllProvidersFailedError
 from core.celery_app import celery_app
 from core.db import get_db_connection
 from core.mysql_checkpointer import MySQLSaver
+from services.generation.event_publisher import event_publisher
 
 logger = logging.getLogger(__name__)
 js_server_url = settings.JS_SERVER_URL
 
-# ── User-Friendly Error Messages
-
 _ERROR_MESSAGES = {
     "AllProvidersFailedError": (
         "Our AI servers are temporarily busy. "
-        "Your course generation will be retried automatically."
+        "Your generation will be retried automatically."
     ),
     "ConnectionError": (
-        "A network issue interrupted generation. " "It will resume shortly."
+        "A network issue interrupted generation. It will resume shortly."
     ),
     "TimeoutError": (
-        "The generation took longer than expected. " "It will resume automatically."
+        "The generation took longer than expected. It will resume automatically."
     ),
     "httpx.ConnectError": (
-        "A network issue interrupted generation. " "It will resume shortly."
+        "A network issue interrupted generation. It will resume shortly."
     ),
 }
 
 _DEFAULT_ERROR_MESSAGE = (
-    "Something unexpected happened during course generation. "
+    "Something unexpected happened during generation. "
     "Our system will try again automatically."
 )
 
 
-def _get_user_message(exc: Exception) -> str:
-    """Map a technical exception to a user-friendly message."""
+def _get_user_message(exc: Exception, content_type: str = "content") -> str:
+    """Map a technical exception to an encouraging, user-friendly message."""
     exc_name = type(exc).__name__
     return _ERROR_MESSAGES.get(exc_name, _DEFAULT_ERROR_MESSAGE)
 
 
-# ── Webhook Helpers
+# ── Webhook Dispatcher ────────────────────────────────────────────────────────
 async def _send_complete_webhook(
     content_id: int,
     job_id: str,
-    data: dict = None,
-    error: str = None,
-    status: str = None,
-    user_message: str = None,
-    retry_info: dict = None,
+    data: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None,
+    status: Optional[str] = None,
+    user_message: Optional[str] = None,
+    retry_info: Optional[Dict[str, Any]] = None,
 ):
-    """
-    Notify the JS server that a generation job has finished (success or failure).
-
-    Args:
-        content_id: WizardContent.id
-        job_id: LangGraph thread_id / generation job identifier
-        data: Final course package on success
-        error: Technical error string for logging/debugging
-        status: Override status ('degraded', 'failed', etc.)
-        user_message: Human-readable message for frontend display
-        retry_info: Dict with retry_count and max_retries for context
-    """
+    """Notify the JS server that a generation job has completed or encountered an error."""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            payload = {"content_id": content_id, "job_id": job_id}
+            payload: Dict[str, Any] = {"content_id": content_id, "job_id": job_id}
             if error:
                 payload["error"] = error
             if data is not None:
@@ -100,66 +95,45 @@ async def _send_complete_webhook(
                 f"{js_server_url}/internal/wizard-webhook/complete",
                 json=payload,
             )
-    except Exception as e:
-        logger.error(f"Failed to send complete webhook: {e}")
+    except Exception as exc:
+        logger.error("[Celery|Webhook] Failed to send complete webhook for %s: %s", job_id, exc)
 
 
-# ── Async Graph Execution
-async def _run_agentic_workflow_async(initial_state: CourseAgentState, job_id: str):
-    """
-    Execute the LangGraph course generation pipeline asynchronously.
+# ═════════════════════════════════════════════════════════════════════════════
+# 1. COURSE GENERATION PIPELINE
+# ═════════════════════════════════════════════════════════════════════════════
 
-    Uses the async LangGraph API (aget_state / ainvoke) so that async nodes
-    and the async checkpointer work natively without blocking.
-    """
+async def _run_course_workflow_async(initial_state: CourseAgentState, job_id: str):
     conn = get_db_connection()
     try:
         checkpointer = MySQLSaver(conn)
         graph = get_compiled_course_graph(checkpointer=checkpointer)
+        config = {"configurable": {"thread_id": job_id}}
 
-        config = {
-            "configurable": {
-                "thread_id": job_id,
-            }
-        }
-
-        # Check for an existing checkpoint (resume scenario)
         state = await graph.aget_state(config)
         if state and state.next:
-            logger.info(
-                f"Resuming interrupted course generation: {job_id} "
-                f"(Next: {state.next})"
-            )
+            logger.info("[Celery|Course|%s] Resuming interrupted course (Next: %s)", job_id, state.next)
             return await graph.ainvoke(None, config)
 
-        # Fresh start
         return await graph.ainvoke(initial_state, config)
     finally:
         conn.close()
 
 
-# ── Celery Tasks
-
-
-async def _execute_workflow_and_notify(
+async def _execute_course_workflow_and_notify(
     task_instance,
     content_id: int,
     job_id: str,
     initial_state: CourseAgentState,
     retry_info: dict,
 ):
-    """
-    Execute the LangGraph course generation workflow and send appropriate completion/error
-    webhooks within a single shared event loop.
-    """
     current_retry = retry_info["retry_count"]
     max_retries = retry_info["max_retries"]
 
     try:
-        final_state = await _run_agentic_workflow_async(initial_state, job_id)
+        final_state = await _run_course_workflow_async(initial_state, job_id)
         course_draft = final_state.get("course_draft", {}) if final_state else {}
 
-        # If pipeline ended in error or empty draft
         if (
             not final_state
             or final_state.get("pipeline_status") == "error"
@@ -172,7 +146,7 @@ async def _execute_workflow_and_notify(
                 or (course_draft and course_draft.get("error"))
                 or "Course generation failed to produce valid course content."
             )
-            logger.error(f"[Celery|{job_id}] Pipeline completed with error state: {err_msg}")
+            logger.error("[Celery|Course|%s] Pipeline failed: %s", job_id, err_msg)
             await _send_complete_webhook(
                 content_id,
                 job_id,
@@ -190,64 +164,51 @@ async def _execute_workflow_and_notify(
         )
         return {"status": "success", "content_id": content_id}
 
-    except AllProvidersFailedError as e:
-        user_msg = _get_user_message(e)
-
+    except AllProvidersFailedError as exc:
+        user_msg = _get_user_message(exc, "course")
         if current_retry < max_retries:
-            logger.warning(
-                f"All LLM providers failed for {job_id} "
-                f"(retry {current_retry + 1}/{max_retries}): {e}"
-            )
+            logger.warning("[Celery|Course|%s] All providers failed (retry %d/%d): %s", job_id, current_retry + 1, max_retries, exc)
             await _send_complete_webhook(
                 content_id,
                 job_id,
-                error=str(e),
+                error=str(exc),
                 status="degraded",
                 user_message=user_msg,
                 retry_info=retry_info,
             )
-            raise task_instance.retry(exc=e, countdown=60 * (current_retry + 1))
+            raise task_instance.retry(exc=exc, countdown=60 * (current_retry + 1))
         else:
-            logger.error(
-                f"All LLM providers failed for {job_id} — "
-                f"max retries ({max_retries}) exhausted: {e}"
-            )
-            final_msg = (
-                "Course generation could not be completed after multiple attempts. "
-                "Please try again later or contact support if the issue persists."
-            )
+            logger.error("[Celery|Course|%s] Max retries exhausted: %s", job_id, exc)
+            final_msg = "Course generation could not be completed after multiple attempts. Please try again later."
             await _send_complete_webhook(
                 content_id,
                 job_id,
-                error=str(e),
+                error=str(exc),
                 status="failed",
                 user_message=final_msg,
                 retry_info=retry_info,
             )
             raise
 
-    except Exception as e:
-        # Check for celery SoftTimeLimitExceeded
-        exc_type_name = type(e).__name__
-        if exc_type_name == "SoftTimeLimitExceeded":
-            logger.error(f"Task soft time limit exceeded for job {job_id}")
-            timeout_msg = "Course generation took longer than expected and timed out. You can retry the generation."
+    except Exception as exc:
+        if type(exc).__name__ == "SoftTimeLimitExceeded":
+            logger.error("[Celery|Course|%s] Soft time limit exceeded", job_id)
             await _send_complete_webhook(
                 content_id,
                 job_id,
                 error="Task soft time limit exceeded",
                 status="failed",
-                user_message=timeout_msg,
+                user_message="Course generation timed out. You can retry the generation.",
                 retry_info=retry_info,
             )
             raise
 
-        user_msg = _get_user_message(e)
-        logger.exception(f"Unexpected error in agentic workflow for {job_id}: {e}")
+        user_msg = _get_user_message(exc, "course")
+        logger.exception("[Celery|Course|%s] Unexpected error: %s", job_id, exc)
         await _send_complete_webhook(
             content_id,
             job_id,
-            error=str(e),
+            error=str(exc),
             status="failed",
             user_message=user_msg,
             retry_info=retry_info,
@@ -255,26 +216,20 @@ async def _execute_workflow_and_notify(
         raise
 
 
-@celery_app.task(bind=True, max_retries=3, acks_late=True)
-def run_agentic_workflow_task(
+@celery_app.task(bind=True, name="tasks.wizard_tasks.generate_course_task", max_retries=3, acks_late=True)
+def generate_course_task(
     self,
     content_id: int,
     job_id: str,
     topic: str,
-    content_type: str,
-    details: str,
-    skill_level: str,
-    goal: str,
-    learning_style: str,
-    user_role: str,
+    content_type: str = "Course/Syllabus",
+    details: str = "",
+    skill_level: str = "beginner",
+    goal: str = "",
+    learning_style: str = "mixed",
+    user_role: str = "user",
 ):
-    """
-    Celery background task that orchestrates the LangGraph pipeline.
-
-    Runs the async graph inside a single ``asyncio.run()`` invocation so that async
-    nodes, MySQLSaver checkpointer, and webhooks share one clean event loop.
-    Reclaims memory via garbage collection upon completion.
-    """
+    """Celery background task that orchestrates Course generation on the `wizard_course` queue."""
     current_retry = self.request.retries
     max_retries = self.max_retries
 
@@ -294,14 +249,11 @@ def run_agentic_workflow_task(
         pipeline_status="generating",
     )
 
-    retry_info = {
-        "retry_count": current_retry,
-        "max_retries": max_retries,
-    }
+    retry_info = {"retry_count": current_retry, "max_retries": max_retries}
 
     try:
         return asyncio.run(
-            _execute_workflow_and_notify(
+            _execute_course_workflow_and_notify(
                 task_instance=self,
                 content_id=content_id,
                 job_id=job_id,
@@ -310,15 +262,325 @@ def run_agentic_workflow_task(
             )
         )
     finally:
-        import gc
         gc.collect()
 
 
-@celery_app.task(bind=True)
-def resume_job_task(self, job_id: str):
+# Backward compatibility alias for existing code referencing run_agentic_workflow_task
+run_agentic_workflow_task = generate_course_task
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2. ROADMAP GENERATION PIPELINE
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def _run_roadmap_workflow_async(initial_state: RoadmapAgentState, job_id: str):
+    conn = get_db_connection()
+    try:
+        checkpointer = MySQLSaver(conn)
+        graph = get_compiled_roadmap_graph(checkpointer=checkpointer)
+        config = {"configurable": {"thread_id": job_id}}
+
+        state = await graph.aget_state(config)
+        if state and state.next:
+            logger.info("[Celery|Roadmap|%s] Resuming interrupted roadmap (Next: %s)", job_id, state.next)
+            return await graph.ainvoke(None, config)
+
+        return await graph.ainvoke(initial_state, config)
+    finally:
+        conn.close()
+
+
+async def _execute_roadmap_workflow_and_notify(
+    task_instance,
+    content_id: int,
+    job_id: str,
+    initial_state: RoadmapAgentState,
+    retry_info: dict,
+):
+    current_retry = retry_info["retry_count"]
+    max_retries = retry_info["max_retries"]
+
+    try:
+        final_state = await _run_roadmap_workflow_async(initial_state, job_id)
+        roadmap_draft = final_state.get("roadmap_draft", {}) if final_state else {}
+
+        if (
+            not final_state
+            or final_state.get("pipeline_status") == "error"
+            or not roadmap_draft
+            or not roadmap_draft.get("title")
+        ):
+            err_msg = (
+                (final_state and final_state.get("error"))
+                or "Roadmap generation failed to produce valid curriculum content."
+            )
+            logger.error("[Celery|Roadmap|%s] Pipeline failed: %s", job_id, err_msg)
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=err_msg,
+                status="failed",
+                user_message=_DEFAULT_ERROR_MESSAGE,
+                retry_info=retry_info,
+            )
+            return {"status": "failed", "content_id": content_id, "error": err_msg}
+
+        await _send_complete_webhook(
+            content_id,
+            job_id,
+            data=roadmap_draft,
+        )
+        return {"status": "success", "content_id": content_id}
+
+    except AllProvidersFailedError as exc:
+        user_msg = _get_user_message(exc, "roadmap")
+        if current_retry < max_retries:
+            logger.warning("[Celery|Roadmap|%s] All providers failed (retry %d/%d): %s", job_id, current_retry + 1, max_retries, exc)
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=str(exc),
+                status="degraded",
+                user_message=user_msg,
+                retry_info=retry_info,
+            )
+            raise task_instance.retry(exc=exc, countdown=60 * (current_retry + 1))
+        else:
+            logger.error("[Celery|Roadmap|%s] Max retries exhausted: %s", job_id, exc)
+            final_msg = "Roadmap generation could not be completed after multiple attempts. Please try again later."
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=str(exc),
+                status="failed",
+                user_message=final_msg,
+                retry_info=retry_info,
+            )
+            raise
+
+    except Exception as exc:
+        user_msg = _get_user_message(exc, "roadmap")
+        logger.exception("[Celery|Roadmap|%s] Unexpected error: %s", job_id, exc)
+        await _send_complete_webhook(
+            content_id,
+            job_id,
+            error=str(exc),
+            status="failed",
+            user_message=user_msg,
+            retry_info=retry_info,
+        )
+        raise
+
+
+@celery_app.task(bind=True, name="tasks.wizard_tasks.generate_roadmap_task", max_retries=3, acks_late=True)
+def generate_roadmap_task(
+    self,
+    content_id: int,
+    job_id: str,
+    topic: str,
+    content_type: str = "Roadmap",
+    details: str = "",
+    skill_level: str = "beginner",
+    goal: str = "",
+    learning_style: str = "mixed",
+    user_role: str = "user",
+):
+    """Celery background task that orchestrates Roadmap generation on the `wizard_roadmap` queue."""
+    current_retry = self.request.retries
+    max_retries = self.max_retries
+
+    initial_state = RoadmapAgentState(
+        topic=topic,
+        content_id=content_id,
+        content_type=content_type,
+        skill_level=skill_level,
+        goal=goal,
+        learning_style=learning_style,
+        details=details,
+        user_role=user_role,
+        job_id=job_id,
+        retry_count=current_retry,
+        warnings=[],
+        roadmap_draft={},
+        pipeline_status="queued",
+    )
+
+    retry_info = {"retry_count": current_retry, "max_retries": max_retries}
+
+    try:
+        return asyncio.run(
+            _execute_roadmap_workflow_and_notify(
+                task_instance=self,
+                content_id=content_id,
+                job_id=job_id,
+                initial_state=initial_state,
+                retry_info=retry_info,
+            )
+        )
+    finally:
+        gc.collect()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 3. GUIDE GENERATION PIPELINE
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def _run_guide_workflow_async(initial_state: GuideAgentState, job_id: str):
+    conn = get_db_connection()
+    try:
+        checkpointer = MySQLSaver(conn)
+        graph = get_compiled_guide_graph(checkpointer=checkpointer)
+        config = {"configurable": {"thread_id": job_id}}
+
+        state = await graph.aget_state(config)
+        if state and state.next:
+            logger.info("[Celery|Guide|%s] Resuming interrupted guide (Next: %s)", job_id, state.next)
+            return await graph.ainvoke(None, config)
+
+        return await graph.ainvoke(initial_state, config)
+    finally:
+        conn.close()
+
+
+async def _execute_guide_workflow_and_notify(
+    task_instance,
+    content_id: int,
+    job_id: str,
+    initial_state: GuideAgentState,
+    retry_info: dict,
+):
+    current_retry = retry_info["retry_count"]
+    max_retries = retry_info["max_retries"]
+
+    try:
+        final_state = await _run_guide_workflow_async(initial_state, job_id)
+        guide_draft = final_state.get("guide_draft", {}) if final_state else {}
+
+        if (
+            not final_state
+            or final_state.get("pipeline_status") == "error"
+            or not guide_draft
+            or not guide_draft.get("title")
+        ):
+            err_msg = (
+                (final_state and final_state.get("error"))
+                or "Guide generation failed to produce valid tutorial content."
+            )
+            logger.error("[Celery|Guide|%s] Pipeline failed: %s", job_id, err_msg)
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=err_msg,
+                status="failed",
+                user_message=_DEFAULT_ERROR_MESSAGE,
+                retry_info=retry_info,
+            )
+            return {"status": "failed", "content_id": content_id, "error": err_msg}
+
+        await _send_complete_webhook(
+            content_id,
+            job_id,
+            data=guide_draft,
+        )
+        return {"status": "success", "content_id": content_id}
+
+    except AllProvidersFailedError as exc:
+        user_msg = _get_user_message(exc, "guide")
+        if current_retry < max_retries:
+            logger.warning("[Celery|Guide|%s] All providers failed (retry %d/%d): %s", job_id, current_retry + 1, max_retries, exc)
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=str(exc),
+                status="degraded",
+                user_message=user_msg,
+                retry_info=retry_info,
+            )
+            raise task_instance.retry(exc=exc, countdown=60 * (current_retry + 1))
+        else:
+            logger.error("[Celery|Guide|%s] Max retries exhausted: %s", job_id, exc)
+            final_msg = "Guide generation could not be completed after multiple attempts. Please try again later."
+            await _send_complete_webhook(
+                content_id,
+                job_id,
+                error=str(exc),
+                status="failed",
+                user_message=final_msg,
+                retry_info=retry_info,
+            )
+            raise
+
+    except Exception as exc:
+        user_msg = _get_user_message(exc, "guide")
+        logger.exception("[Celery|Guide|%s] Unexpected error: %s", job_id, exc)
+        await _send_complete_webhook(
+            content_id,
+            job_id,
+            error=str(exc),
+            status="failed",
+            user_message=user_msg,
+            retry_info=retry_info,
+        )
+        raise
+
+
+@celery_app.task(bind=True, name="tasks.wizard_tasks.generate_guide_task", max_retries=3, acks_late=True)
+def generate_guide_task(
+    self,
+    content_id: int,
+    job_id: str,
+    topic: str,
+    content_type: str = "Guide",
+    details: str = "",
+    skill_level: str = "beginner",
+    goal: str = "",
+    learning_style: str = "mixed",
+    user_role: str = "user",
+):
+    """Celery background task that orchestrates Guide generation on the `wizard_guide` queue."""
+    current_retry = self.request.retries
+    max_retries = self.max_retries
+
+    initial_state = GuideAgentState(
+        topic=topic,
+        content_id=content_id,
+        content_type=content_type,
+        skill_level=skill_level,
+        details=details,
+        target_audience="General Learners",
+        guide_style="Step-by-step tutorial",
+        job_id=job_id,
+        retry_count=current_retry,
+        warnings=[],
+        guide_draft={},
+        pipeline_status="queued",
+    )
+
+    retry_info = {"retry_count": current_retry, "max_retries": max_retries}
+
+    try:
+        return asyncio.run(
+            _execute_guide_workflow_and_notify(
+                task_instance=self,
+                content_id=content_id,
+                job_id=job_id,
+                initial_state=initial_state,
+                retry_info=retry_info,
+            )
+        )
+    finally:
+        gc.collect()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 4. RETRY & RECOVERY TASKS
+# ═════════════════════════════════════════════════════════════════════════════
+
+@celery_app.task(bind=True, name="tasks.wizard_tasks.retry_job_task")
+def retry_job_task(self, job_id: str):
     """
-    Called when the system requests to retry a failed/interrupted job.
-    Fetches the original payload from JS server and re-dispatches the workflow.
+    Retries an interrupted or failed generation job.
+    Fetches job metadata from the JS server and re-dispatches to the appropriate content queue.
     """
     import requests
 
@@ -330,23 +592,43 @@ def resume_job_task(self, job_id: str):
         response.raise_for_status()
         job = response.json()
 
+        content_id = job.get("wizard_content_id")
         input_payload = job.get("input_payload") or {}
-        run_agentic_workflow_task.delay(
-            content_id=job["wizard_content_id"],
+        raw_type = (job.get("content_type") or input_payload.get("content_type") or "course").lower().strip()
+
+        logger.info("[Celery|Retry|%s] Re-dispatching job (type=%s)", job_id, raw_type)
+
+        kwargs = dict(
+            content_id=content_id,
             job_id=job_id,
             topic=input_payload.get("topic", ""),
-            content_type=input_payload.get("content_type", ""),
+            content_type=input_payload.get("content_type", raw_type),
             details=input_payload.get("details", ""),
-            skill_level=input_payload.get("skill_level", ""),
+            skill_level=input_payload.get("skill_level", "beginner"),
             goal=input_payload.get("goal", ""),
-            learning_style=input_payload.get("learning_style", ""),
-            user_role=input_payload.get("user_role", ""),
+            learning_style=input_payload.get("learning_style", "mixed"),
+            user_role=input_payload.get("user_role", "user"),
         )
-        logger.info(f"Resume job task dispatched for {job_id}")
-    except requests.exceptions.ConnectionError:
-        logger.error(
-            f"Cannot reach JS server to fetch job payload for {job_id}. "
-            "Is the JS gateway running?"
-        )
-    except Exception as e:
-        logger.error(f"Failed to fetch job payload for resume: {e}")
+
+        if "roadmap" in raw_type:
+            generate_roadmap_task.delay(**kwargs)
+        elif "guide" in raw_type:
+            generate_guide_task.delay(**kwargs)
+        else:
+            generate_course_task.delay(**kwargs)
+
+        return {"status": "requeued", "job_id": job_id, "content_type": raw_type}
+
+    except Exception as exc:
+        logger.error("[Celery|Retry|%s] Failed to retry job: %s", job_id, exc)
+        return {"status": "error", "job_id": job_id, "error": str(exc)}
+
+
+resume_job_task = retry_job_task
+
+
+@celery_app.task(bind=True, name="tasks.wizard_tasks.recover_jobs_task")
+def recover_jobs_task(self):
+    """Scans for orphaned, incomplete jobs and requeues them if recoverable."""
+    from services.generation.recovery_service import generation_recovery_service
+    return generation_recovery_service.scan_and_recover_incomplete_jobs()

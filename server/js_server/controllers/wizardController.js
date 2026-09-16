@@ -39,6 +39,8 @@ const {
   Resource,
   ResourceLink,
   GenerationJob,
+  GenerationAttempt,
+  GenerationEvent,
   ContentVersion,
   ContentMetadata,
   User,
@@ -56,13 +58,21 @@ const isCourseType = (type) =>
 
 /**
  * POST /wizard/generate
- * Generate non-course content (Roadmap, Guide) via single LLM call.
- * Course/Syllabus is handled exclusively by generateAgentic.
+ * Production asynchronous generation endpoint for Roadmap and Guide.
+ * Creates skeleton WizardContent with status 'generating' and GenerationJob,
+ * then dispatches asynchronously to py_server via POST /wizard/generate-agentic.
+ * The client polls for status updates.
+ *
+ * NOTE ON SYNC VS ASYNC:
+ * - Sync endpoint: `POST /wizard/generate-raw` in py_server remains synchronous
+ *   for standalone evaluation, CLI tools, automated tests, and offline use without Celery.
+ * - Async endpoint: `POST /wizard/generate` here in Express dispatches background jobs
+ *   to Celery + Redis workers across isolated queues and returns immediately with status 'generating'.
  */
 async function generateContent(req, res, next) {
   try {
     const { topic, content_type, details, skill_level, goal, learning_style } = req.body || {};
-    logger.info(`[WIZARD] Generate: topic="${topic}", type="${content_type}" by ${req.user?.email}`);
+    logger.info(`[WIZARD] Generate (async): topic="${topic}", type="${content_type}" by ${req.user?.email}`);
 
     const normalizedType = (content_type || "").toLowerCase().trim();
     if (normalizedType === "schedule") {
@@ -71,125 +81,76 @@ async function generateContent(req, res, next) {
       });
     }
 
-    // Redirect course generation to the agentic pipeline
+    // Redirect course generation to the course agentic pipeline
     if (isCourseType(content_type)) {
       return generateAgentic(req, res, next);
     }
 
-    const user_role = req.user?.role || "user";
-    const aiResponse = await pyAxios.post("/wizard/generate-raw", {
-      topic, content_type, details, skill_level, goal, learning_style, user_role
-    });
+    const isRoadmap = normalizedType === "roadmap";
+    const formattedContentType = isRoadmap ? "Roadmap" : "Guide";
 
-    if (!aiResponse.data || !aiResponse.data.content) {
-      return res.status(500).json({ detail: "Failed to generate structured wizard content" });
-    }
-
-    const payload = aiResponse.data.content;
-    const title = payload.title || topic;
-    const description = payload.description || "";
-
-    // 1. Create root WizardContent
+    // 1. Create root WizardContent in 'generating' status
     const wizardContent = await WizardContent.create({
       user_id: req.user.id,
       topic,
-      title,
-      description,
-      content_type: normalizedType === "roadmap" ? "Roadmap" : "Guide",
-      status: "pending_approval",
+      title: topic,
+      description: "",
+      content_type: formattedContentType,
+      status: "generating",
       skill_level: (skill_level || "beginner").toLowerCase(),
-      content: payload, // Preserved for immediate frontend compatibility
+      content: {},
     });
 
-    // 2. Persist type-specific specialization (Roadmap or Guide)
-    if (normalizedType === "roadmap") {
-      const rawModules = payload.phasewise_modules || payload.modules || [];
-      const dbRoadmap = await Roadmap.create({
+    // 2. Create skeleton specialization record
+    if (isRoadmap) {
+      await Roadmap.create({
         content_id: wizardContent.id,
-        title,
-        description,
+        title: topic,
         learning_style: learning_style || null,
-        total_modules: rawModules.length,
-        modules_data: rawModules,
-        prerequisites: payload.prerequisites || [],
-        outcomes: payload.outcomes || [],
-        graph_data: payload.graph_data || null,
+        total_modules: 0,
+        modules_data: [],
+        prerequisites: [],
+        outcomes: [],
       });
-
-      // Persist common references if returned
-      const references = payload.references || {};
-      const refCategories = Object.keys(references);
-      for (const cat of refCategories) {
-        const items = references[cat] || [];
-        for (const item of items) {
-          if (!item.url && !item.link) continue;
-          const resource = await Resource.create({
-            entity_type: "roadmap",
-            entity_id: dbRoadmap.id,
-            title: item.title || item.name || "Learning Reference",
-            description: item.description || null,
-            category: cat,
-            resource_type: item.resource_type || "article",
-            provider: item.source || item.provider || null,
-          });
-          await ResourceLink.create({
-            resource_id: resource.id,
-            url: item.url || item.link,
-            link_type: "primary",
-            domain: item.domain || null,
-          });
-        }
-      }
     } else {
-      // Guide specialization
-      const rawModules = payload.modules || [];
-      const dbGuide = await Guide.create({
+      await Guide.create({
         content_id: wizardContent.id,
-        title,
-        description,
-        summary: payload.summary || "",
-        guide_style: payload.guide_style || null,
-        reading_time_minutes: payload.reading_time_minutes || 0,
-        tools_required: payload.tools_required || [],
-        modules_data: rawModules,
-        body_markdown: payload.body_markdown || null,
+        title: topic,
+        summary: "",
+        modules_data: [],
       });
-
-      // Persist references if any
-      const references = payload.references || {};
-      const refCategories = Object.keys(references);
-      for (const cat of refCategories) {
-        const items = references[cat] || [];
-        for (const item of items) {
-          if (!item.url && !item.link) continue;
-          const resource = await Resource.create({
-            entity_type: "guide",
-            entity_id: dbGuide.id,
-            title: item.title || item.name || "Learning Reference",
-            description: item.description || null,
-            category: cat,
-            resource_type: item.resource_type || "article",
-            provider: item.source || item.provider || null,
-          });
-          await ResourceLink.create({
-            resource_id: resource.id,
-            url: item.url || item.link,
-            link_type: "primary",
-            domain: item.domain || null,
-          });
-        }
-      }
     }
 
-    // 3. Create initial ContentVersion snapshot
-    await ContentVersion.create({
+    const user_role = req.user?.role || "user";
+    const input_payload = { topic, content_type: normalizedType, details, skill_level, goal, learning_style, user_role };
+    const thread_id = `job_${wizardContent.id}_${normalizedType}_${Date.now()}`;
+
+    // 3. Create GenerationJob tracker
+    await GenerationJob.create({
       wizard_content_id: wizardContent.id,
-      version_number: 1,
-      title,
-      change_summary: "Initial AI Generation",
-      snapshot_data: payload,
-      created_by_user_id: req.user.id,
-      is_current: true,
+      status: "queued",
+      thread_id,
+      content_type: normalizedType,
+      input_payload,
+      total_steps: 6,
+      stage_progress_percent: 5,
+    });
+
+    // 4. Dispatch background agentic generation task via Celery
+    pyAxios.post("/wizard/generate-agentic", {
+      content_id: wizardContent.id,
+      job_id: thread_id,
+      topic,
+      content_type: normalizedType,
+      details,
+      skill_level,
+      goal,
+      learning_style,
+      user_role,
+    }).catch(async (err) => {
+      logger.error(`[WIZARD] Failed to dispatch agentic ${normalizedType} generation: ${err.message}`);
+      await wizardContent.update({ status: "error", content: { error: "Failed to start generation worker" } });
+      await GenerationJob.update({ status: "failed", error_details: err.message }, { where: { thread_id } });
     });
 
     res.json(wizardContent);
@@ -1000,6 +961,93 @@ async function webhookAgenticStatus(req, res, next) {
 }
 
 /**
+ * POST /internal/wizard-webhook/event
+ * Granular progress event published by the py_server pipeline.
+ */
+async function webhookAgenticEvent(req, res, next) {
+  try {
+    const { job_id, content_id, content_type, status, stage, progress, user_message, payload } = req.body;
+    if (!job_id) {
+      return res.status(400).json({ error: "job_id is required" });
+    }
+
+    const job = await GenerationJob.findOne({ where: { thread_id: job_id } });
+    if (job) {
+      await GenerationEvent.create({
+        generation_job_id: job.id,
+        event_type: status || "generating",
+        stage: stage || job.current_stage || "unknown",
+        progress: progress !== undefined ? progress : job.stage_progress_percent,
+        user_message: user_message || job.user_message || "",
+        payload: payload || null,
+      });
+
+      const updateData = {};
+      if (status && !["completed", "failed", "cancelled"].includes(job.status)) {
+        updateData.status = (status === "degraded" ? "degraded" : (status === "retrying" ? "resuming" : "running"));
+      }
+      if (stage) updateData.current_stage = stage;
+      if (progress !== undefined) updateData.stage_progress_percent = progress;
+      if (user_message) updateData.user_message = user_message;
+      if (content_type) updateData.content_type = content_type;
+
+      await job.update(updateData);
+    }
+
+    if (content_id && user_message) {
+      const content = await WizardContent.findByPk(content_id);
+      if (content) {
+        await content.update({
+          content: { ...(content.content || {}), _status_label: user_message },
+        });
+      }
+    }
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    logger.error(`[WIZARD WEBHOOK] Event recording error: ${err.message}`);
+    res.status(500).json({ error: "Failed to record event" });
+  }
+}
+
+/**
+ * POST /internal/wizard-webhook/attempt
+ * Records a stage attempt diagnostics event.
+ */
+async function webhookAgenticAttempt(req, res, next) {
+  try {
+    const { job_id, stage, attempt_number, status, provider, model, error_type, error_message, duration_ms } = req.body;
+    if (!job_id) {
+      return res.status(400).json({ error: "job_id is required" });
+    }
+
+    const job = await GenerationJob.findOne({ where: { thread_id: job_id } });
+    if (job) {
+      await GenerationAttempt.create({
+        generation_job_id: job.id,
+        stage: stage || "unknown",
+        attempt_number: attempt_number || 1,
+        status: status || "started",
+        provider: provider || job.provider || null,
+        model: model || job.model || null,
+        error_type: error_type || null,
+        error_message: error_message || null,
+        duration_ms: duration_ms || null,
+      });
+
+      if (error_message) {
+        await job.update({ last_error: `[${error_type || 'Error'}] ${error_message}` });
+      }
+    }
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    logger.error(`[WIZARD WEBHOOK] Attempt recording error: ${err.message}`);
+    res.status(500).json({ error: "Failed to record attempt" });
+  }
+}
+
+/**
  * GET /internal/wizard-webhook/incomplete
  * Retrieves jobs that were abandoned mid-generation.
  */
@@ -1135,7 +1183,11 @@ async function webhookAgenticComplete(req, res, next) {
     }
 
     // ── Non-Course Format Handling (Roadmap / Guide) ───────────────────────────
-    if ((content.content_type || "").toLowerCase() === "roadmap") {
+    const isRoadmap = (content.content_type || "").toLowerCase() === "roadmap";
+    let entityId = null;
+    let entityType = isRoadmap ? "roadmap" : "guide";
+
+    if (isRoadmap) {
       const rawModules = data.phasewise_modules || data.modules || [];
       const [dbRoadmap] = await Roadmap.findOrCreate({
         where: { content_id: content.id },
@@ -1161,15 +1213,19 @@ async function webhookAgenticComplete(req, res, next) {
         },
         { transaction: t }
       );
+      entityId = dbRoadmap.id;
     } else {
       // Guide
+      const rawModules = data.modules || [];
       const [dbGuide] = await Guide.findOrCreate({
         where: { content_id: content.id },
         defaults: {
           title: data.title || content.topic,
           description: data.description || "",
           summary: data.summary || "",
-          modules_data: data.modules || [],
+          reading_time_minutes: data.reading_time_minutes || 20,
+          tools_required: data.tools_required || [],
+          modules_data: rawModules,
         },
         transaction: t,
       });
@@ -1179,13 +1235,79 @@ async function webhookAgenticComplete(req, res, next) {
           title: data.title || content.topic,
           description: data.description || "",
           summary: data.summary || "",
-          modules_data: data.modules || [],
+          reading_time_minutes: data.reading_time_minutes || 20,
+          tools_required: data.tools_required || [],
+          modules_data: rawModules,
         },
         { transaction: t }
       );
+      entityId = dbGuide.id;
     }
 
-    await content.update({ status: "pending_approval", content: data }, { transaction: t });
+    // Persist references for Roadmap / Guide into polymorphic Resource & ResourceLink
+    const references = data.references || {};
+    for (const cat of Object.keys(references)) {
+      const items = references[cat] || [];
+      for (const item of items) {
+        if (!item.url && !item.link) continue;
+        const resource = await Resource.create(
+          {
+            entity_type: entityType,
+            entity_id: entityId,
+            title: item.title || item.name || "Learning Reference",
+            description: item.description || null,
+            category: cat,
+            resource_type: item.resource_type || "article",
+            provider: item.source || item.provider || null,
+          },
+          { transaction: t }
+        );
+        await ResourceLink.create(
+          {
+            resource_id: resource.id,
+            url: item.url || item.link,
+            link_type: "primary",
+            domain: item.domain || null,
+          },
+          { transaction: t }
+        );
+      }
+    }
+
+    // Save complete snapshot in ContentVersion
+    await ContentVersion.create(
+      {
+        wizard_content_id: content.id,
+        version_number: 1,
+        title: data.title || content.topic,
+        change_summary: `AI ${content.content_type} Generation completed`,
+        snapshot_data: data,
+        is_current: true,
+      },
+      { transaction: t }
+    );
+
+    // Mark GenerationJob completed
+    if (job_id) {
+      await GenerationJob.update(
+        {
+          status: "completed",
+          stage_progress_percent: 100,
+          completed_at: new Date(),
+        },
+        { where: { thread_id: job_id }, transaction: t }
+      );
+    }
+
+    await content.update(
+      {
+        status: "pending_approval",
+        title: data.title || content.topic,
+        description: data.description || "",
+        content: data,
+      },
+      { transaction: t }
+    );
     await t.commit();
     res.status(200).json({ success: true });
 
@@ -1751,6 +1873,8 @@ module.exports = {
   getPublishedCourses,
   getPublishedCourseById,
   webhookAgenticStatus,
+  webhookAgenticEvent,
+  webhookAgenticAttempt,
   webhookAgenticComplete,
   webhookAgenticLessonIncremental,
   getIncompleteGenerations,

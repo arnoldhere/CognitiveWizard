@@ -88,14 +88,16 @@ def _group_references_by_category(
 @router.post("/generate-raw", response_model=WizardRawResponse)
 async def generate_raw_content(request: WizardRawRequest):
     """
-    Generate structured educational content.
+    Generate structured educational content synchronously.
 
-    For `content_type=roadmap`:
-    - Fires the reference retriever agent AND the LLM concurrently.
-    - Merges agent references into the LLM output before returning.
+    NOTE: ON SYNC VS ASYNC:
+    This endpoint executes SYNCHRONOUSLY and blocks until generation finishes.
+    It is preserved specifically for standalone testing, automated evaluation,
+    and CLI/script use without requiring running Celery workers or Redis brokers.
 
-    For all other content types:
-    - Only the LLM is invoked (agent integration will be added per type later).
+    In production web traffic, client and Express gateway requests are dispatched
+    ASYNCHRONOUSLY to `POST /wizard/generate-agentic`, which uses Celery priority
+    queues, durable MySQLSaver checkpoints, and non-blocking webhooks.
     """
 
     ct_lower = (request.content_type or "").lower().strip()
@@ -257,22 +259,51 @@ async def export_roadmap_pdf(request: WizardPdfExportRequest):
 @router.post("/generate-agentic", response_model=WizardRawResponse)
 async def generate_agentic_content(request: WizardAgenticRequest):
     """
-    Start the advanced course generation pipeline via Celery.
-    Returns immediately — JS server polls for status via the webhook updates.
-    """
-    from tasks.wizard_tasks import run_agentic_workflow_task
+    Start the multi-agent generation pipeline asynchronously via Celery.
 
-    run_agentic_workflow_task.delay(
+    The client/Express gateway polls for progress via `GET /wizard/:id` and
+    receives real-time updates via internal webhooks.
+    """
+    from tasks.wizard_tasks import (
+        generate_roadmap_task,
+        generate_guide_task,
+        generate_course_task,
+    )
+
+    ct = (request.content_type or "").lower().strip()
+    kwargs = dict(
         content_id=request.content_id,
         job_id=request.job_id,
         topic=request.topic,
         content_type=request.content_type,
         details=request.details or "",
-        skill_level=request.skill_level or "",
+        skill_level=request.skill_level or "beginner",
         goal=request.goal or "",
-        learning_style=request.learning_style or "",
+        learning_style=request.learning_style or "mixed",
         user_role=request.user_role or "user",
     )
+
+    if "roadmap" in ct:
+        logger.info(
+            "[WizardAPI] Enqueuing roadmap generation for %s (job=%s)",
+            request.topic,
+            request.job_id,
+        )
+        generate_roadmap_task.delay(**kwargs)
+    elif "guide" in ct:
+        logger.info(
+            "[WizardAPI] Enqueuing guide generation for %s (job=%s)",
+            request.topic,
+            request.job_id,
+        )
+        generate_guide_task.delay(**kwargs)
+    else:
+        logger.info(
+            "[WizardAPI] Enqueuing course generation for %s (job=%s)",
+            request.topic,
+            request.job_id,
+        )
+        generate_course_task.delay(**kwargs)
 
     return WizardRawResponse(content={"status": "generating"}, warnings=[])
 
@@ -282,36 +313,48 @@ async def regenerate_agentic_content(request: WizardAgenticRegenerateRequest):
     """
     Regenerate course draft based on tutor feedback via Celery.
     """
-    from tasks.wizard_tasks import run_agentic_workflow_task
+    from tasks.wizard_tasks import generate_course_task
     import time
 
     job_id = f"regen_{request.content_id}_{int(time.time())}"
 
-    run_agentic_workflow_task.delay(
+    generate_course_task.delay(
         content_id=request.content_id,
         job_id=job_id,
         topic=request.topic,
         content_type="Course/Syllabus",
         details="",
-        skill_level="",
+        skill_level="beginner",
         goal="",
-        learning_style="",
+        learning_style="mixed",
         user_role="tutor",
     )
 
     return WizardRawResponse(content={"status": "generating_planning"}, warnings=[])
 
+
 @router.post("/generation/{job_id}/retry")
 async def retry_generation_job(job_id: str):
-    # Enqueue a celery task for retry
-    from tasks.wizard_tasks import resume_job_task
-    resume_job_task.delay(job_id=job_id)
-    return {"status": "pending"}
+    """Re-enqueue an interrupted or failed generation job."""
+    from tasks.wizard_tasks import retry_job_task
+
+    retry_job_task.delay(job_id=job_id)
+    return {"status": "pending", "job_id": job_id}
+
 
 @router.post("/generation/{job_id}/cancel")
 async def cancel_generation_job(job_id: str):
-    # For now, cancellation logic will just be marked in the DB on JS server side
-    # If we want to revoke the celery task, we can use celery's revoke
+    """Cancel a running generation job via Celery revoke."""
     from core.celery_app import celery_app
+
     celery_app.control.revoke(job_id, terminate=True)
-    return {"status": "cancelled"}
+    return {"status": "cancelled", "job_id": job_id}
+
+
+@router.post("/generation/recover")
+async def trigger_recovery_scan():
+    """Scan and recover orphaned/interrupted generation jobs."""
+    from services.generation.recovery_service import generation_recovery_service
+
+    result = generation_recovery_service.scan_and_recover_incomplete_jobs()
+    return {"status": "success", "result": result}

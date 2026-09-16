@@ -2,7 +2,8 @@
  * GenerationJob.js
  * =================
  * Tracks background AI generation jobs, execution lifecycle,
- * stage progression, retry counts, and resumable state checkpoints.
+ * stage progression, retry counts, and resumable state checkpoints
+ * across all content types (Course, Roadmap, Guide).
  */
 
 const { DataTypes } = require('sequelize');
@@ -27,6 +28,39 @@ const GenerationJob = sequelize.define('GenerationJob', {
     type: DataTypes.STRING(255),
     allowNull: false,
     unique: true,
+  },
+  content_type: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'course',
+    comment: 'course, roadmap, or guide',
+  },
+  generation_version: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1,
+    comment: 'Increments on breaking graph version upgrades to isolate old checkpoints',
+  },
+  graph_version: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: '1.0',
+    comment: 'Semantic version of the underlying LangGraph pipeline',
+  },
+  checkpoint_thread_id: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    comment: 'Stable checkpointer thread ID in MySQLSaver / LanggraphCheckpoints',
+  },
+  provider: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: 'Primary LLM provider used (e.g. groq, huggingface, openai)',
+  },
+  model: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'Primary model name used for generation',
   },
   status: {
     type: DataTypes.ENUM(
@@ -75,6 +109,11 @@ const GenerationJob = sequelize.define('GenerationJob', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  last_error: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Technical message of most recent non-fatal or fatal error',
+  },
   user_message: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -116,6 +155,10 @@ const GenerationJob = sequelize.define('GenerationJob', {
     {
       name: 'idx_gj_status',
       fields: ['status'],
+    },
+    {
+      name: 'idx_gj_content_type',
+      fields: ['content_type'],
     },
   ],
 });
