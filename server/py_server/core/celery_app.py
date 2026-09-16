@@ -10,6 +10,8 @@ celery_app = Celery(
     "wizard_tasks", broker=redis_url, backend=redis_url, include=["tasks.wizard_tasks"]
 )
 
+from kombu import Queue
+
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
@@ -27,4 +29,39 @@ celery_app.conf.update(
     task_acks_late=True,  # Ensure task is only acknowledged after full completion
     task_reject_on_worker_lost=True,  # Re-queue task if worker crashes unexpectedly
     broker_connection_retry_on_startup=True,
+    # Isolated Task Queues & Priority Routing
+    task_default_queue="wizard_course",
+    task_queues=(
+        Queue("wizard_course", routing_key="wizard.course"),
+        Queue("wizard_guide", routing_key="wizard.guide"),
+        Queue("wizard_roadmap", routing_key="wizard.roadmap"),
+        Queue("wizard_retry", routing_key="wizard.retry"),
+        Queue("wizard_recovery", routing_key="wizard.recovery"),
+    ),
+    task_routes={
+        "tasks.wizard_tasks.generate_course_task": {
+            "queue": "wizard_course",
+            "routing_key": "wizard.course",
+        },
+        "tasks.wizard_tasks.run_agentic_workflow_task": {
+            "queue": "wizard_course",
+            "routing_key": "wizard.course",
+        },
+        "tasks.wizard_tasks.generate_roadmap_task": {
+            "queue": "wizard_roadmap",
+            "routing_key": "wizard.roadmap",
+        },
+        "tasks.wizard_tasks.generate_guide_task": {
+            "queue": "wizard_guide",
+            "routing_key": "wizard.guide",
+        },
+        "tasks.wizard_tasks.retry_job_task": {
+            "queue": "wizard_retry",
+            "routing_key": "wizard.retry",
+        },
+        "tasks.wizard_tasks.recover_jobs_task": {
+            "queue": "wizard_recovery",
+            "routing_key": "wizard.recovery",
+        },
+    },
 )
