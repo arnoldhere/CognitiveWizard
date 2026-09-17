@@ -207,11 +207,11 @@ IMPORTANT RULES:
 - Do NOT write any lesson content, explanations, or prose.
 - Identify the appropriate subject domain (e.g., natural_sciences, computer_science, engineering, business_finance, humanities, medicine).
 - Set exercise_paradigm appropriately: "coding" (for IT/software), "analysis" (for natural sciences/geology), "calculation" (for engineering/physics), "case_study" (for business/medicine), "reflection" (for humanities).
-- Each lesson should have 2-4 specific, measurable learning objectives.
+- Each lesson should have 2-3 specific, measurable learning objectives.
 - Lesson titles should be concrete and descriptive.
-- Group logically related lessons into modules (2-5 lessons per module).
-- Group logically related modules into chapters (2-4 modules per chapter).
-- Total chapters: 2-5 depending on course breadth.
+- Group logically related lessons into modules (2-3 lessons per module).
+- Group logically related modules into chapters (2-3 modules per chapter).
+- Total chapters: 2-3 chapters covering the course comprehensively without redundant filler.
 - CRITICAL ROOT JSON FORMAT: The output MUST be a single JSON object starting with "{" and ending with "}". NEVER wrap the entire response in a JSON array [ ... ].
 
 JSON OUTPUT SCHEMA:
@@ -248,12 +248,12 @@ IMPORTANT RULES — READ CAREFULLY:
   Set "domain", "domain_label" (e.g., "Geology & Earth Sciences"), and "exercise_paradigm" in the JSON output.
 - Lesson titles must be concrete and specific (e.g. "Sedimentary Facies and Stratigraphy" or "Supervised vs Unsupervised Learning")
   NOT generic (e.g. "Introduction", "Overview").
-- Each lesson must have 2-4 measurable learning objectives starting with action verbs
+- Each lesson must have 2-3 measurable learning objectives starting with action verbs
   (e.g. "Identify...", "Calculate...", "Analyze...", "Evaluate...").
 - Difficulty progression: early chapters = beginner, later chapters = intermediate/advanced.
-- Group lessons into modules (2-5 lessons per module, related by theme).
-- Group modules into chapters (2-4 modules per chapter, related by learning stage).
-- Total course: 2-5 chapters covering the full topic comprehensively.
+- Group lessons into modules (2-3 lessons per module, related by theme).
+- Group modules into chapters (2-3 modules per chapter, related by learning stage).
+- Total course: 2-3 chapters covering the full topic comprehensively without redundant filler.
 - Do not repeat the same concept in multiple lessons.
 - CRITICAL ROOT JSON FORMAT: The output MUST be a single JSON object starting with "{" and ending with "}". NEVER wrap the entire response in a JSON array [ ... ].
 

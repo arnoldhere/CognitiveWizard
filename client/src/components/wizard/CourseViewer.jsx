@@ -26,7 +26,7 @@ import {
   BookOpen, ChevronDown, ChevronRight, Menu, X,
   CheckCircle2, Circle, Layers, Clock, Loader,
   GraduationCap, PlayCircle, ShieldCheck, CheckCircle,
-  Award, Sparkles, Compass
+  Award, Sparkles, Compass, Target
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LessonReader from "./LessonReader";
@@ -339,30 +339,45 @@ function PublishModal({ content, onClose, onPublished }) {
 }
 
 // ── Course overview card (no lesson selected) ─────────────────────────────────
-function CourseOverview({ content, flatLessons, completedIds, onStartLearning, onOpenPublish, isPendingApproval }) {
+function CourseOverview({ content, flatLessons, completedIds, onStartLearning, onSelectLesson, onOpenPublish, isPendingApproval }) {
   const totalLessons = flatLessons.length;
   const completedCount = completedIds.size;
   const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
 
-  const domainLabel = content?.content?.domain_label || (content?.content?.domain ? content.content.domain.replace(/_/g, " ") : null);
-  const paradigm = content?.content?.exercise_paradigm;
+  const courseTitle = content.title || content.course?.title || content.topic;
+  const courseDescription = content.description || content.course?.description || content.content?.description;
+  const domainLabel = content.domain_label || content.course?.domain_label || content.content?.domain_label || (content.content?.domain ? content.content.domain.replace(/_/g, " ") : null);
+  const paradigm = content.exercise_paradigm || content.course?.exercise_paradigm || content.content?.exercise_paradigm;
+  const targetAudience = content.target_audience || content.course?.target_audience || content.content?.target_audience;
+  const courseOutcomes = content.course_outcomes || content.course?.course_outcomes || content.content?.course_outcomes || [];
+  const prerequisites = content.prerequisites || content.course?.prerequisites || content.content?.prerequisites || [];
+  const chapters = content.chapters || [];
+
   const author = content?.content?.author;
   const authorRole = content?.content?.author_role;
   const publishedAt = content?.content?.published_at;
 
   return (
-    <div className="flex flex-col items-center py-8 text-center">
+    <div className="flex flex-col items-center py-6 text-center">
       {/* Course icon */}
-      <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-200">
-        <GraduationCap size={36} className="text-white" />
+      <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-xl shadow-blue-200">
+        <GraduationCap size={40} className="text-white" />
       </div>
 
-      <h2 className="mb-2 text-2xl font-black text-slate-900 sm:text-3xl max-w-xl">{content.topic}</h2>
+      <h2 className="mb-2 text-2xl font-black text-slate-900 sm:text-3xl max-w-2xl tracking-tight">
+        {courseTitle}
+      </h2>
 
-      {/* Badges: Content Type + Domain + Paradigm */}
-      <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+      {courseDescription && (
+        <p className="mb-4 max-w-2xl text-sm sm:text-base leading-relaxed text-slate-600 font-normal">
+          {courseDescription}
+        </p>
+      )}
+
+      {/* Badges: Content Type + Domain + Paradigm + Target Audience */}
+      <div className="mb-5 flex flex-wrap items-center justify-center gap-2 max-w-2xl">
         <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700">
-          {content.content_type}
+          {content.content_type || "Course"}
         </span>
         {domainLabel && (
           <span className="flex items-center gap-1.5 rounded-full bg-purple-50 border border-purple-200 px-3 py-1 text-xs font-bold text-purple-700 capitalize">
@@ -374,6 +389,12 @@ function CourseOverview({ content, flatLessons, completedIds, onStartLearning, o
           <span className="flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-[11px] font-bold text-amber-700 capitalize">
             <Sparkles size={11} />
             {paradigm.replace(/_/g, " ")} Exercises
+          </span>
+        )}
+        {targetAudience && (
+          <span className="flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+            <Target size={11} />
+            {targetAudience}
           </span>
         )}
       </div>
@@ -421,7 +442,7 @@ function CourseOverview({ content, flatLessons, completedIds, onStartLearning, o
       {/* Stats */}
       <div className="mb-6 flex gap-6 text-sm">
         <div className="text-center">
-          <p className="text-2xl font-black text-slate-900">{content.chapters?.length || 0}</p>
+          <p className="text-2xl font-black text-slate-900">{chapters.length || 0}</p>
           <p className="font-medium text-slate-400">Chapters</p>
         </div>
         <div className="h-full w-px bg-slate-200" />
@@ -454,6 +475,7 @@ function CourseOverview({ content, flatLessons, completedIds, onStartLearning, o
         </div>
       )}
 
+      {/* Primary Action Buttons */}
       <div className="flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={onStartLearning}
@@ -474,6 +496,149 @@ function CourseOverview({ content, flatLessons, completedIds, onStartLearning, o
           </button>
         )}
       </div>
+
+      {/* Course Outcomes Section ("What You Will Learn") */}
+      {Array.isArray(courseOutcomes) && courseOutcomes.length > 0 && (
+        <div className="mt-12 w-full max-w-3xl text-left">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <Sparkles size={16} />
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-slate-900">What You Will Learn</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {courseOutcomes.map((outcome, idx) => (
+              <div key={idx} className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm">
+                <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-slate-700 leading-snug">{outcome}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Prerequisites Section */}
+      {Array.isArray(prerequisites) && prerequisites.length > 0 && (
+        <div className="mt-8 w-full max-w-3xl text-left">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
+              <ShieldCheck size={16} />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">Prerequisites & Prior Knowledge</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {prerequisites.map((prereq, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-1.5 text-xs font-semibold text-amber-900">
+                • {prereq}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Syllabus / Curriculum Roadmap Breakdown */}
+      {chapters.length > 0 && (
+        <div className="mt-12 w-full max-w-3xl text-left">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                <BookOpen size={16} />
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-slate-900">Curriculum & Syllabus</h3>
+            </div>
+            <span className="text-xs font-bold text-slate-400">
+              {chapters.length} Chapters • {totalLessons} Lessons
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {chapters.map((chapter, ci) => (
+              <div key={chapter.id || ci} className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-xs font-black text-blue-700">
+                      {ci + 1}
+                    </span>
+                    <div>
+                      <h4 className="text-sm sm:text-base font-bold text-slate-900">{chapter.title}</h4>
+                      {chapter.description && (
+                        <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{chapter.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  {chapter.estimated_duration && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 shrink-0 bg-slate-100/80 px-2.5 py-1 rounded-lg">
+                      <Clock size={12} />
+                      {chapter.estimated_duration}
+                    </span>
+                  )}
+                </div>
+
+                {/* Modules & Lessons */}
+                <div className="mt-3 space-y-2.5">
+                  {(chapter.modules || []).map((module, mi) => (
+                    <div key={module.id || mi} className="rounded-xl bg-slate-50/70 p-3">
+                      {module.title && module.title !== chapter.title && (
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-xs font-bold text-slate-700">{module.title}</p>
+                          {module.difficulty && (
+                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                              {module.difficulty}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Learning Objectives Preview (if any) */}
+                      {Array.isArray(module.learning_objectives) && module.learning_objectives.length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          {module.learning_objectives.map((obj, oi) => (
+                            <span key={oi} className="inline-block text-[11px] text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200/60">
+                              🎯 {obj}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        {(module.lessons || []).map((lesson, li) => {
+                          const isDone = completedIds.has(lesson.id);
+                          return (
+                            <button
+                              key={lesson.id || li}
+                              onClick={() => onSelectLesson ? onSelectLesson(lesson) : onStartLearning()}
+                              className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition hover:bg-white hover:shadow-xs group"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                {isDone ? (
+                                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                                ) : (
+                                  <Circle size={15} className="text-slate-300 group-hover:text-blue-500 shrink-0" />
+                                )}
+                                <span className={cn(
+                                  "text-xs font-medium truncate",
+                                  isDone ? "text-slate-400 line-through" : "text-slate-700 group-hover:text-blue-600"
+                                )}>
+                                  {lesson.title}
+                                </span>
+                              </div>
+                              {lesson.estimated_time && (
+                                <span className="text-[11px] text-slate-400 shrink-0 flex items-center gap-1 font-medium">
+                                  <Clock size={11} /> {lesson.estimated_time}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -730,6 +895,7 @@ export default function CourseViewer({ content, onContentUpdated }) {
               flatLessons={flatLessons}
               completedIds={completedIds}
               onStartLearning={handleStartLearning}
+              onSelectLesson={handleSelectLesson}
               onOpenPublish={() => setShowPublishModal(true)}
               isPendingApproval={isPendingApproval}
             />

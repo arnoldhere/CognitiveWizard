@@ -212,7 +212,7 @@ TASK_PROFILES: Dict[str, Dict[str, Any]] = {
     # Stage 1: Blueprint Architect — high structural rigor, moderate creativity.
     "course_architect": {
         "temperature": 0.4,
-        "max_new_tokens": 4096,
+        "max_new_tokens": 6144,
         "top_p": 0.9,
         "top_k": 40,
         "preferred_providers": _GLOBAL_ORDER,

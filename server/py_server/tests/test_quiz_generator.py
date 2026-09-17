@@ -59,6 +59,72 @@ class TestExtractJson:
 
         assert success is False
 
+    def test_extract_object_with_nested_arrays(self):
+        """Test that an object containing inner arrays is extracted as the root object, not inner array."""
+        text = """
+        Here is your requested course blueprint:
+        ```json
+        {
+            "title": "Python for Everyone",
+            "course_outcomes": ["Write clean code", "Master Pythonic syntax"],
+            "chapters": [
+                {"title": "Chapter 1", "modules": []}
+            ]
+        }
+        ```
+        Hope you find this helpful!
+        """
+        success, json_str = extract_json(text)
+        assert success is True
+        parsed = json.loads(json_str)
+        assert isinstance(parsed, dict)
+        assert parsed["title"] == "Python for Everyone"
+        assert len(parsed["course_outcomes"]) == 2
+        assert len(parsed["chapters"]) == 1
+
+    def test_extract_object_without_code_fences_containing_array(self):
+        """Test scanner prioritizes root object when no markdown fences exist."""
+        text = 'Pre-text { "title": "Test", "items": ["a", "b"] } Post-text'
+        success, json_str = extract_json(text)
+        assert success is True
+        parsed = json.loads(json_str)
+        assert isinstance(parsed, dict)
+        assert parsed["title"] == "Test"
+        assert parsed["items"] == ["a", "b"]
+
+    def test_truncated_json_repair_recovers_object(self):
+        """Test that a long JSON object cut off by token limit is repaired to valid JSON."""
+        truncated_text = (
+            '{"title": "Python for Beginners", '
+            '"description": "A comprehensive guide to learning Python programming from scratch.", '
+            '"course_outcomes": ["Understand syntax", "Write functions"], '
+            '"chapters": [{"title": "Chapter 1", "description": "Introduction to Python", "modules": ['
+            '{"title": "Module 1", "lessons": [{"title": "Lesson 1", "learning_objectives": ["Syntax'
+        )
+        assert len(truncated_text) >= 100
+        success, json_str = extract_json(truncated_text)
+        assert success is True
+        parsed = json.loads(json_str)
+        assert isinstance(parsed, dict)
+        assert parsed["title"] == "Python for Beginners"
+        assert "course_outcomes" in parsed
+        assert "chapters" in parsed
+
+    def test_truncated_object_does_not_extract_nested_array(self):
+        """Test that if an object is truncated, it NEVER falls back to returning an inner array."""
+        truncated_text = (
+            '{"title": "Advanced AI Engineering with LangChain and Python", '
+            '"description": "Complete production engineering curriculum for building agent systems.", '
+            '"course_outcomes": ["Build agents", "Deploy production LLMs"], '
+            '"chapters": [{"title": "Module 1", "topics": ['
+        )
+        assert len(truncated_text) >= 100
+        success, json_str = extract_json(truncated_text)
+        if success:
+            parsed = json.loads(json_str)
+            assert isinstance(parsed, dict)
+            assert parsed["title"] == "Advanced AI Engineering with LangChain and Python"
+
 
 class TestParseResponse:
     """Test response parsing"""

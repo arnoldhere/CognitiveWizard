@@ -49,6 +49,10 @@ def validate(data, auto_fix: bool = True):
             options = q.get("options", [])
             answer = q.get("answer")
 
+            if auto_fix:
+                question_text = question_text.replace("\\", "").strip()
+                question_text = re.sub(r'^["\']|["\']$', "", question_text).strip()
+
             if not question_text:
                 issues.append(f"Question {q_idx}: Empty question text")
                 continue
@@ -78,6 +82,8 @@ def validate(data, auto_fix: bool = True):
                     opt_str = str(opt).strip()
 
                 opt_str = opt_str.replace("\\", "").strip()
+                if auto_fix:
+                    opt_str = re.sub(r'^["\']|["\']$', "", opt_str).strip()
 
                 if opt_str:
                     cleaned_options.append(opt_str)

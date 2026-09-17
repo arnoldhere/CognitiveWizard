@@ -315,10 +315,37 @@ async function getContent(req, res, next) {
               title: sec.title,
               description: sec.description,
               sequence: 1,
+              difficulty: sec.difficulty,
+              learning_objectives: sec.learning_objectives || [],
+              key_takeaways: sec.key_takeaways || [],
               lessons: sec.lessons || [],
             },
           ],
         }));
+      }
+
+      // Populate rich course metadata on content and json to prevent loss of information
+      if (json.course) {
+        json.title = json.course.title || json.title || json.topic;
+        json.description = json.course.description || json.description || "";
+        json.target_audience = json.course.target_audience || "General Learners";
+        json.course_outcomes = json.course.course_outcomes || [];
+        json.prerequisites = json.course.prerequisites || [];
+        json.domain = json.course.domain || json.content?.domain || "general";
+        json.domain_label = json.course.domain_label || json.content?.domain_label || "General";
+        json.exercise_paradigm = json.course.exercise_paradigm || json.content?.exercise_paradigm || "mixed";
+
+        json.content = {
+          ...(json.content || {}),
+          title: json.title,
+          description: json.description,
+          target_audience: json.target_audience,
+          course_outcomes: json.course_outcomes,
+          prerequisites: json.prerequisites,
+          domain: json.domain,
+          domain_label: json.domain_label,
+          exercise_paradigm: json.exercise_paradigm,
+        };
       }
 
       return res.json(json);
@@ -923,10 +950,28 @@ async function webhookAgenticStatus(req, res, next) {
       if (state_cache) {
         updatedContent.langgraph_state = state_cache;
       }
-      await content.update({
-        status,
+      const VALID_CONTENT_STATUSES = new Set([
+        "draft",
+        "queued",
+        "generating",
+        "pending_approval",
+        "reviewed",
+        "published",
+        "archived",
+        "error",
+      ]);
+
+      const contentUpdate = {
         content: updatedContent,
-      });
+      };
+      if (VALID_CONTENT_STATUSES.has(status)) {
+        contentUpdate.status = status;
+      } else {
+        // Intermediate stages (e.g. generating_blueprint, generating_evidence) keep content status as 'generating'
+        contentUpdate.status = "generating";
+      }
+
+      await content.update(contentUpdate);
     }
 
     if (job_id) {

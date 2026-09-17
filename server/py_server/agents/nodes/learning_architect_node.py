@@ -29,7 +29,7 @@ from providers.llm.provider_errors import AllProvidersFailedError
 from agents.states.course_agent_state import CourseAgentState
 from schemas.course_generation import CourseBlueprintSchema
 from utils.builders.wizard_prompt import build_learning_architect_prompt
-from utils.json_extractor import extract_json, extract_model_response
+from utils.json_extractor import extract_json, extract_model_response, repair_truncated_json
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -157,10 +157,53 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
                     "domain": state.get("domain", "general"),
                     "domain_label": "General",
                     "exercise_paradigm": "mixed",
+                    "target_audience": state.get("target_audience", "General Learners"),
+                    "course_outcomes": state.get("course_outcomes", []),
+                    "prerequisites": state.get("prerequisites", []),
                     "chapters": raw_data,
                 }
             elif len(raw_data) == 1 and isinstance(raw_data[0], dict):
                 raw_data = raw_data[0]
+            elif any(isinstance(x, dict) and ("chapters" in x or "modules" in x) for x in raw_data):
+                dict_elem = next((x for x in raw_data if isinstance(x, dict) and ("chapters" in x or "modules" in x)), None)
+                if dict_elem and "chapters" in dict_elem:
+                    raw_data = dict_elem
+                elif dict_elem and "modules" in dict_elem:
+                    raw_data = {
+                        "title": state.get("topic") or "Course Blueprint",
+                        "description": state.get("details") or f"Comprehensive course on {state.get('topic', 'the subject')}",
+                        "domain": state.get("domain", "general"),
+                        "domain_label": "General",
+                        "exercise_paradigm": "mixed",
+                        "target_audience": state.get("target_audience", "General Learners"),
+                        "chapters": [x for x in raw_data if isinstance(x, dict) and "modules" in x],
+                    }
+            else:
+                # If a list of non-chapter objects was extracted, attempt to recover root dict from response_text
+                logger.warning("[Architect|%s] Extracted list does not contain chapters. Searching response_text for root object...", job_id)
+                start_brace = response_text.find('{')
+                last_brace = response_text.rfind('}')
+                if start_brace != -1:
+                    recovered = False
+                    if last_brace > start_brace:
+                        try:
+                            candidate_dict = json.loads(response_text[start_brace:last_brace + 1])
+                            if isinstance(candidate_dict, dict) and "chapters" in candidate_dict:
+                                raw_data = candidate_dict
+                                recovered = True
+                                logger.info("[Architect|%s] Recovered root blueprint dictionary from response_text", job_id)
+                        except Exception:
+                            pass
+                    if not recovered:
+                        ok, repaired_str = repair_truncated_json(response_text[start_brace:])
+                        if ok:
+                            try:
+                                candidate_dict = json.loads(repaired_str)
+                                if isinstance(candidate_dict, dict) and "chapters" in candidate_dict:
+                                    raw_data = candidate_dict
+                                    logger.info("[Architect|%s] Recovered root blueprint dictionary via repair_truncated_json", job_id)
+                            except Exception:
+                                pass
 
         # Validate against Pydantic schema — catch malformed output early
         try:
@@ -187,6 +230,9 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
                     "domain": raw_data.get("domain", "general"),
                     "domain_label": raw_data.get("domain_label", "General"),
                     "exercise_paradigm": raw_data.get("exercise_paradigm", "mixed"),
+                    "target_audience": raw_data.get("target_audience") or state.get("target_audience") or "General Learners",
+                    "course_outcomes": raw_data.get("course_outcomes") or [],
+                    "prerequisites": raw_data.get("prerequisites") or [],
                     "chapters": raw_data.get("chapters") or [],
                 }
             elif isinstance(raw_data, list):
@@ -196,6 +242,9 @@ async def learning_architect_node(state: CourseAgentState) -> Dict[str, Any]:
                     "domain": "general",
                     "domain_label": "General",
                     "exercise_paradigm": "mixed",
+                    "target_audience": state.get("target_audience") or "General Learners",
+                    "course_outcomes": state.get("course_outcomes") or [],
+                    "prerequisites": state.get("prerequisites") or [],
                     "chapters": [x for x in raw_data if isinstance(x, dict)],
                 }
             else:

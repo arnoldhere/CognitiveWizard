@@ -42,7 +42,7 @@ class Provider:
                     model=self.model_name or settings.GROQ_DEF_MODEL,
                     temperature=self.temperature,
                     api_key=settings.GROQ_API_KEY,
-                    max_tokens=min(self.max_new_tokens, 4096),
+                    max_tokens=min(self.max_new_tokens, 8192),
                     max_retries=2,
                 )
             case "openai":
