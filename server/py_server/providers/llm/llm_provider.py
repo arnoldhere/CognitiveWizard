@@ -23,7 +23,7 @@ class Provider:
         self.hf_task = hf_task
         self.top_p = top_p
         self.top_k = top_k
-        self.hf_provider = settings.HF_PROVIDER
+        self.hf_provider = settings.HF_PROVIDER or None
 
         # Explicitly set HF_TOKEN in the environment so that huggingface_hub's
         # internal HfApi() routing calls can have the authorization to inspect gated models.
@@ -39,7 +39,10 @@ class Provider:
                 from langchain_groq import ChatGroq
 
                 return ChatGroq(
-                    model=self.model_name or settings.GROQ_DEF_MODEL or settings.DEF_LLM_MODEL or "llama-3.3-70b-versatile",
+                    model=self.model_name
+                    or settings.GROQ_DEF_MODEL
+                    or settings.DEF_LLM_MODEL
+                    or "llama-3.3-70b-versatile",
                     temperature=self.temperature,
                     api_key=settings.GROQ_API_KEY,
                     max_tokens=min(self.max_new_tokens, 8192),
@@ -49,7 +52,10 @@ class Provider:
                 from langchain_openai import ChatOpenAI
 
                 return ChatOpenAI(
-                    model=self.model_name or settings.OPENAI_DEF_MODEL or settings.DEF_LLM_MODEL or "gpt-4o-mini",
+                    model=self.model_name
+                    or settings.OPENAI_DEF_MODEL
+                    or settings.DEF_LLM_MODEL
+                    or "gpt-4o-mini",
                     temperature=self.temperature,
                     api_key=settings.OPENAI_API_KEY,
                     max_tokens=self.max_new_tokens,  # NOTE: OpenAI uses max_tokens
@@ -60,7 +66,10 @@ class Provider:
                 from langchain_anthropic import ChatAnthropic
 
                 return ChatAnthropic(
-                    model=self.model_name or settings.ANTHROPIC_DEF_MODEL or settings.DEF_LLM_MODEL or "claude-3-5-sonnet-20241022",
+                    model=self.model_name
+                    or settings.ANTHROPIC_DEF_MODEL
+                    or settings.DEF_LLM_MODEL
+                    or "claude-3-5-sonnet-20241022",
                     temperature=self.temperature,
                     api_key=settings.ANTHROPIC_API_KEY,
                     max_tokens=self.max_new_tokens,
@@ -71,7 +80,11 @@ class Provider:
 
                 # Route conversational tasks directly through HF's chat endpoint
                 # This ensures all chat-style tasks use a chat-compatible model client.
-                hf_model = self.model_name or settings.HF_DEF_MODEL or "meta-llama/Llama-3.1-8B-Instruct"
+                hf_model = (
+                    self.model_name
+                    or settings.HF_DEF_MODEL
+                    or "meta-llama/Llama-3.1-8B-Instruct"
+                )
                 if self.hf_task == "conversational" or use_chat:
                     model_id = self._clean_model(hf_model)
                     # Build optional sampling kwargs — only pass if set
@@ -102,7 +115,11 @@ class Provider:
                 return endpoint
 
             case "inference":
-                hf_model = self.model_name or settings.HF_DEF_MODEL or "meta-llama/Llama-3.1-8B-Instruct"
+                hf_model = (
+                    self.model_name
+                    or settings.HF_DEF_MODEL
+                    or "meta-llama/Llama-3.1-8B-Instruct"
+                )
                 model = self._clean_model(hf_model)
                 token = self.hf_token
                 endpoint = HuggingFaceEndpoint(
