@@ -16,8 +16,8 @@ class Provider:
         top_p: Optional[float] = None,
         top_k: Optional[int] = None,
     ):
-        self.provider = provider.lower()
-        self.model_name = model_name or settings.DEF_LLM_MODEL
+        self.provider = provider.strip().lower()
+        self.model_name = model_name
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
         self.hf_task = hf_task
@@ -28,7 +28,7 @@ class Provider:
         # Explicitly set HF_TOKEN in the environment so that huggingface_hub's
         # internal HfApi() routing calls can have the authorization to inspect gated models.
         self.hf_token = settings.HF_API_KEY or settings.HUGGINGFACEHUB_API_TOKEN
-        if self.hf_token:
+        if self.hf_token and isinstance(self.hf_token, str):
             os.environ["HF_TOKEN"] = self.hf_token
             os.environ["HUGGINGFACEHUB_API_TOKEN"] = self.hf_token
 
@@ -39,7 +39,7 @@ class Provider:
                 from langchain_groq import ChatGroq
 
                 return ChatGroq(
-                    model=self.model_name or settings.GROQ_DEF_MODEL,
+                    model=self.model_name or settings.GROQ_DEF_MODEL or settings.DEF_LLM_MODEL or "llama-3.3-70b-versatile",
                     temperature=self.temperature,
                     api_key=settings.GROQ_API_KEY,
                     max_tokens=min(self.max_new_tokens, 8192),
@@ -49,7 +49,7 @@ class Provider:
                 from langchain_openai import ChatOpenAI
 
                 return ChatOpenAI(
-                    model=self.model_name or settings.OPENAI_DEF_MODEL,
+                    model=self.model_name or settings.OPENAI_DEF_MODEL or settings.DEF_LLM_MODEL or "gpt-4o-mini",
                     temperature=self.temperature,
                     api_key=settings.OPENAI_API_KEY,
                     max_tokens=self.max_new_tokens,  # NOTE: OpenAI uses max_tokens
@@ -60,7 +60,7 @@ class Provider:
                 from langchain_anthropic import ChatAnthropic
 
                 return ChatAnthropic(
-                    model=self.model_name or settings.ANTHROPIC_DEF_MODEL,
+                    model=self.model_name or settings.ANTHROPIC_DEF_MODEL or settings.DEF_LLM_MODEL or "claude-3-5-sonnet-20241022",
                     temperature=self.temperature,
                     api_key=settings.ANTHROPIC_API_KEY,
                     max_tokens=self.max_new_tokens,
@@ -71,10 +71,9 @@ class Provider:
 
                 # Route conversational tasks directly through HF's chat endpoint
                 # This ensures all chat-style tasks use a chat-compatible model client.
+                hf_model = self.model_name or settings.HF_DEF_MODEL or "meta-llama/Llama-3.1-8B-Instruct"
                 if self.hf_task == "conversational" or use_chat:
-                    model_id = self._clean_model(
-                        self.model_name or settings.HF_DEF_MODEL
-                    )
+                    model_id = self._clean_model(hf_model)
                     # Build optional sampling kwargs — only pass if set
                     sampling_kwargs = {}
                     if self.top_p is not None:
@@ -93,7 +92,7 @@ class Provider:
 
                 # Fallback for standard text-generation endpoints when chat is not required.
                 endpoint = HuggingFaceEndpoint(
-                    repo_id=self.model_name or settings.HF_DEF_MODEL,
+                    repo_id=self._clean_model(hf_model),
                     temperature=self.temperature,
                     huggingfacehub_api_token=self.hf_token,
                     task=self.hf_task or "text-generation",
@@ -103,7 +102,8 @@ class Provider:
                 return endpoint
 
             case "inference":
-                model = self._clean_model(self.model_name or settings.HF_DEF_MODEL)
+                hf_model = self.model_name or settings.HF_DEF_MODEL or "meta-llama/Llama-3.1-8B-Instruct"
+                model = self._clean_model(hf_model)
                 token = self.hf_token
                 endpoint = HuggingFaceEndpoint(
                     repo_id=model,

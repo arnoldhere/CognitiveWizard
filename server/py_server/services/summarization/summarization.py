@@ -152,7 +152,7 @@ def _generate_summary_with_client(
     model_mode: Optional[str] = None,
 ) -> Tuple[str, Dict[str, int]]:
     """
-    Generate summary using the HuggingFace LangChain endpoint.
+    Generate summary using the configured LLM LangChain client.
     """
 
     model_mode = model_mode or DEFAULT_MODEL_MODE
@@ -173,7 +173,7 @@ def _generate_summary_with_client(
         )
 
         if not response or not getattr(response, "generations", None):
-            raise ValueError("Empty response from HuggingFace LangChain client")
+            raise ValueError("Empty response from LLM client")
 
         content = response.generations[0][0].text.strip()
 
